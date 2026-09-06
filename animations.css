@@ -1,0 +1,101 @@
+/* ============================================================
+   D.A.B.S.y — animations.css
+   Keyframes for boot, idle micro-behaviour, transitions
+   ============================================================ */
+
+/* ---------- BOOT: blurred glow -> soft focus -> sharp -> settle ---------- */
+#boot-veil{
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 999;
+  pointer-events: none;
+  animation: boot-fade 1.7s var(--ease-soft) forwards;
+}
+@keyframes boot-fade{
+  0%{ opacity: 1; }
+  55%{ opacity: 1; }
+  100%{ opacity: 0; visibility: hidden; }
+}
+
+.booting #face{
+  filter: blur(18px);
+  opacity: 0;
+  transform: scale(0.9);
+  animation: wake-up 1.6s var(--ease-out) forwards;
+  animation-delay: 0.25s;
+}
+@keyframes wake-up{
+  0%{ filter: blur(18px); opacity: 0; transform: scale(0.9); }
+  55%{ filter: blur(4px); opacity: 1; transform: scale(1.02); }
+  80%{ filter: blur(0px); transform: scale(0.99); }
+  100%{ filter: blur(0px); opacity: 1; transform: scale(1); }
+}
+
+/* ---------- idle breathing (very subtle) ---------- */
+@keyframes breathe{
+  0%, 100%{ transform: translateY(0); }
+  50%{ transform: translateY(-2px); }
+}
+#face.idle-breathe{ animation: breathe 4.8s ease-in-out infinite; }
+
+/* ---------- glow pulse (ambient) ---------- */
+@keyframes glow-pulse{
+  0%, 100%{ opacity: 0.65; }
+  50%{ opacity: 0.85; }
+}
+.eye-glow.ambient{ animation: glow-pulse 3.6s ease-in-out infinite; }
+
+/* ---------- mic pulse ---------- */
+@keyframes mic-pulse{
+  0%, 100%{ box-shadow: 0 0 0 0 rgba(143,216,255,0.35); }
+  50%{ box-shadow: 0 0 0 8px rgba(143,216,255,0); }
+}
+
+/* ---------- talk beat (speaking rhythm) ---------- */
+@keyframes talk-beat{
+  0%, 100%{ transform: scaleY(1); }
+  50%{ transform: scaleY(1.06); }
+}
+.eye.talking .eye-shape{ animation: talk-beat 260ms ease-in-out infinite; }
+
+/* ---------- touch ripple ---------- */
+@keyframes ripple{
+  0%{ box-shadow: 0 0 0 0 rgba(255,255,255,0.45); }
+  100%{ box-shadow: 0 0 0 22px rgba(255,255,255,0); }
+}
+
+/* ---------- recoil (surprise) ---------- */
+@keyframes recoil{
+  0%{ transform: scale(1); }
+  30%{ transform: scale(1.14); }
+  60%{ transform: scale(0.97); }
+  100%{ transform: scale(1); }
+}
+.eye.recoil{ animation: recoil 420ms var(--ease-spring); }
+
+/* ---------- tiny look shift (curiosity/idle) ---------- */
+@keyframes micro-look{
+  0%{ transform: translate(0,0); }
+  100%{ transform: translate(var(--lx,0), var(--ly,0)); }
+}
+.eye.micro-look{ animation: micro-look 900ms var(--ease-soft) forwards; }
+
+/* ---------- world open/close ---------- */
+@keyframes world-in{
+  0%{ opacity: 0; }
+  100%{ opacity: 1; }
+}
+@keyframes sheet-in{
+  0%{ opacity: 0; transform: translateY(3%) scale(0.97); filter: blur(6px); }
+  100%{ opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+#world.open #world-backdrop{ animation: world-in var(--dur-med) var(--ease-soft) forwards; }
+#world.open #world-sheet{ animation: sheet-in var(--dur-med) var(--ease-spring) forwards; }
+
+/* ---------- projection surface ---------- */
+@keyframes proj-in{
+  0%{ opacity: 0; transform: scale(0.96); filter: blur(8px); }
+  100%{ opacity: 1; transform: scale(1); filter: blur(0); }
+}
+#projection.open #projection-surface{ animation: proj-in var(--dur-med) var(--ease-out) forwards; }

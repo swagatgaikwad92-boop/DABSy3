@@ -1,0 +1,181 @@
+/* ============================================================
+   D.A.B.S.y — face.css
+   Eye anatomy + expression system (state driven, not just transforms)
+   ============================================================ */
+
+#face{
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 6vw, 46px);
+  transition: transform var(--dur-med) var(--ease-spring), gap var(--dur-med) var(--ease-spring);
+  will-change: transform;
+}
+
+/* -------- EYE -------- */
+.eye{
+  position: relative;
+  width: clamp(64px, 17vw, 108px);
+  height: clamp(84px, 22vw, 142px);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.eye-glow{
+  position: absolute;
+  inset: -46%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(143,216,255,0.30), rgba(143,216,255,0.10) 45%, transparent 72%);
+  filter: blur(14px);
+  opacity: 0.7;
+  transition: opacity var(--dur-med) var(--ease-soft), background var(--dur-med) var(--ease-soft);
+  pointer-events: none;
+}
+
+.eye-shape{
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-eye);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.9), rgba(200,230,255,0.75) 55%, rgba(150,200,255,0.55));
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08) inset,
+    0 8px 30px rgba(80,160,220,0.18),
+    0 0 40px rgba(143,216,255,0.10);
+  overflow: hidden;
+  transform-origin: center;
+  transition: border-radius var(--dur-med) var(--ease-spring),
+              transform var(--dur-fast) var(--ease-spring),
+              background var(--dur-med) var(--ease-soft),
+              height var(--dur-fast) var(--ease-spring);
+}
+
+.eye-core{
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 90% at 50% 30%, rgba(255,255,255,0.55), transparent 60%);
+  mix-blend-mode: screen;
+}
+
+.eye-highlight{
+  position: absolute;
+  width: 26%;
+  height: 16%;
+  top: 18%;
+  left: 22%;
+  background: rgba(255,255,255,0.9);
+  border-radius: 50%;
+  filter: blur(1px);
+  opacity: 0.9;
+}
+
+/* the lid: a dark cap that slides down over the eye-shape to blink/close */
+.eye-lid{
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: -10%;
+  height: 0%;
+  background: var(--bg);
+  border-radius: var(--radius-eye) var(--radius-eye) 0 0;
+  transition: height var(--dur-fast) var(--ease-soft);
+  pointer-events: none;
+}
+
+/* blink: driven by a transient class toggled by face-engine */
+.eye.blinking .eye-lid{ height: 112%; transition-duration: 90ms; }
+
+/* -------- BOW TIE (utility gateway) -------- */
+#bowtie{
+  position: absolute;
+  left: 50%;
+  bottom: clamp(-46px, -8vw, -34px);
+  transform: translateX(-50%) scale(1);
+  width: 46px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.85;
+  transition: transform var(--dur-fast) var(--ease-spring), opacity var(--dur-fast);
+}
+#bowtie:active{ transform: translateX(-50%) scale(0.9); }
+.bt-wing{
+  width: 16px; height: 16px;
+  background: linear-gradient(135deg, var(--accent-2), rgba(183,155,255,0.5));
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  border-radius: 3px;
+}
+.bt-left{ transform: scaleX(1); }
+.bt-right{ transform: scaleX(-1); }
+.bt-knot{
+  width: 8px; height: 8px;
+  border-radius: 3px;
+  background: var(--accent-2);
+  margin: 0 -1px;
+}
+
+/* ================= EXPRESSION STATES ================= */
+/* applied as a class on #face: exp-neutral, exp-curious, exp-happy, ... */
+
+/* NEUTRAL / IDLE */
+.exp-neutral .eye-shape{ height: 100%; }
+
+/* CURIOUS — one eye slightly larger, faint lean via gap */
+.exp-curious .eye-shape{ height: 104%; }
+.exp-curious .eye-glow{ opacity: 0.85; }
+
+/* HAPPY — eyes compress into soft upward arcs */
+.exp-happy .eye-shape{ height: 62%; border-radius: 50px 50px 40px 40px; transform: translateY(6%); }
+.exp-happy .eye-glow{ background: radial-gradient(closest-side, rgba(255,211,154,0.30), transparent 70%); }
+
+/* EXCITED — brighter + slightly larger + faster micro-motion (handled in JS) */
+.exp-excited .eye-shape{ height: 108%; }
+.exp-excited .eye-glow{ opacity: 1; filter: blur(18px); }
+
+/* CONFUSED — uneven eye heights */
+.exp-confused #eye-left .eye-shape{ height: 88%; transform: translateY(4%) rotate(-3deg); }
+.exp-confused #eye-right .eye-shape{ height: 100%; transform: translateY(-2%) rotate(2deg); }
+
+/* THINKING — eyes narrow slightly, glow shifts violet */
+.exp-thinking .eye-shape{ height: 82%; }
+.exp-thinking .eye-glow{ background: radial-gradient(closest-side, rgba(183,155,255,0.30), transparent 70%); }
+
+/* FOCUSED — narrower, more vertical, glow tightens */
+.exp-focused .eye-shape{ height: 90%; border-radius: 22px; }
+.exp-focused .eye-glow{ inset: -30%; filter: blur(10px); }
+
+/* SLEEPY — mostly closed, slow */
+.exp-sleepy .eye-shape{ height: 22%; transform: translateY(30%); }
+.exp-sleepy .eye-glow{ opacity: 0.35; }
+
+/* SURPRISED — sudden widen */
+.exp-surprised .eye-shape{ height: 118%; }
+.exp-surprised .eye-glow{ opacity: 1; }
+
+/* CONCERNED — inner corners pull up slightly (tilt) */
+.exp-concerned #eye-left .eye-shape{ transform: rotate(4deg); }
+.exp-concerned #eye-right .eye-shape{ transform: rotate(-4deg); }
+
+/* PROUD — brief upward brighten, similar to happy but sharper */
+.exp-proud .eye-shape{ height: 70%; border-radius: 44px 44px 30px 30px; }
+.exp-proud .eye-glow{ background: radial-gradient(closest-side, rgba(255,211,154,0.35), transparent 70%); opacity: 1; }
+
+/* PLAYFUL — asymmetric wink-ish */
+.exp-playful #eye-left .eye-shape{ height: 40%; }
+.exp-playful #eye-right .eye-shape{ height: 100%; }
+
+/* LISTENING — steady, slightly wider glow, gentle pulse via JS class "pulse" */
+.exp-listening .eye-glow{ opacity: 0.9; }
+
+/* SPEAKING — rhythmic brightness handled by JS toggling .talk-beat */
+.exp-speaking .eye-glow.talk-beat{ opacity: 1; filter: blur(20px); }
+
+/* touch reaction ripple */
+.eye .touch-ripple{
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-eye);
+  box-shadow: 0 0 0 0 rgba(255,255,255,0.5);
+  animation: ripple 480ms var(--ease-out);
+  pointer-events: none;
+}

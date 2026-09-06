@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>D.A.B.S.y</title>
+<meta name="theme-color" content="#05060a" />
+<meta name="description" content="D.A.B.S.y — your personal AI desk & study companion." />
+<link rel="manifest" href="./manifest.json" />
+<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<link rel="icon" href="./icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+<link rel="stylesheet" href="./core.css" />
+<link rel="stylesheet" href="./face.css" />
+<link rel="stylesheet" href="./animations.css" />
+<link rel="stylesheet" href="./panels.css" />
+<link rel="stylesheet" href="./bubbles.css" />
+<link rel="stylesheet" href="./projection.css" />
+</head>
+<body>
+
+  <!-- ================= BOOT / ATMOSPHERE ================= -->
+  <div id="boot-veil"></div>
+
+  <!-- ================= STAGE (default home: only the eyes) ================= -->
+  <main id="stage" aria-label="D.A.B.S.y">
+    <div id="atmosphere"></div>
+
+    <div id="face" role="button" aria-label="D.A.B.S.y">
+      <div class="eye" id="eye-left">
+        <div class="eye-glow"></div>
+        <div class="eye-shape">
+          <div class="eye-core"></div>
+          <div class="eye-highlight"></div>
+        </div>
+        <div class="eye-lid"></div>
+      </div>
+      <div class="eye" id="eye-right">
+        <div class="eye-glow"></div>
+        <div class="eye-shape">
+          <div class="eye-core"></div>
+          <div class="eye-highlight"></div>
+        </div>
+        <div class="eye-lid"></div>
+      </div>
+
+      <div id="bowtie" role="button" aria-label="D.A.B.S.y menu">
+        <div class="bt-wing bt-left"></div>
+        <div class="bt-knot"></div>
+        <div class="bt-wing bt-right"></div>
+      </div>
+    </div>
+
+    <!-- subtitle strip (speech / thoughts), independent of any panel -->
+    <div id="subtitle" aria-live="polite"></div>
+
+    <!-- minimal input dock: mic + text fallback, appears only on tap -->
+    <div id="input-dock">
+      <button id="mic-btn" aria-label="Talk to D.A.B.S.y">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+      </button>
+      <input id="text-input" type="text" placeholder="Ask D.A.B.S.y…" autocomplete="off" />
+    </div>
+  </main>
+
+  <!-- ================= QUICK BUBBLES (double-tap eyes) ================= -->
+  <div id="quick-bubbles" aria-hidden="true">
+    <div id="quick-bubbles-backdrop"></div>
+  </div>
+
+  <!-- ================= FULL MENU (double-tap bow tie) ================= -->
+  <section id="world" aria-hidden="true">
+    <div id="world-backdrop"></div>
+    <div id="world-sheet">
+      <nav id="world-tabs">
+        <button data-tab="schedule" class="active">Schedule</button>
+        <button data-tab="study">Study</button>
+        <button data-tab="utility">Utility</button>
+        <button data-tab="play">Play</button>
+        <button data-tab="room">Room</button>
+        <button data-tab="memory">Memory</button>
+        <button data-tab="settings">Settings</button>
+      </nav>
+
+      <div class="world-panel active" data-panel="schedule">
+        <h2>Today</h2>
+        <div id="schedule-body"></div>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <input id="manual-task-title" placeholder="Task name…" style="flex:1; background:var(--glass-strong); border:1px solid var(--glass-border); border-radius:12px; padding:10px; color:var(--ink); outline:none;" />
+          <input id="manual-task-time" type="time" style="background:var(--glass-strong); border:1px solid var(--glass-border); border-radius:12px; padding:10px; color:var(--ink); outline:none;" />
+          <button class="util-btn" id="manual-task-add">Add</button>
+        </div>
+        <p class="hint">Or just tell D.A.B.S.y out loud — "I have chemistry revision at 5:45."</p>
+      </div>
+
+      <div class="world-panel" data-panel="study">
+        <h2>Study Mode</h2>
+        <div id="study-launcher">
+          <textarea id="study-question" placeholder="Paste a question, or describe a topic to study…"></textarea>
+          <button id="study-start">Start studying</button>
+        </div>
+      </div>
+
+      <div class="world-panel" data-panel="utility">
+        <h2>Utility</h2>
+        <div id="utility-grid">
+          <button class="util-btn" data-util="timer">⏰ Timer</button>
+          <button class="util-btn" data-util="tasks">📝 Tasks</button>
+          <button class="util-btn" data-util="reminders">🔔 Reminders</button>
+        </div>
+        <div id="utility-body"></div>
+      </div>
+
+      <div class="world-panel" data-panel="play">
+        <h2>Play</h2>
+        <div id="play-grid">
+          <button class="util-btn" data-game="reaction">Reaction test</button>
+          <button class="util-btn" data-game="guess">Guess the number</button>
+          <button class="util-btn" data-game="focus">Follow the eye</button>
+        </div>
+        <div id="play-body"></div>
+      </div>
+
+      <div class="world-panel" data-panel="room">
+        <h2>D.A.B.S.y's Room</h2>
+        <div id="room-grid"></div>
+      </div>
+
+      <div class="world-panel" data-panel="memory">
+        <h2>Memory</h2>
+        <div id="memory-body"></div>
+      </div>
+
+      <div class="world-panel" data-panel="settings">
+        <h2>Settings</h2>
+        <div id="settings-body">
+          <label>Gemini API Key
+            <input id="gemini-key" type="password" placeholder="Paste your key" />
+          </label>
+          <label>Voice
+            <select id="voice-select"></select>
+          </label>
+          <label class="row"><input type="checkbox" id="sound-toggle" checked /> Sound effects</label>
+          <button id="save-settings">Save</button>
+          <button id="install-app-btn" class="util-btn" style="display:none;">📲 Install D.A.B.S.y</button>
+          <p class="hint">Your key stays on this device only — it's never sent anywhere except directly to Google's API.</p>
+        </div>
+      </div>
+
+      <div id="world-corner-buttons">
+        <button id="world-settings-shortcut" aria-label="Settings">⚙️</button>
+        <button id="world-close" aria-label="Close menu">✕</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= STUDY PROJECTION (face shrinks to corner) ================= -->
+  <section id="projection" aria-hidden="true">
+    <div id="projection-surface">
+      <div id="projection-content"></div>
+      <div id="projection-pointer">▲</div>
+      <button id="projection-close">Done</button>
+    </div>
+  </section>
+
+  <script src="./emotion-engine.js"></script>
+  <script src="./memory-engine.js"></script>
+  <script src="./schedule-engine.js"></script>
+  <script src="./face-engine.js"></script>
+  <script src="./interaction-engine.js"></script>
+  <script src="./voice-engine.js"></script>
+  <script src="./vision-engine.js"></script>
+  <script src="./ai-engine.js"></script>
+  <script src="./pet-engine.js"></script>
+  <script src="./projection-engine.js"></script>
+  <script src="./quickbubbles-engine.js"></script>
+  <script src="./study-engine.js"></script>
+  <script src="./utility-engine.js"></script>
+  <script src="./entertainment-engine.js"></script>
+  <script src="./pwa-engine.js"></script>
+  <script src="./app.js"></script>
+  <script src="./boot.js"></script>
+</body>
+</html>

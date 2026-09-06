@@ -1,0 +1,81 @@
+/* ============================================================
+   D.A.B.S.y — projection.css
+   Study Mode: face shrinks to a corner, explanation projects
+   ============================================================ */
+
+#projection{
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: none;
+}
+#projection.open{ display: block; }
+
+/* face shrink dock: face-engine.js moves #face here via a CSS class on body */
+body.study-active #face{
+  transform: scale(0.42) translate(calc(-38vw), calc(-38vh));
+}
+body.study-active #atmosphere{ opacity: 0.4; }
+body.study-active #input-dock, body.study-active #subtitle{ display: none; }
+
+#projection-surface{
+  position: absolute; /* also the positioning context for #projection-pointer */
+  right: 4%;
+  left: 4%;
+  bottom: 6%;
+  top: 16%;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-panel);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.55);
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#projection-content{
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  font-size: 0.98rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+#projection-content h3{ font-size: 1rem; margin: 0 0 6px; color: var(--accent); }
+#projection-content .step{
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--glass-strong);
+  border-radius: 14px;
+  border-left: 3px solid var(--accent-2);
+}
+#projection-content .step.highlight{ border-left-color: var(--accent-warm); background: rgba(255,211,154,0.08); }
+
+#projection-close{
+  align-self: center;
+  padding: 10px 22px;
+  border-radius: 999px;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  font-weight: 600;
+}
+
+/* ---------- reading pointer: DABSy's tiny finger, follows spoken words ---------- */
+#projection-pointer{
+  position: absolute;
+  top: 0; left: 0;
+  font-size: 1.1rem;
+  color: var(--accent-warm);
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(255,211,154,0.6));
+  transition: transform 160ms var(--ease-out), opacity 200ms var(--ease-soft);
+  z-index: 5;
+}
+
+#projection-content .word{ transition: color 120ms, opacity 120ms; opacity: 0.72; }
+#projection-content .word.active{ color: var(--accent-warm); opacity: 1; font-weight: 600; }
+

@@ -1,0 +1,58 @@
+/* ============================================================
+   D.A.B.S.y — bubbles.css
+   The lightweight quick-action menu opened by double-tapping the
+   eyes. Four bubbles only, arranged in a soft arc/spiral above the
+   face — deliberately smaller and lighter than the full World menu
+   opened by the bow tie.
+   ============================================================ */
+
+#quick-bubbles{
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  display: none;
+  pointer-events: none;
+}
+#quick-bubbles.open{ display: block; pointer-events: auto; }
+
+#quick-bubbles-backdrop{
+  position: absolute;
+  inset: 0;
+  background: rgba(4,5,9,0.55);
+  backdrop-filter: blur(3px);
+  opacity: 0;
+  transition: opacity var(--dur-med) var(--ease-soft);
+}
+#quick-bubbles.open #quick-bubbles-backdrop{ opacity: 1; }
+
+.qb-bubble{
+  position: absolute;
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: var(--ink-dim);
+  text-align: center;
+  padding: 6px;
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+  transition: opacity var(--dur-med) var(--ease-spring), transform var(--dur-med) var(--ease-spring);
+}
+.qb-bubble .qb-icon{ font-size: 1.3rem; line-height: 1; }
+
+#quick-bubbles.open .qb-bubble{ opacity: 1; }
+/* positions form a gentle arc above the face; set per-bubble via inline
+   --tx/--ty custom properties from JS, computed relative to face center */
+#quick-bubbles.open .qb-bubble{ transform: translate(-50%, -50%) translate(var(--tx,0), var(--ty,0)) scale(1); }
+
+.qb-bubble:active{ transform: translate(-50%, -50%) translate(var(--tx,0), var(--ty,0)) scale(0.92); }

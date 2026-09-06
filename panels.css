@@ -1,0 +1,177 @@
+/* ============================================================
+   D.A.B.S.y — panels.css
+   Expanded world (double-tap) — glass surfaces, not a dashboard
+   ============================================================ */
+
+#world{
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: none;
+  pointer-events: none;
+}
+#world.open{ display: block; pointer-events: auto; }
+
+#world-backdrop{
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(120% 100% at 50% 0%, rgba(20,26,40,0.9), rgba(4,5,9,0.98));
+  backdrop-filter: blur(2px);
+}
+
+#world-sheet{
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  bottom: 4%;
+  transform: translateX(-50%);
+  width: min(560px, 92vw);
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-panel);
+  backdrop-filter: blur(26px) saturate(140%);
+  -webkit-backdrop-filter: blur(26px) saturate(140%);
+  box-shadow: 0 30px 80px rgba(0,0,0,0.5);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+}
+
+#world-tabs{
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  padding-right: 104px; /* room for the corner button group */
+}
+#world-tabs button{
+  padding: 8px 14px;
+  border-radius: 999px;
+  color: var(--ink-dim);
+  white-space: nowrap;
+  font-size: 0.86rem;
+  transition: background var(--dur-fast), color var(--dur-fast);
+}
+#world-tabs button.active{
+  background: var(--glass-strong);
+  color: var(--ink);
+}
+
+.world-panel{
+  display: none;
+  flex: 1;
+  overflow-y: auto;
+  animation: sheet-in var(--dur-med) var(--ease-soft);
+}
+.world-panel.active{ display: flex; flex-direction: column; gap: 14px; }
+.world-panel h2{
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 4px 0 0;
+  letter-spacing: 0.2px;
+}
+
+#room-grid, #play-body, #memory-body{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.util-btn, #play-grid button{
+  padding: 12px 14px;
+  border-radius: var(--radius-btn);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  text-align: left;
+  font-size: 0.92rem;
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
+}
+.util-btn:active, #play-grid button:active{ transform: scale(0.97); }
+
+#utility-grid, #play-grid{ display: flex; flex-direction: column; gap: 8px; }
+#utility-body, #play-body{ display: flex; flex-direction: column; gap: 10px; }
+
+#study-launcher{ display: flex; flex-direction: column; gap: 10px; }
+#study-question{
+  min-height: 96px;
+  resize: none;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-btn);
+  padding: 12px;
+  color: var(--ink);
+  outline: none;
+}
+#study-start{
+  padding: 12px;
+  border-radius: var(--radius-btn);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #05060a;
+  font-weight: 600;
+  text-align: center;
+}
+
+#settings-body{ display: flex; flex-direction: column; gap: 14px; }
+#settings-body label{ display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; color: var(--ink-dim); }
+#settings-body label.row{ flex-direction: row; align-items: center; gap: 8px; }
+#settings-body input[type="text"], #settings-body input[type="password"], #settings-body select{
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  color: var(--ink);
+  outline: none;
+}
+#save-settings{
+  padding: 12px;
+  border-radius: var(--radius-btn);
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  font-weight: 600;
+}
+
+#world-corner-buttons{
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+#world-corner-buttons button{
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--glass-strong);
+  border: 1px solid var(--glass-border);
+  color: var(--ink);
+  font-size: 1.15rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.35);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+#world-corner-buttons button:active{ transform: scale(0.9); }
+
+.task-row, .mem-row{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--glass-strong);
+  border-radius: 14px;
+  font-size: 0.88rem;
+}
+.task-row button, .mem-row button{ color: var(--accent-danger); font-size: 0.8rem; }
+
+#timer-display{
+  font-size: 2.4rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  padding: 10px 0;
+}

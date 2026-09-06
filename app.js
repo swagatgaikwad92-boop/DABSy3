@@ -153,7 +153,7 @@
   }
 
   bus.on("dabsy:say", ({text})=>{
-    showSubtitle(text, Math.min(9000, 2600 + text.length*40));
+    showSubtitle(text, Math.min(18000, 3000 + text.length*70));
     voice.speak(text);
   });
 

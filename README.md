@@ -27,6 +27,37 @@ versions in this bundle — same filenames, new content. Two files are brand
 new: `schedule-engine.js` and `quickbubbles-engine.js`, plus a new stylesheet
 `bubbles.css`.
 
+## v6 — Study Block drag-to-merge, dismiss-by-triple-tap, menu cleanup
+
+- **Study Block is now a physical object, not a button.** The 📖 lives
+  beside the chatbox as its own draggable glass blob (`study-blob-engine.js`,
+  new). Drag it into the chatbox (or just tap it) and it liquid-diffuses
+  into the glass — an orange radial-gradient spreads from the exact point
+  of contact, the chatbox settles into a steady orange-tinted state, and a
+  small docked icon appears inside the chatbox so you can drag it back OUT
+  (or tap it) to deactivate. Real pointer-based drag physics: magnetic pull
+  once you're close to the chatbox, a slight stretch while dragging, spring
+  back to home if you let go without merging. Respects
+  `prefers-reduced-motion`.
+- While Study Block is active, anything you ask goes straight to the
+  existing shrink-to-corner study flow instead of general chat/schedule
+  parsing — same mechanism as before, just triggered by the blob instead
+  of a toggle button.
+- **Fixed: DABSy's spoken replies and the chatbox itself used to vanish on
+  a fixed timer regardless of whether you were still reading or typing.**
+  Replies now stay up until you triple-tap the subtitle text to dismiss it
+  — deliberate, not timed. The chatbox no longer auto-hides while the text
+  field is focused or has unsent text in it.
+- The Study tab has been removed from the bow-tie menu (Schedule / Utility
+  / Play / Room / Memory / Settings remain) since Study Mode is triggered
+  from the chatbox now. The tab bar also got `-webkit-overflow-scrolling`
+  and `touch-action: pan-x` for more reliable horizontal scrolling on
+  mobile — though the ⚙️ Settings shortcut from the previous round already
+  bypasses the tab bar entirely, so Settings shouldn't depend on scrolling
+  at all anymore.
+
+
+
 ## v4 — Behavior Director + Attention System
 
 The architecture change from the roadmap discussion: previously, several
@@ -105,6 +136,7 @@ of each writing their own version.
 | `schedule-engine.js` | Recurring rules + one-off events + conflict detection |
 | `context-engine.js` | Attention system: user/DABSy state, isQuiet() |
 | `director-engine.js` | Behavior Director: single arbitration point for every reaction |
+| `study-blob-engine.js` | Drag-to-merge physics for the Study Block blob |
 | `face-engine.js` | Expressions, blinking, look-at, boot wake-up sequence |
 | `interaction-engine.js` | Tap/double-tap/long-press on face and bow tie |
 | `voice-engine.js` | Speech recognition + synthesis + word-boundary tracking |

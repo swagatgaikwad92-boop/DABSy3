@@ -13,8 +13,6 @@
   const projectionContent = document.getElementById("projection-content");
   const projectionSurface = document.getElementById("projection-surface");
   const pointer = document.getElementById("projection-pointer");
-  const studyQuestion = document.getElementById("study-question");
-  const studyStart = document.getElementById("study-start");
 
   let cancelled = false;
 
@@ -117,11 +115,6 @@
     voice.stopSpeaking();
     pointer.style.opacity = "0";
   }
-
-  studyStart.addEventListener("click", ()=>{
-    startStudy(studyQuestion.value);
-    studyQuestion.value = "";
-  });
 
   bus.on("study:launch", ({topic})=>startStudy(topic));
   bus.on("projection:close", stopStudy);

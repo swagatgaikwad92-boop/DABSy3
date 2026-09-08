@@ -14,41 +14,55 @@
   const ai = window.DABSy.ai;
 
   const subtitle = document.getElementById("subtitle");
+  const chatArea = document.getElementById("chat-area");
   const inputDock = document.getElementById("input-dock");
   const micBtn = document.getElementById("mic-btn");
   const textInput = document.getElementById("text-input");
-  const studyBlockBtn = document.getElementById("study-block-btn");
 
-  let studyBlockActive = false;
-  studyBlockBtn.addEventListener("click", ()=>{
-    studyBlockActive = !studyBlockActive;
-    studyBlockBtn.classList.toggle("active", studyBlockActive);
-    inputDock.classList.toggle("study-active", studyBlockActive);
-    showDock();
-    window.DABSy.director.dispatch("DABSY_REPLY", {
-      speakText: studyBlockActive
-        ? "Study Block on — ask me anything and I'll walk you through it."
-        : "Study Block off.",
-    });
-  });
-
-  /* ---------- subtitle helper ---------- */
-  let subtitleTimer = null;
-  function showSubtitle(text, holdMs=4200){
+  /* ---------- subtitle helper ----------
+     No auto-dismiss timer — DABSy's spoken/answer text used to vanish on a
+     fixed timer regardless of whether you were still reading it. Now it
+     stays up until you explicitly triple-tap it away, which gives you
+     actual control over the pace instead of racing a clock. */
+  let subtitleTapCount = 0;
+  let subtitleTapTimer = null;
+  function showSubtitle(text){
     subtitle.textContent = text;
     subtitle.classList.add("visible");
-    clearTimeout(subtitleTimer);
-    subtitleTimer = setTimeout(()=>subtitle.classList.remove("visible"), holdMs);
   }
+  function hideSubtitle(){
+    subtitle.classList.remove("visible");
+  }
+  subtitle.addEventListener("pointerdown", ()=>{
+    subtitleTapCount++;
+    clearTimeout(subtitleTapTimer);
+    subtitleTapTimer = setTimeout(()=>{ subtitleTapCount = 0; }, 600);
+    if(subtitleTapCount >= 3){
+      subtitleTapCount = 0;
+      hideSubtitle();
+    }
+  });
 
-  /* ---------- input dock reveal on tap, hides after idle ---------- */
+  /* ---------- chat area reveal on tap ----------
+     Used to auto-hide after a fixed 9s regardless of what you were doing,
+     which meant it could vanish mid-type. Now the countdown only runs
+     while you're NOT actively using the text field. */
   let dockHideTimer = null;
-  function showDock(focus=false){
-    inputDock.classList.add("visible");
+  function armDockHideTimer(){
     clearTimeout(dockHideTimer);
-    dockHideTimer = setTimeout(()=>inputDock.classList.remove("visible"), 9000);
+    dockHideTimer = setTimeout(()=>{
+      if(document.activeElement === textInput || textInput.value.trim()) return; // still in use — don't hide
+      chatArea.classList.remove("visible");
+    }, 9000);
+  }
+  function showDock(focus=false){
+    chatArea.classList.add("visible");
+    armDockHideTimer();
     if(focus) setTimeout(()=>textInput.focus(), 320);
   }
+  textInput.addEventListener("input", armDockHideTimer);
+  textInput.addEventListener("focus", ()=>clearTimeout(dockHideTimer));
+  textInput.addEventListener("blur", armDockHideTimer);
   bus.on("face:tap", ({count})=>{ if(count===1) showDock(); });
   bus.on("quickbubbles:focus-input", ()=>showDock(true));
 
@@ -60,9 +74,12 @@
   bus.on("voice:listening:start", ()=>{
     micBtn.classList.add("live");
     emotion.setState("LISTENING");
-    showSubtitle("Listening…", 6000);
+    showSubtitle("Listening…");
   });
-  bus.on("voice:listening:end", ()=>micBtn.classList.remove("live"));
+  bus.on("voice:listening:end", ()=>{
+    micBtn.classList.remove("live");
+    if(subtitle.textContent === "Listening…") hideSubtitle(); // transient status, not content — clears itself
+  });
   bus.on("voice:unsupported", ()=>showSubtitle("Speech recognition isn't supported here — try typing instead."));
   bus.on("voice:error", ({error})=>{
     const messages = {
@@ -89,7 +106,7 @@
 
   async function handleUserUtterance(text){
     showDock();
-    showSubtitle(text, 2600);
+    showSubtitle(text);
     memory.addSession("user", text);
     window.DABSy.director.dispatch("AI_THINKING");
 
@@ -106,7 +123,7 @@
       return;
     }
 
-    if(studyBlockActive){
+    if(window.DABSy.studyBlock.isActive){
       memory.addHistory({ type:"chat", user: text, reply: "(routed to Study Block)" });
       window.DABSy.study.startStudy(text); // shrinks the face to the corner, gives the answer room, reading pointer follows along
       return;
@@ -172,7 +189,7 @@
   }
 
   bus.on("dabsy:say", ({text})=>{
-    showSubtitle(text, Math.min(18000, 3000 + text.length*70));
+    showSubtitle(text);
     voice.speak(text);
   });
 

@@ -102,14 +102,27 @@ textarea, input, select{
   pointer-events: none;
   transition: opacity var(--dur-med) var(--ease-soft), transform var(--dur-med) var(--ease-soft);
 }
-#subtitle.visible{ opacity: 1; transform: translateX(-50%) translateY(0); }
+#subtitle.visible{ opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; cursor: pointer; }
 
-/* input dock */
-#input-dock{
+/* ---------- chat area: chatbox + the free-floating study blob, side by side ---------- */
+#chat-area{
   position: absolute;
   left: 50%;
   bottom: 6%;
-  transform: translateX(-50%) translateY(14px) scale(0.96);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-med) var(--ease-spring);
+}
+#chat-area.visible{ opacity: 1; pointer-events: auto; }
+
+#input-dock{
+  --merge-x: 90%;
+  --merge-y: 50%;
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -119,15 +132,12 @@ textarea, input, select{
   -webkit-backdrop-filter: blur(18px);
   padding: 8px 10px;
   border-radius: 999px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-med) var(--ease-spring), transform var(--dur-med) var(--ease-spring);
+  transform: translateY(14px) scale(0.96);
+  transition: transform var(--dur-med) var(--ease-spring), background 550ms var(--ease-soft), border-color 550ms var(--ease-soft);
+  overflow: hidden;
 }
-#input-dock.visible{
-  opacity: 1;
-  transform: translateX(-50%) translateY(0) scale(1);
-  pointer-events: auto;
-}
+#chat-area.visible #input-dock{ transform: translateY(0) scale(1); }
+
 #mic-btn{
   width: 40px; height: 40px;
   border-radius: 50%;
@@ -144,34 +154,79 @@ textarea, input, select{
   background: none;
   border: none;
   outline: none;
-  width: min(46vw, 260px);
+  width: min(42vw, 230px);
   color: var(--ink);
 }
 #text-input::placeholder{ color: var(--ink-faint); }
 
-/* ---------- Study Block toggle ---------- */
-#study-block-btn{
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255,255,255,0.08);
-  color: var(--ink-dim);
-  font-size: 1.05rem;
-  flex-shrink: 0;
-  transition: background var(--dur-fast) var(--ease-soft), color var(--dur-fast), box-shadow var(--dur-med), transform var(--dur-fast) var(--ease-spring);
-}
-#study-block-btn:active{ transform: scale(0.9); }
-#study-block-btn.active{
-  background: linear-gradient(135deg, #ff9a56, #ff6a3d);
-  color: #2a1000;
-  box-shadow: 0 0 18px rgba(255,122,61,0.55);
-}
-
-/* the whole chatbox shifts to an orange gradient while Study Block is on */
+/* the chatbox once Study Block has merged in — steady state after the diffusion animation finishes */
 #input-dock.study-active{
   background: linear-gradient(135deg, rgba(255,154,86,0.30), rgba(255,90,50,0.22));
   border-color: rgba(255,154,86,0.55);
   box-shadow: 0 0 26px rgba(255,122,61,0.25);
+}
+
+/* ---------- the free-floating Study Block blob (outside the chatbox) ---------- */
+#study-blob{
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem;
+  background: radial-gradient(circle at 35% 30%, rgba(255,200,150,0.9), rgba(255,122,61,0.55) 70%);
+  border: 1px solid rgba(255,154,86,0.5);
+  box-shadow: 0 0 16px rgba(255,122,61,0.35);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  transition: transform 520ms var(--ease-spring), opacity 420ms var(--ease-soft);
+}
+#study-blob.dragging{ transition: none; cursor: grabbing; }
+#study-blob.consumed{ opacity: 0; transform: scale(0.2); pointer-events: none; }
+
+/* ---------- the docked icon inside the chatbox, once merged ---------- */
+#study-blob-docked{
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+  background: rgba(255,255,255,0.14);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  opacity: 0;
+  transform: scale(0);
+  transition: transform 420ms var(--ease-spring), opacity 320ms var(--ease-soft);
+}
+#study-blob-docked.dragging{ transition: none; cursor: grabbing; }
+#study-blob-docked.visible{ opacity: 1; transform: scale(1); }
+
+/* ---------- liquid diffusion: orange spreads from the merge/split point ---------- */
+#input-dock.diffusing-in::before,
+#input-dock.diffusing-out::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(circle at var(--merge-x) var(--merge-y), rgba(255,140,70,0.85), rgba(255,90,50,0.35) 55%, transparent 78%);
+  pointer-events: none;
+}
+#input-dock.diffusing-in::before{ animation: diffuse-in 650ms var(--ease-out) forwards; }
+#input-dock.diffusing-out::before{ animation: diffuse-out 650ms var(--ease-soft) forwards; }
+
+@keyframes diffuse-in{
+  0%{ opacity: 0; clip-path: circle(0% at var(--merge-x) var(--merge-y)); }
+  100%{ opacity: 1; clip-path: circle(140% at var(--merge-x) var(--merge-y)); }
+}
+@keyframes diffuse-out{
+  0%{ opacity: 1; clip-path: circle(140% at var(--merge-x) var(--merge-y)); }
+  100%{ opacity: 0; clip-path: circle(0% at var(--merge-x) var(--merge-y)); }
+}
+
+@media (prefers-reduced-motion: reduce){
+  #study-blob, #study-blob-docked, #input-dock{ transition-duration: 80ms !important; }
+  #input-dock.diffusing-in::before, #input-dock.diffusing-out::before{ animation-duration: 1ms !important; }
 }
 
 .hint{ font-size: 0.78rem; color: var(--ink-faint); line-height: 1.4; }

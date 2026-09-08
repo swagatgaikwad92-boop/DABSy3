@@ -56,13 +56,16 @@
     <!-- subtitle strip (speech / thoughts), independent of any panel -->
     <div id="subtitle" aria-live="polite"></div>
 
-    <!-- minimal input dock: mic + text fallback, appears only on tap -->
-    <div id="input-dock">
-      <button id="mic-btn" aria-label="Talk to D.A.B.S.y">
-        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
-      </button>
-      <input id="text-input" type="text" placeholder="Ask D.A.B.S.y…" autocomplete="off" />
-      <button id="study-block-btn" aria-label="Toggle Study Block">📘</button>
+    <!-- chat area: the glass chatbox + the draggable Study Block blob, side by side -->
+    <div id="chat-area">
+      <div id="input-dock">
+        <button id="mic-btn" aria-label="Talk to D.A.B.S.y">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
+        </button>
+        <input id="text-input" type="text" placeholder="Ask D.A.B.S.y…" autocomplete="off" />
+        <div id="study-blob-docked" aria-label="Drag out to end Study Mode">📖</div>
+      </div>
+      <div id="study-blob" aria-label="Drag into the chat to start Study Mode">📖</div>
     </div>
   </main>
 
@@ -77,7 +80,6 @@
     <div id="world-sheet">
       <nav id="world-tabs">
         <button data-tab="schedule" class="active">Schedule</button>
-        <button data-tab="study">Study</button>
         <button data-tab="utility">Utility</button>
         <button data-tab="play">Play</button>
         <button data-tab="room">Room</button>
@@ -94,14 +96,6 @@
           <button class="util-btn" id="manual-task-add">Add</button>
         </div>
         <p class="hint">Or just tell D.A.B.S.y out loud — "I have chemistry revision at 5:45."</p>
-      </div>
-
-      <div class="world-panel" data-panel="study">
-        <h2>Study Mode</h2>
-        <div id="study-launcher">
-          <textarea id="study-question" placeholder="Paste a question, or describe a topic to study…"></textarea>
-          <button id="study-start">Start studying</button>
-        </div>
       </div>
 
       <div class="world-panel" data-panel="utility">
@@ -179,6 +173,7 @@
   <script src="./pet-engine.js"></script>
   <script src="./projection-engine.js"></script>
   <script src="./quickbubbles-engine.js"></script>
+  <script src="./study-blob-engine.js"></script>
   <script src="./study-engine.js"></script>
   <script src="./utility-engine.js"></script>
   <script src="./entertainment-engine.js"></script>

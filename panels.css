@@ -43,6 +43,8 @@
   display: flex;
   gap: 6px;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   padding-bottom: 4px;
   padding-right: 104px; /* room for the corner button group */
 }
@@ -92,26 +94,6 @@
 
 #utility-grid, #play-grid{ display: flex; flex-direction: column; gap: 8px; }
 #utility-body, #play-body{ display: flex; flex-direction: column; gap: 10px; }
-
-#study-launcher{ display: flex; flex-direction: column; gap: 10px; }
-#study-question{
-  min-height: 96px;
-  resize: none;
-  background: var(--glass-strong);
-  border: 1px solid var(--glass-border);
-  border-radius: var(--radius-btn);
-  padding: 12px;
-  color: var(--ink);
-  outline: none;
-}
-#study-start{
-  padding: 12px;
-  border-radius: var(--radius-btn);
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  color: #05060a;
-  font-weight: 600;
-  text-align: center;
-}
 
 #settings-body{ display: flex; flex-direction: column; gap: 14px; }
 #settings-body label{ display: flex; flex-direction: column; gap: 6px; font-size: 0.86rem; color: var(--ink-dim); }

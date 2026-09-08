@@ -27,7 +27,44 @@ versions in this bundle — same filenames, new content. Two files are brand
 new: `schedule-engine.js` and `quickbubbles-engine.js`, plus a new stylesheet
 `bubbles.css`.
 
-## What's new in this build
+## v4 — Behavior Director + Attention System
+
+The architecture change from the roadmap discussion: previously, several
+engines (`pet-engine.js`, `app.js`, `quickbubbles-engine.js`,
+`projection-engine.js`, `utility-engine.js`) each called
+`emotion.setState()` / `emotion.flashExpression()` / `bus.emit("dabsy:say")`
+directly and independently. Two of those could fire within milliseconds of
+each other with no arbitration — whichever ran last silently won. That's
+now fixed.
+
+- **`context-engine.js`** (new) — the attention system. Tracks
+  `userState` (`INTERACTING` / `STUDYING` / `READING` / `IDLE`) and
+  `dabsyState` (`SPEAKING` / `IDLE`), purely by observing existing bus
+  events. Exposes `isQuiet()` — true while the user is studying or reading,
+  the signal every ambient reaction checks before interrupting.
+- **`director-engine.js`** (new) — the Behavior Director. Every reactive
+  event (petting, task completed, AI responded, schedule conflict, timer
+  finished, idle personality beat, etc.) now goes through
+  `window.DABSy.director.dispatch(intent, payload)` instead of engines
+  touching the face/voice directly. The Director: runs a real multi-step
+  transition (`emotion.transition()`, new helper in `emotion-engine.js`)
+  instead of an instant expression swap, checks `context.isQuiet()` before
+  letting a suppressible reaction speak, and holds a simple busy-lock so a
+  low-priority ambient beat can't collide with something important like an
+  AI response or a schedule conflict question.
+- Structural UI-mode changes (entering/leaving Study Mode, mic listening
+  state) still set emotion state directly, since those aren't reactions —
+  they're the mode itself. The Director is specifically for discrete
+  reactive events layered on top of whatever mode you're in.
+
+Two files that previously duplicated the same "petting" reaction
+(`quickbubbles-engine.js`'s pet bubble, and `pet-engine.js`'s drag-across-
+the-face detector) now both dispatch the same `USER_PETTED` intent instead
+of each writing their own version.
+
+## What's new in v2/v3 (butler build)
+
+
 
 - **Boot**: DABSy starts with eyes closed ("asleep"), opens them, glances
   left/right once, settles, goes happy, then greets you out loud — mentioning
@@ -63,9 +100,11 @@ new: `schedule-engine.js` and `quickbubbles-engine.js`, plus a new stylesheet
 
 | File | Job |
 |---|---|
-| `emotion-engine.js` | State machine + mood + event bus |
+| `emotion-engine.js` | State machine + mood + event bus + transition() helper |
 | `memory-engine.js` | Session/preferences/history/tasks/reminders/settings |
 | `schedule-engine.js` | Recurring rules + one-off events + conflict detection |
+| `context-engine.js` | Attention system: user/DABSy state, isQuiet() |
+| `director-engine.js` | Behavior Director: single arbitration point for every reaction |
 | `face-engine.js` | Expressions, blinking, look-at, boot wake-up sequence |
 | `interaction-engine.js` | Tap/double-tap/long-press on face and bow tie |
 | `voice-engine.js` | Speech recognition + synthesis + word-boundary tracking |

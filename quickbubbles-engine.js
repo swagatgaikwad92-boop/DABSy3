@@ -55,7 +55,7 @@
     build();
     position();
     container.classList.add("open");
-    emotion.flashExpression("curious", 600);
+    window.DABSy.director.dispatch("USER_DOUBLETAPPED");
   }
   function close(){
     container.classList.remove("open");
@@ -74,17 +74,16 @@
       const text = next
         ? `Next up: ${next.title} at ${next.start.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"})}.`
         : "Nothing else on your schedule for today.";
-      bus.emit("dabsy:say", { text });
+      window.DABSy.director.dispatch("DABSY_REPLY", { speakText: text });
     }
     if(action === "note"){
       bus.emit("quickbubbles:focus-input");
     }
     if(action === "pet"){
+      // same intent as dragging a finger across the face — one reaction, two triggers
       emotion.nudge("affection", 0.08);
       emotion.nudge("happiness", 0.06);
-      emotion.flashExpression("happy", 1300);
-      const lines = ["That's nice.", "Mm, more of that.", "I appreciate you.", "Feeling good today."];
-      bus.emit("dabsy:say", { text: lines[Math.floor(Math.random()*lines.length)] });
+      window.DABSy.director.dispatch("USER_PETTED");
     }
     if(action === "play"){
       bus.emit("world:open", { tab: "play" });

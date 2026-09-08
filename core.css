@@ -149,6 +149,31 @@ textarea, input, select{
 }
 #text-input::placeholder{ color: var(--ink-faint); }
 
+/* ---------- Study Block toggle ---------- */
+#study-block-btn{
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,0.08);
+  color: var(--ink-dim);
+  font-size: 1.05rem;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-soft), color var(--dur-fast), box-shadow var(--dur-med), transform var(--dur-fast) var(--ease-spring);
+}
+#study-block-btn:active{ transform: scale(0.9); }
+#study-block-btn.active{
+  background: linear-gradient(135deg, #ff9a56, #ff6a3d);
+  color: #2a1000;
+  box-shadow: 0 0 18px rgba(255,122,61,0.55);
+}
+
+/* the whole chatbox shifts to an orange gradient while Study Block is on */
+#input-dock.study-active{
+  background: linear-gradient(135deg, rgba(255,154,86,0.30), rgba(255,90,50,0.22));
+  border-color: rgba(255,154,86,0.55);
+  box-shadow: 0 0 26px rgba(255,122,61,0.25);
+}
+
 .hint{ font-size: 0.78rem; color: var(--ink-faint); line-height: 1.4; }
 
 ::-webkit-scrollbar{ width: 0; height: 0; }

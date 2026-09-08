@@ -85,6 +85,22 @@
     applyExpression(name, holdMs);
   }
 
+  /* ---------- real transitions: a queued chain of expression steps ---------- */
+  // Used by the Behavior Director so states change THROUGH intermediate
+  // beats (IDLE -> curious -> happy) instead of teleporting. Chained on a
+  // promise so concurrent callers queue rather than fight over the face.
+  let transitionChain = Promise.resolve();
+  function transition(steps){
+    transitionChain = transitionChain.then(()=> runSteps(steps || []));
+    return transitionChain;
+  }
+  function runSteps(steps){
+    return steps.reduce((p, step)=> p.then(()=> new Promise(resolve=>{
+      applyExpression(step.expr, null);
+      setTimeout(resolve, step.holdMs || 0);
+    })), Promise.resolve());
+  }
+
   /* ---------- idle drift: mood slowly relaxes toward baseline ---------- */
   const BASELINE = { happiness:0.55, curiosity:0.4, energy:0.55, attention:0.3, confidence:0.55, boredom:0.15, focus:0.2, affection:0.4, sleepiness:0.15 };
   setInterval(()=>{
@@ -97,5 +113,5 @@
 
   window.DABSy = window.DABSy || {};
   window.DABSy.bus = { on, off, emit };
-  window.DABSy.emotion = { setState, getState, getPrevious, mood, nudge, flashExpression, STATES };
+  window.DABSy.emotion = { setState, getState, getPrevious, mood, nudge, flashExpression, transition, STATES };
 })();

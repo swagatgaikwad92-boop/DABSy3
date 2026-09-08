@@ -33,7 +33,7 @@
         display.textContent = fmt(Math.max(0,timerSeconds));
         if(timerSeconds <= 0){
           clearInterval(timerInterval);
-          bus.emit("dabsy:say", { text: "Time's up." });
+          window.DABSy.director.dispatch("TIMER_FINISHED");
           bus.emit("face:recoil");
         }
       }, 1000);
@@ -60,7 +60,12 @@
       row.innerHTML = `<span style="text-decoration:${t.done?'line-through':'none'}; opacity:${t.done?0.5:1}">${escapeHtml(t.text)}</span>`;
       const actions = document.createElement("div");
       const doneBtn = document.createElement("button"); doneBtn.textContent = t.done ? "Undo" : "Done";
-      doneBtn.onclick = ()=>{ memory.toggleTask(t.id); renderTasks(); };
+      doneBtn.onclick = ()=>{
+        const wasDone = t.done;
+        memory.toggleTask(t.id);
+        if(!wasDone) window.DABSy.director.dispatch("TASK_COMPLETED");
+        renderTasks();
+      };
       const delBtn = document.createElement("button"); delBtn.textContent = "✕"; delBtn.style.marginLeft="8px";
       delBtn.onclick = ()=>{ memory.removeTask(t.id); renderTasks(); };
       actions.appendChild(doneBtn); actions.appendChild(delBtn);

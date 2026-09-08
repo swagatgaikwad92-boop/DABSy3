@@ -27,7 +27,7 @@
     window.DABSy.quickbubbles?.close();
     world.classList.add("open");
     world.setAttribute("aria-hidden","false");
-    emotion.flashExpression("curious", 500);
+    window.DABSy.director.dispatch("USER_DOUBLETAPPED");
     selectTab(tab || "schedule");
     bus.emit("world:opened", { tab: tab || "schedule" });
   }

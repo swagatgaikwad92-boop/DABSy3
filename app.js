@@ -17,6 +17,20 @@
   const inputDock = document.getElementById("input-dock");
   const micBtn = document.getElementById("mic-btn");
   const textInput = document.getElementById("text-input");
+  const studyBlockBtn = document.getElementById("study-block-btn");
+
+  let studyBlockActive = false;
+  studyBlockBtn.addEventListener("click", ()=>{
+    studyBlockActive = !studyBlockActive;
+    studyBlockBtn.classList.toggle("active", studyBlockActive);
+    inputDock.classList.toggle("study-active", studyBlockActive);
+    showDock();
+    window.DABSy.director.dispatch("DABSY_REPLY", {
+      speakText: studyBlockActive
+        ? "Study Block on — ask me anything and I'll walk you through it."
+        : "Study Block off.",
+    });
+  });
 
   /* ---------- subtitle helper ---------- */
   let subtitleTimer = null;
@@ -77,7 +91,7 @@
     showDock();
     showSubtitle(text, 2600);
     memory.addSession("user", text);
-    emotion.setState("THINKING");
+    window.DABSy.director.dispatch("AI_THINKING");
 
     if(pendingConflict){
       const res = await ai.resolveConflictIntent(text, pendingConflict.candidate, pendingConflict.conflict);
@@ -89,6 +103,12 @@
       pendingConflict = null;
       say(res.reply, res.state);
       refreshScheduleIfOpen();
+      return;
+    }
+
+    if(studyBlockActive){
+      memory.addHistory({ type:"chat", user: text, reply: "(routed to Study Block)" });
+      window.DABSy.study.startStudy(text); // shrinks the face to the corner, gives the answer room, reading pointer follows along
       return;
     }
 
@@ -131,7 +151,7 @@
       const candidate = { title: s.title || "your task", start, durationMin };
       pendingConflict = { candidate, conflict };
       const q = await ai.askConflictQuestion(candidate, conflict);
-      say(q.reply, q.state);
+      window.DABSy.director.dispatch("SCHEDULE_CONFLICT", { speakText: q.reply, finalState: q.state });
       return;
     }
 
@@ -148,8 +168,7 @@
   }
 
   function say(text, state){
-    if(state) emotion.setState(state);
-    bus.emit("dabsy:say", { text });
+    window.DABSy.director.dispatch("DABSY_REPLY", { speakText: text, finalState: state || null });
   }
 
   bus.on("dabsy:say", ({text})=>{
@@ -158,10 +177,9 @@
   });
 
   bus.on("face:overtapped", ()=>{
-    emotion.flashExpression("playful", 1400);
-    bus.emit("dabsy:say", { text: "Okay okay, I'm awake!" });
+    window.DABSy.director.dispatch("USER_OVERTAPPED");
   });
-  bus.on("face:longpress", ()=>emotion.flashExpression("curious", 900));
+  bus.on("face:longpress", ()=>window.DABSy.director.dispatch("USER_LONGPRESS"));
 
   /* ---------- Schedule panel ---------- */
   function renderSchedule(){
@@ -206,7 +224,7 @@
     const start = new Date(); start.setHours(h,m,0,0);
     const conflict = schedule.findConflict(start, 30);
     if(conflict){
-      say(`Heads up — that overlaps with "${conflict.title}". Adding it anyway; you can remove either from the list.`, "CONFUSED");
+      say(`Heads up — that overlaps with "${conflict.title}". Adding it anyway; you can remove either from the list.`, "IDLE");
     }
     schedule.addOneOff({ title: titleEl.value.trim(), startISO: start.toISOString(), durationMin: 30 });
     titleEl.value = ""; timeEl.value = "";
@@ -242,7 +260,7 @@
       voiceURI: voiceSelect.value,
       sound: soundToggle.checked,
     });
-    bus.emit("dabsy:say", { text: "Settings saved." });
+    window.DABSy.director.dispatch("DABSY_REPLY", { speakText: "Settings saved." });
   });
 
   /* ---------- Install button (only appears once Chrome says it's eligible) ---------- */

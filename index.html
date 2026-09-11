@@ -139,6 +139,17 @@
           </label>
           <label class="row"><input type="checkbox" id="sound-toggle" checked /> Sound effects</label>
           <button id="save-settings">Save</button>
+
+          <h2 style="margin-top:18px;">Connections</h2>
+          <label class="row"><input type="checkbox" id="conn-calendar-enabled" /> 🌿 Ghibli Calendar</label>
+          <label>Calendar permission
+            <select id="conn-calendar-level">
+              <option value="read">Read only — I can see your events</option>
+              <option value="suggest">Suggest — I'll ask before changing anything</option>
+              <option value="automatic">Automatic — I can add/move/cancel freely</option>
+            </select>
+          </label>
+          <p class="hint">Off by default. Turning this on lets D.A.B.S.y read and (depending on the level above) write events in Ghibli Calendar — nothing leaves this device.</p>
           <button id="install-app-btn" class="util-btn" style="display:none;">📲 Install D.A.B.S.y</button>
           <p class="hint">Your key stays on this device only — it's never sent anywhere except directly to Google's API.</p>
         </div>
@@ -160,6 +171,7 @@
     </div>
   </section>
 
+  <script src="./dabsy-core.js"></script>
   <script src="./emotion-engine.js"></script>
   <script src="./memory-engine.js"></script>
   <script src="./schedule-engine.js"></script>

@@ -12,6 +12,7 @@
   const schedule = window.DABSy.schedule;
   const voice = window.DABSy.voice;
   const ai = window.DABSy.ai;
+  const DABSyCore = window.DABSyCore;
 
   const subtitle = document.getElementById("subtitle");
   const chatArea = document.getElementById("chat-area");
@@ -101,8 +102,27 @@
   });
   bus.on("voice:heard", ({text})=>handleUserUtterance(text));
 
-  /* ---------- pending schedule conflict (waits for the NEXT utterance) ---------- */
-  let pendingConflict = null; // { candidate:{title,start,durationMin}, conflict }
+  /* ---------- pending schedule conflict (waits for the NEXT utterance) ----------
+     pendingConflict.core is set when the conflict was found against the shared
+     DABSy Core calendar (Calendar connected) rather than DABSy's own private
+     recurring/oneoff store — that flag decides which resolver runs below. */
+  let pendingConflict = null; // { candidate:{title,start,durationMin}, conflict, core? }
+
+  /* ---------- pending "want me to add this?" confirmation (Suggest permission level) ---------- */
+  let pendingCalendarConfirm = null; // { title, dateKey, startTime, endTime }
+
+  /* ---------- small date/time helpers shared with the Core calendar path ---------- */
+  function dateTimeFromKey(dateKey, h, m){
+    const d = new Date(dateKey + "T00:00:00");
+    d.setHours(h, m, 0, 0);
+    return d;
+  }
+  function toHM(t){ const [h,m] = (t||"00:00").split(":").map(Number); return [h,m]; }
+  function hmString(totalMinutes){
+    const wrapped = ((totalMinutes % 1440) + 1440) % 1440;
+    const h = Math.floor(wrapped/60), m = wrapped%60;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+  }
 
   async function handleUserUtterance(text){
     showDock();
@@ -110,13 +130,32 @@
     memory.addSession("user", text);
     window.DABSy.director.dispatch("AI_THINKING");
 
+    if(pendingCalendarConfirm){
+      const yes = /\b(yes|yeah|yep|sure|do it|go ahead|please do|okay|ok|correct)\b/i.test(text);
+      const no = /\b(no|nah|nope|don't|do not|cancel|never ?mind|stop)\b/i.test(text);
+      if(yes){
+        const c = pendingCalendarConfirm; pendingCalendarConfirm = null;
+        DABSyCore.createCalendarEvent({ title:c.title, date:c.dateKey, startTime:c.startTime, endTime:c.endTime, category:"study", source:"dabsy" });
+        say("Done — added to your calendar.", "HAPPY");
+        refreshScheduleIfOpen();
+        return;
+      }
+      if(no){
+        pendingCalendarConfirm = null;
+        say("No problem, I won't add it.", "IDLE");
+        return;
+      }
+      pendingCalendarConfirm = null; // don't trap the user in a forced yes/no loop — fall through to normal parsing
+    }
+
     if(pendingConflict){
       const res = await ai.resolveConflictIntent(text, pendingConflict.candidate, pendingConflict.conflict);
       if(res.action === "unclear"){
         say(res.reply, res.state);
         return; // keep waiting on the same pending conflict
       }
-      schedule.resolveConflict(res.action, pendingConflict.conflict, pendingConflict.candidate);
+      if(pendingConflict.core) resolveCoreConflict(res.action, pendingConflict.core);
+      else schedule.resolveConflict(res.action, pendingConflict.conflict, pendingConflict.candidate);
       pendingConflict = null;
       say(res.reply, res.state);
       refreshScheduleIfOpen();
@@ -138,13 +177,49 @@
       return;
     }
     if(result.type === "schedule_remove" && result.schedule){
-      schedule.removeRecurringByTitle(result.schedule.title);
+      let handledByCore = false;
+      if(DABSyCore.isCalendarConnected()){
+        const match = findBestCoreEventMatch(result.schedule.title || "");
+        if(match){ DABSyCore.deleteCalendarEvent(match.id); handledByCore = true; }
+      }
+      if(!handledByCore) schedule.removeRecurringByTitle(result.schedule.title);
       say(result.reply, result.state);
       refreshScheduleIfOpen();
       return;
     }
 
     say(result.reply, result.state);
+  }
+
+  // best-effort title match against the shared calendar, nearest upcoming date first
+  function findBestCoreEventMatch(title){
+    const t = (title||"").trim().toLowerCase();
+    if(!t) return null;
+    const todayKey = DABSyCore.todayKeyOffset(0);
+    return DABSyCore.getCalendarEvents()
+      .filter(e => e.date >= todayKey)
+      .filter(e => e.title.toLowerCase().includes(t) || t.includes(e.title.toLowerCase()))
+      .sort((a,b) => (a.date + (a.startTime||"")).localeCompare(b.date + (b.startTime||"")))[0] || null;
+  }
+
+  function resolveCoreConflict(action, core){
+    if(action === "cancel_existing"){
+      DABSyCore.deleteCalendarEvent(core.conflictEventId);
+    }
+    if(action === "move_existing"){
+      const ev = DABSyCore.getEventById(core.conflictEventId);
+      if(ev && ev.startTime){
+        const dur = ev.endTime ? (DABSyCore.toMinutes(ev.endTime) - DABSyCore.toMinutes(ev.startTime)) : 30;
+        const newStartMin = DABSyCore.toMinutes(ev.startTime) + 45;
+        DABSyCore.updateCalendarEvent(core.conflictEventId, {
+          startTime: hmString(newStartMin),
+          endTime: hmString(newStartMin + dur),
+        });
+      }
+    }
+    if(action === "cancel_new") return;
+    // move_existing / cancel_existing / keep_both all fall through to creating the candidate
+    DABSyCore.createCalendarEvent({ title: core.title, date: core.dateKey, startTime: core.startTime, endTime: core.endTime, category: "study", source: "dabsy" });
   }
 
   async function handleScheduleAdd(result){
@@ -159,9 +234,19 @@
       say(result.reply, result.state); // genuinely no time given — just respond conversationally
       return;
     }
+    const durationMin = Number(s.duration_minutes) || 30;
+
+    // Recurring habits stay in DABSy's own private reminder system even when
+    // Calendar is connected — Ghibli Calendar has no recurring-event UI yet,
+    // so mapping "I do yoga every day" onto single dated calendar records
+    // would be more overbuild than this phase calls for.
+    if(DABSyCore.isCalendarConnected() && !s.recurring){
+      await handleScheduleAddConnected(result, { hour, minute, durationMin });
+      return;
+    }
+
     const start = new Date();
     start.setHours(hour, minute, 0, 0);
-    const durationMin = Number(s.duration_minutes) || 30;
     const conflict = schedule.findConflict(start, durationMin);
 
     if(conflict){
@@ -184,6 +269,44 @@
     refreshScheduleIfOpen();
   }
 
+  async function handleScheduleAddConnected(result, { hour, minute, durationMin }){
+    const s = result.schedule || {};
+    const level = DABSyCore.getCalendarLevel();
+    const title = s.title || "Untitled";
+    const dayOffset = Number.isFinite(Number(s.date_offset_days)) ? Number(s.date_offset_days) : 0;
+    const dateKey = DABSyCore.todayKeyOffset(dayOffset);
+    const startTime = hmString(hour*60 + minute);
+    const endTime = hmString(hour*60 + minute + durationMin);
+
+    if(level === "read"){
+      say(`${result.reply} I can see your calendar, but I don't have permission to add to it yet — turn on Suggest or Automatic for Calendar in Settings if you'd like me to schedule things.`, result.state);
+      return;
+    }
+
+    const conflicts = DABSyCore.findConflicts(dateKey, { startTime, endTime });
+    if(conflicts.length){
+      const conflictEv = conflicts[0];
+      const [ch, cm] = toHM(conflictEv.startTime);
+      const candidate = { title, start: dateTimeFromKey(dateKey, hour, minute), durationMin };
+      const conflictForAI = { title: conflictEv.title, start: dateTimeFromKey(dateKey, ch, cm) };
+      pendingConflict = { candidate, conflict: conflictForAI, core: { dateKey, startTime, endTime, title, conflictEventId: conflictEv.id } };
+      const q = await ai.askConflictQuestion(candidate, conflictForAI);
+      window.DABSy.director.dispatch("SCHEDULE_CONFLICT", { speakText: q.reply, finalState: q.state });
+      return;
+    }
+
+    if(level === "suggest"){
+      pendingCalendarConfirm = { title, dateKey, startTime, endTime };
+      say(`I can add "${title}" to your calendar for ${startTime} — want me to?`, "CURIOUS");
+      return;
+    }
+
+    // automatic
+    DABSyCore.createCalendarEvent({ title, date: dateKey, startTime, endTime, category: "study", source: "dabsy" });
+    say(`${result.reply} I've added it to your calendar.`, result.state);
+    refreshScheduleIfOpen();
+  }
+
   function say(text, state){
     window.DABSy.director.dispatch("DABSY_REPLY", { speakText: text, finalState: state || null });
   }
@@ -201,25 +324,41 @@
   /* ---------- Schedule panel ---------- */
   function renderSchedule(){
     const el = document.getElementById("schedule-body");
-    const items = schedule.getTodaysSchedule();
+    const items = schedule.getTodaysSchedule().map(it => Object.assign({}, it, { _kind:"private" }));
+
+    let coreItems = [];
+    if(DABSyCore.isCalendarConnected()){
+      const todayKey = DABSyCore.todayKeyOffset(0);
+      coreItems = DABSyCore.getEventsForDate(todayKey)
+        .filter(e => e.startTime)
+        .map(e => {
+          const [h,m] = toHM(e.startTime);
+          const durationMin = e.endTime ? (DABSyCore.toMinutes(e.endTime) - DABSyCore.toMinutes(e.startTime)) : 30;
+          return { id: e.id, title: e.title, _kind:"calendar", start: dateTimeFromKey(todayKey, h, m), durationMin };
+        });
+    }
+
+    const all = [...items, ...coreItems].sort((a,b)=>a.start-b.start);
     el.innerHTML = "";
-    if(items.length === 0){
+    if(all.length === 0){
       const empty = document.createElement("div");
       empty.className = "hint";
       empty.textContent = "Nothing scheduled yet today.";
       el.appendChild(empty);
     }
     const now = new Date();
-    items.forEach(item=>{
+    all.forEach(item=>{
       const row = document.createElement("div");
       row.className = "task-row";
       const time = item.start.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
       const past = item.start < now;
-      row.innerHTML = `<span style="opacity:${past?0.45:1}">${time} · ${escapeHtml(item.title)}${item.source==="recurring"?" 🔁":""}</span>`;
+      const icon = item._kind === "calendar" ? " 🌿" : (item.source === "recurring" ? " 🔁" : "");
+      row.innerHTML = `<span style="opacity:${past?0.45:1}">${time} · ${escapeHtml(item.title)}${icon}</span>`;
       const del = document.createElement("button");
       del.textContent = "✕";
       del.onclick = ()=>{
-        if(item.source === "oneoff") schedule.removeOneOff(item.id);
+        if(item._kind === "calendar") DABSyCore.deleteCalendarEvent(item.id);
+        else if(item.source === "oneoff") schedule.removeOneOff(item.id);
         else schedule.removeRecurringByTitle(item.title);
         renderSchedule();
       };
@@ -227,6 +366,24 @@
       el.appendChild(row);
     });
   }
+
+  /* ---------- DABSy Core — live refresh + Connections UI ---------- */
+  DABSyCore.subscribe((type)=>{
+    if(type.indexOf("calendar.") === 0) refreshScheduleIfOpen();
+  });
+
+  function populateConnectionsUI(){
+    const conn = DABSyCore.getConnections().calendar;
+    document.getElementById("conn-calendar-enabled").checked = !!conn.enabled;
+    document.getElementById("conn-calendar-level").value = conn.level || "read";
+  }
+  document.getElementById("conn-calendar-enabled").addEventListener("change", (e)=>{
+    DABSyCore.setConnection("calendar", { enabled: e.target.checked });
+    refreshScheduleIfOpen();
+  });
+  document.getElementById("conn-calendar-level").addEventListener("change", (e)=>{
+    DABSyCore.setConnection("calendar", { level: e.target.value });
+  });
   function refreshScheduleIfOpen(){
     if(document.querySelector('.world-panel[data-panel="schedule"]').classList.contains("active")) renderSchedule();
     if(document.querySelector('.world-panel[data-panel="room"]').classList.contains("active")) renderRoom();
@@ -270,6 +427,7 @@
   }
   bus.on("voice:voices-ready", populateSettings);
   populateSettings();
+  populateConnectionsUI();
 
   saveSettingsBtn.addEventListener("click", ()=>{
     memory.saveSettings({
@@ -290,7 +448,7 @@
 
   bus.on("world:opened", ({tab})=>{
     if(tab === "schedule") renderSchedule();
-    if(tab === "settings") populateSettings();
+    if(tab === "settings"){ populateSettings(); populateConnectionsUI(); }
     if(tab === "memory") renderMemoryPanel();
     if(tab === "room") renderRoom();
   });

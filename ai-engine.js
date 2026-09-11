@@ -77,7 +77,8 @@
     "minute": <JSON number 0-59, e.g. 45 — NEVER a string, only for schedule_add>,
     "duration_minutes": <JSON number, only for schedule_add, default 30 if unclear>,
     "recurring": true | false,
-    "days": [<JSON numbers 0-6, 0=Sunday, only if recurring is true; if user said "every day" use [0,1,2,3,4,5,6]>]
+    "days": [<JSON numbers 0-6, 0=Sunday, only if recurring is true; if user said "every day" use [0,1,2,3,4,5,6]>],
+    "date_offset_days": <JSON number, only for schedule_add or schedule_remove, non-recurring: 0 if they mean today/tonight or gave no day, 1 if "tomorrow", 2 if "day after tomorrow"; NEVER a string. If they name a weekday (e.g. "Saturday") just pick the nearest matching offset 0-6 from today, don't ask.>
   }
 }`,
       'Use "schedule_add" ONLY when the user gave an actual clock time (today or recurring), and hour/minute must both be present as numbers. If they mention a task/reminder but give NO specific time ("remind me to submit my assignment"), use type "chat" instead, and make your reply ask what time they want it — do not guess a time.',

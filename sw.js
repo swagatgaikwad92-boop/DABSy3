@@ -6,7 +6,7 @@
    live flat, at the same level as this one.
    ============================================================ */
 
-const CACHE_VERSION = "dabsy-v5";
+const CACHE_VERSION = "dabsy-v6";
 const SCOPE = self.registration.scope;
 
 const SHELL_FILES = [
@@ -19,6 +19,7 @@ const SHELL_FILES = [
   "./panels.css",
   "./bubbles.css",
   "./projection.css",
+  "./dabsy-core.js",
   "./emotion-engine.js",
   "./memory-engine.js",
   "./schedule-engine.js",

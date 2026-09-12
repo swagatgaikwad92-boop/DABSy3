@@ -191,12 +191,19 @@
       return;
     }
     if(result.type === "schedule_remove" && result.schedule){
-      let handledByCore = false;
+      const title = result.schedule.title || "";
+      let handled = false;
+
       if(DABSyCore.isCalendarConnected()){
-        const match = findBestCoreEventMatch(result.schedule.title || "");
-        if(match){ DABSyCore.deleteCalendarEvent(match.id); handledByCore = true; }
+        const evMatch = findBestCoreEventMatch(title);
+        if(evMatch){ DABSyCore.deleteCalendarEvent(evMatch.id); handled = true; }
+        if(!handled){
+          const taskMatch = findBestCoreTaskMatch(title);
+          if(taskMatch){ DABSyCore.deleteTask(taskMatch.id); handled = true; }
+        }
       }
-      if(!handledByCore) schedule.removeRecurringByTitle(result.schedule.title);
+      if(!handled) schedule.removeRecurringByTitle(result.schedule.title);
+
       say(result.reply, result.state);
       refreshScheduleIfOpen();
       return;
@@ -214,6 +221,17 @@
       .filter(e => e.date >= todayKey)
       .filter(e => e.title.toLowerCase().includes(t) || t.includes(e.title.toLowerCase()))
       .sort((a,b) => (a.date + (a.startTime||"")).localeCompare(b.date + (b.startTime||"")))[0] || null;
+  }
+
+  // same idea, but against Ghibli's task list (undated or dated, incomplete first)
+  function findBestCoreTaskMatch(title){
+    const t = (title||"").trim().toLowerCase();
+    if(!t) return null;
+    const todayKey = DABSyCore.todayKeyOffset(0);
+    return DABSyCore.getTasks()
+      .filter(task => !task.done)
+      .filter(task => task.title.toLowerCase().includes(t) || t.includes(task.title.toLowerCase()))
+      .sort((a,b) => (a.date || todayKey).localeCompare(b.date || todayKey))[0] || null;
   }
 
   function resolveCoreConflict(action, core){

@@ -192,6 +192,25 @@
     emit("calendar.event.deleted", { eventId: id });
   }
 
+  /* ---------------- tasks (Ghibli's own task list — reused, not duplicated) ----------------
+     Only delete is exposed here: creating/editing tasks is Ghibli's own UI
+     job for now (not part of the Phase 1 calendar-integration ask), but
+     "cancel/delete this" needs to reach tasks too, not just calendar events. */
+  function getTasks() {
+    if (window.LF) return window.LF.state.tasks.slice();
+    return readCalRaw().tasks || [];
+  }
+  function deleteTask(id) {
+    if (window.LF) {
+      window.LF.removeItem("tasks", id);
+    } else {
+      const obj = readCalRaw();
+      obj.tasks = (obj.tasks || []).filter((t) => t.id !== id);
+      writeCalRaw(obj);
+    }
+    emit("task.deleted", { taskId: id });
+  }
+
   /* ---------------- conflict detection on shared records ---------------- */
   function findConflicts(dateKey, candidate) {
     const start = toMinutes(candidate.startTime);
@@ -218,17 +237,23 @@
 
   function applyRemote(type, payload) {
     if (window.LF) {
-      const events = window.LF.state.events;
-      if (type === "calendar.event.created") {
-        if (!events.find((e) => e.id === payload.event.id)) { events.push(payload.event); window.LF.save(); }
-      } else if (type === "calendar.event.updated") {
-        const ev = events.find((e) => e.id === payload.event.id);
-        if (ev) Object.assign(ev, payload.event);
-        else events.push(payload.event); // update arrived before this tab ever saw the create
-        window.LF.save();
-      } else if (type === "calendar.event.deleted") {
-        const i = events.findIndex((e) => e.id === payload.eventId);
-        if (i >= 0) { events.splice(i, 1); window.LF.save(); }
+      if (type.indexOf("calendar.") === 0) {
+        const events = window.LF.state.events;
+        if (type === "calendar.event.created") {
+          if (!events.find((e) => e.id === payload.event.id)) { events.push(payload.event); window.LF.save(); }
+        } else if (type === "calendar.event.updated") {
+          const ev = events.find((e) => e.id === payload.event.id);
+          if (ev) Object.assign(ev, payload.event);
+          else events.push(payload.event); // update arrived before this tab ever saw the create
+          window.LF.save();
+        } else if (type === "calendar.event.deleted") {
+          const i = events.findIndex((e) => e.id === payload.eventId);
+          if (i >= 0) { events.splice(i, 1); window.LF.save(); }
+        }
+      } else if (type === "task.deleted") {
+        const tasks = window.LF.state.tasks;
+        const i = tasks.findIndex((t) => t.id === payload.taskId);
+        if (i >= 0) { tasks.splice(i, 1); window.LF.save(); }
       }
     }
     subscribers.forEach((fn) => { try { fn(type, payload); } catch (e) {} });
@@ -238,7 +263,7 @@
     channel.onmessage = (e) => {
       const { type, payload } = e.data || {};
       if (!type) return;
-      if (type.indexOf("calendar.") === 0) applyRemote(type, payload);
+      if (type.indexOf("calendar.") === 0 || type === "task.deleted") applyRemote(type, payload);
       else subscribers.forEach((fn) => { try { fn(type, payload); } catch (err) {} });
     };
   }
@@ -276,6 +301,8 @@
     // calendar CRUD
     getCalendarEvents, getEventsForDate, getEventById,
     createCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
+    // tasks (delete only, for now)
+    getTasks, deleteTask,
     // shared helpers
     findConflicts, toMinutes, todayKeyOffset, CATEGORIES, matchCategoryFromText,
     // sync

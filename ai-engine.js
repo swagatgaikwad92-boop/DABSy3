@@ -85,7 +85,7 @@
 }`,
       'For "category": pick confidently from the exact 8 values above whenever the subject makes it reasonably obvious (a school subject like chemistry/physics/maths -> "study"; a college class/lecture -> "college"; a worksheet/submission -> "homework"; a personal errand/chore -> "personal"; drawing/writing/music practice -> "creative"; a call/group meeting -> "meeting"; something high-stakes emphasized as important -> "important"; a submission cutoff -> "deadline"). Only use null if it is genuinely ambiguous between two very different categories — do not use null just to be safe.',
       'Use "schedule_add" ONLY when the user gave an actual clock time (today or recurring), and hour/minute must both be present as numbers. If they mention a task/reminder but give NO specific time ("remind me to submit my assignment"), use type "chat" instead, and make your reply ask what time they want it — do not guess a time.',
-      'Use "schedule_remove" when they say to stop/cancel a recurring thing.',
+      'Use "schedule_remove" when they ask to cancel, delete, or remove ANY previously scheduled item, task, or event — whether it was recurring or a one-off, today or a future date. Set "date_offset_days" the same way as above if they mention a day, otherwise omit it and the app will search all upcoming items by title.',
       "If type is chat, omit the schedule field entirely.",
       "User: " + text
     ].filter(Boolean).join("\n");

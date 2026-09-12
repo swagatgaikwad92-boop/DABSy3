@@ -78,9 +78,12 @@
     "duration_minutes": <JSON number, only for schedule_add, default 30 if unclear>,
     "recurring": true | false,
     "days": [<JSON numbers 0-6, 0=Sunday, only if recurring is true; if user said "every day" use [0,1,2,3,4,5,6]>],
-    "date_offset_days": <JSON number, only for schedule_add or schedule_remove, non-recurring: 0 if they mean today/tonight or gave no day, 1 if "tomorrow", 2 if "day after tomorrow"; NEVER a string. If they name a weekday (e.g. "Saturday") just pick the nearest matching offset 0-6 from today, don't ask.>
+    "date_offset_days": <JSON number, only for schedule_add or schedule_remove, non-recurring: 0 if they mean today/tonight or gave no day, 1 if "tomorrow", 2 if "day after tomorrow"; NEVER a string. If they name a weekday (e.g. "Saturday") just pick the nearest matching offset 0-6 from today, don't ask.>,
+    "category": "study" | "college" | "homework" | "personal" | "creative" | "meeting" | "important" | "deadline" | null,
+    "emoji": "<ONE single emoji character that best fits the specific subject/activity itself, e.g. chemistry->🧪, physics->⚛️, maths->➗, biology->🧬, english/reading->📖, coding->💻, gym/sport->🏋️, music->🎵, art->🎨, sleep->😴; if genuinely nothing fits well, use null — only for schedule_add>"
   }
 }`,
+      'For "category": pick confidently from the exact 8 values above whenever the subject makes it reasonably obvious (a school subject like chemistry/physics/maths -> "study"; a college class/lecture -> "college"; a worksheet/submission -> "homework"; a personal errand/chore -> "personal"; drawing/writing/music practice -> "creative"; a call/group meeting -> "meeting"; something high-stakes emphasized as important -> "important"; a submission cutoff -> "deadline"). Only use null if it is genuinely ambiguous between two very different categories — do not use null just to be safe.',
       'Use "schedule_add" ONLY when the user gave an actual clock time (today or recurring), and hour/minute must both be present as numbers. If they mention a task/reminder but give NO specific time ("remind me to submit my assignment"), use type "chat" instead, and make your reply ask what time they want it — do not guess a time.',
       'Use "schedule_remove" when they say to stop/cancel a recurring thing.',
       "If type is chat, omit the schedule field entirely.",
@@ -97,7 +100,10 @@
         type: obj.type === "schedule_add" || obj.type === "schedule_remove" ? obj.type : "chat",
         reply: typeof obj.reply === "string" ? obj.reply : result.raw,
         state: VALID_STATES.includes(obj.state) ? obj.state : "IDLE",
-        schedule: obj.schedule || null,
+        schedule: obj.schedule ? Object.assign({}, obj.schedule, {
+          category: typeof obj.schedule.category === "string" ? obj.schedule.category : null,
+          emoji: typeof obj.schedule.emoji === "string" ? obj.schedule.emoji : null,
+        }) : null,
       };
     }catch(e){
       return { type:"chat", reply: result.raw, state:"IDLE", schedule:null };

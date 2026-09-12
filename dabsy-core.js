@@ -61,6 +61,26 @@
     return `${y}-${m}-${day}`;
   }
 
+  // Shared category vocabulary — must stay identical to Ghibli Calendar's
+  // own CATEGORIES map in state.js. This is deliberately duplicated (unlike
+  // calendar events, which are never duplicated): it's a fixed, shared
+  // *contract* both apps agree on, and DABSy needs it even on pages where
+  // Ghibli's state.js isn't loaded at all.
+  const CATEGORIES = {
+    study:     { label: "Study",     emoji: "📚" },
+    college:   { label: "College",   emoji: "🎓" },
+    homework:  { label: "Homework",  emoji: "📝" },
+    personal:  { label: "Personal",  emoji: "🌱" },
+    creative:  { label: "Creative",  emoji: "🎨" },
+    meeting:   { label: "Meeting",   emoji: "👥" },
+    important: { label: "Important", emoji: "⭐" },
+    deadline:  { label: "Deadline",  emoji: "⏰" },
+  };
+  function matchCategoryFromText(text) {
+    const t = (text || "").toLowerCase();
+    return Object.keys(CATEGORIES).find((id) => t.includes(id) || t.includes(CATEGORIES[id].label.toLowerCase())) || null;
+  }
+
   function toMinutes(t) {
     if (!t) return null;
     const [h, m] = t.split(":").map(Number);
@@ -257,7 +277,7 @@
     getCalendarEvents, getEventsForDate, getEventById,
     createCalendarEvent, updateCalendarEvent, deleteCalendarEvent,
     // shared helpers
-    findConflicts, toMinutes, todayKeyOffset,
+    findConflicts, toMinutes, todayKeyOffset, CATEGORIES, matchCategoryFromText,
     // sync
     subscribe,
   };

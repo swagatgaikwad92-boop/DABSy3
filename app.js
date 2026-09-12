@@ -109,7 +109,10 @@
   let pendingConflict = null; // { candidate:{title,start,durationMin}, conflict, core? }
 
   /* ---------- pending "want me to add this?" confirmation (Suggest permission level) ---------- */
-  let pendingCalendarConfirm = null; // { title, dateKey, startTime, endTime }
+  let pendingCalendarConfirm = null; // { title, dateKey, startTime, endTime, category }
+
+  /* ---------- pending "what category is this?" (asked when the AI couldn't confidently guess) ---------- */
+  let pendingCategoryQuestion = null; // { title, dateKey, startTime, endTime, emoji }
 
   /* ---------- small date/time helpers shared with the Core calendar path ---------- */
   function dateTimeFromKey(dateKey, h, m){
@@ -130,13 +133,24 @@
     memory.addSession("user", text);
     window.DABSy.director.dispatch("AI_THINKING");
 
+    if(pendingCategoryQuestion){
+      const cat = DABSyCore.matchCategoryFromText(text);
+      if(cat){
+        const c = pendingCategoryQuestion; pendingCategoryQuestion = null;
+        await finalizeConnectedEvent({ title:c.title, dateKey:c.dateKey, startTime:c.startTime, endTime:c.endTime, category:cat, emoji:c.emoji });
+        return;
+      }
+      say(`I didn't catch a category there — Study, College, Homework, Personal, Creative, Meeting, Important, or Deadline?`, "CURIOUS");
+      return; // keep waiting on the same question rather than dropping the request
+    }
+
     if(pendingCalendarConfirm){
       const yes = /\b(yes|yeah|yep|sure|do it|go ahead|please do|okay|ok|correct)\b/i.test(text);
       const no = /\b(no|nah|nope|don't|do not|cancel|never ?mind|stop)\b/i.test(text);
       if(yes){
         const c = pendingCalendarConfirm; pendingCalendarConfirm = null;
-        DABSyCore.createCalendarEvent({ title:c.title, date:c.dateKey, startTime:c.startTime, endTime:c.endTime, category:"study", source:"dabsy" });
-        say("Done — added to your calendar.", "HAPPY");
+        createConnectedEvent(c);
+        say("Done — added to your calendar." + planTipSuffix(c.dateKey), "HAPPY");
         refreshScheduleIfOpen();
         return;
       }
@@ -219,7 +233,73 @@
     }
     if(action === "cancel_new") return;
     // move_existing / cancel_existing / keep_both all fall through to creating the candidate
-    DABSyCore.createCalendarEvent({ title: core.title, date: core.dateKey, startTime: core.startTime, endTime: core.endTime, category: "study", source: "dabsy" });
+    createConnectedEvent(core);
+  }
+
+  // Actually writes the record into the shared calendar. `c.emoji`, if present,
+  // is prefixed onto the title so it shows up as-is in Ghibli Calendar's UI
+  // without Ghibli needing any code changes to display it.
+  function createConnectedEvent(c){
+    const displayTitle = c.emoji ? `${c.emoji} ${c.title}` : c.title;
+    return DABSyCore.createCalendarEvent({
+      title: displayTitle, date: c.dateKey, startTime: c.startTime, endTime: c.endTime,
+      category: c.category || "study", source: "dabsy",
+    });
+  }
+
+  // Rule-based (no extra AI call — keeps this fast) day-density check, used to
+  // append a short "by the way, your evening's tight" style tip after a
+  // successful add. Deliberately simple: gaps under 10 min between two timed
+  // events, or more than 4 scheduled hours in one day, are the only signals.
+  function planTipSuffix(dateKey){
+    const timed = DABSyCore.getEventsForDate(dateKey)
+      .filter(e => e.startTime)
+      .map(e => ({ title:e.title, start: DABSyCore.toMinutes(e.startTime), end: e.endTime ? DABSyCore.toMinutes(e.endTime) : DABSyCore.toMinutes(e.startTime)+30 }))
+      .sort((a,b) => a.start - b.start);
+    if(timed.length < 2) return "";
+    let totalMin = 0, tightGap = null;
+    for(let i=0;i<timed.length;i++){
+      totalMin += (timed[i].end - timed[i].start);
+      if(i > 0){
+        const gap = timed[i].start - timed[i-1].end;
+        if(gap >= 0 && gap < 10 && !tightGap) tightGap = { a: timed[i-1].title, b: timed[i].title };
+      }
+    }
+    if(tightGap) return ` One thing though — "${tightGap.a}" and "${tightGap.b}" are back-to-back with barely a gap. Want me to space them out a bit?`;
+    if(totalMin > 240) return ` Heads up, that day's getting pretty packed (${Math.round(totalMin/60*10)/10}+ hours scheduled) — might be worth keeping a real break in there.`;
+    return "";
+  }
+
+  // Shared final step once we actually know title/date/time/category — used
+  // both by the direct path (category already confident) and after a
+  // category-clarifying question gets answered.
+  async function finalizeConnectedEvent({ title, dateKey, startTime, endTime, category, emoji }){
+    const level = DABSyCore.getCalendarLevel();
+    const conflicts = DABSyCore.findConflicts(dateKey, { startTime, endTime });
+
+    if(conflicts.length){
+      const conflictEv = conflicts[0];
+      const [h,m] = toHM(startTime);
+      const [ch, cm] = toHM(conflictEv.startTime);
+      const candidate = { title, start: dateTimeFromKey(dateKey, h, m), durationMin: DABSyCore.toMinutes(endTime) - DABSyCore.toMinutes(startTime) };
+      const conflictForAI = { title: conflictEv.title, start: dateTimeFromKey(dateKey, ch, cm) };
+      pendingConflict = { candidate, conflict: conflictForAI, core: { dateKey, startTime, endTime, title, category, emoji, conflictEventId: conflictEv.id } };
+      const q = await ai.askConflictQuestion(candidate, conflictForAI);
+      window.DABSy.director.dispatch("SCHEDULE_CONFLICT", { speakText: q.reply, finalState: q.state });
+      return;
+    }
+
+    if(level === "suggest"){
+      pendingCalendarConfirm = { title, dateKey, startTime, endTime, category, emoji };
+      const catLabel = DABSyCore.CATEGORIES[category] ? DABSyCore.CATEGORIES[category].label : category;
+      say(`I can add "${title}" to your calendar as ${catLabel} for ${startTime} — want me to?`, "CURIOUS");
+      return;
+    }
+
+    // automatic
+    createConnectedEvent({ title, dateKey, startTime, endTime, category, emoji });
+    say(`Got it — added to your calendar.${planTipSuffix(dateKey)}`, "HAPPY");
+    refreshScheduleIfOpen();
   }
 
   async function handleScheduleAdd(result){
@@ -277,34 +357,21 @@
     const dateKey = DABSyCore.todayKeyOffset(dayOffset);
     const startTime = hmString(hour*60 + minute);
     const endTime = hmString(hour*60 + minute + durationMin);
+    const emoji = typeof s.emoji === "string" && s.emoji.trim() ? s.emoji.trim() : null;
+    const category = s.category && DABSyCore.CATEGORIES[s.category] ? s.category : null;
 
     if(level === "read"){
       say(`${result.reply} I can see your calendar, but I don't have permission to add to it yet — turn on Suggest or Automatic for Calendar in Settings if you'd like me to schedule things.`, result.state);
       return;
     }
 
-    const conflicts = DABSyCore.findConflicts(dateKey, { startTime, endTime });
-    if(conflicts.length){
-      const conflictEv = conflicts[0];
-      const [ch, cm] = toHM(conflictEv.startTime);
-      const candidate = { title, start: dateTimeFromKey(dateKey, hour, minute), durationMin };
-      const conflictForAI = { title: conflictEv.title, start: dateTimeFromKey(dateKey, ch, cm) };
-      pendingConflict = { candidate, conflict: conflictForAI, core: { dateKey, startTime, endTime, title, conflictEventId: conflictEv.id } };
-      const q = await ai.askConflictQuestion(candidate, conflictForAI);
-      window.DABSy.director.dispatch("SCHEDULE_CONFLICT", { speakText: q.reply, finalState: q.state });
+    if(!category){
+      pendingCategoryQuestion = { title, dateKey, startTime, endTime, emoji };
+      say(`Sure — what category is "${title}"? Study, College, Homework, Personal, Creative, Meeting, Important, or Deadline?`, "CURIOUS");
       return;
     }
 
-    if(level === "suggest"){
-      pendingCalendarConfirm = { title, dateKey, startTime, endTime };
-      say(`I can add "${title}" to your calendar for ${startTime} — want me to?`, "CURIOUS");
-      return;
-    }
-
-    // automatic
-    DABSyCore.createCalendarEvent({ title, date: dateKey, startTime, endTime, category: "study", source: "dabsy" });
-    say(`${result.reply} I've added it to your calendar.`, result.state);
-    refreshScheduleIfOpen();
+    await finalizeConnectedEvent({ title, dateKey, startTime, endTime, category, emoji });
   }
 
   function say(text, state){

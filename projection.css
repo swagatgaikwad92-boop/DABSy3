@@ -45,14 +45,15 @@ body.study-active #input-dock, body.study-active #subtitle{ display: none; }
   color: var(--ink);
 }
 #projection-content h3{ font-size: 1rem; margin: 0 0 6px; color: var(--accent); }
-#projection-content .step{
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  background: var(--glass-strong);
-  border-radius: 14px;
-  border-left: 3px solid var(--accent-2);
+#projection-content .study-answer-block{
+  margin: 0 0 18px;
+  padding: 0 2px;
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.72;
+  max-width: 72ch;
 }
-#projection-content .step.highlight{ border-left-color: var(--accent-warm); background: rgba(255,211,154,0.08); }
+#projection-content .study-answer-block:last-child{ margin-bottom: 0; }
 
 #projection-close{
   align-self: center;
@@ -76,6 +77,6 @@ body.study-active #input-dock, body.study-active #subtitle{ display: none; }
   z-index: 5;
 }
 
-#projection-content .word{ transition: color 120ms, opacity 120ms; opacity: 0.72; }
+#projection-content .word{ transition: color 120ms, opacity 120ms; opacity: 0.82; }
 #projection-content .word.active{ color: var(--accent-warm); opacity: 1; font-weight: 600; }
 

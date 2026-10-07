@@ -34,8 +34,8 @@
 
 /* ---------- idle breathing (very subtle) ---------- */
 @keyframes breathe{
-  0%, 100%{ transform: translateY(0); }
-  50%{ transform: translateY(-2px); }
+  0%, 100%{ transform: translateY(0) rotateX(var(--tilt-y,0deg)) rotateY(var(--tilt-x,0deg)); }
+  50%{ transform: translateY(-2px) rotateX(var(--tilt-y,0deg)) rotateY(var(--tilt-x,0deg)); }
 }
 #face.idle-breathe{ animation: breathe 4.8s ease-in-out infinite; }
 

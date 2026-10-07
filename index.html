@@ -19,6 +19,7 @@
 <link rel="stylesheet" href="./bubbles.css" />
 <link rel="stylesheet" href="./projection.css" />
 <link rel="stylesheet" href="./ecosystem.css" />
+<link rel="stylesheet" href="./theme.css" />
 </head>
 <body>
 
@@ -180,6 +181,13 @@
           <label>Voice
             <select id="voice-select"></select>
           </label>
+          <label>Atmosphere
+            <select id="theme-select">
+              <option value="auto">Auto · follows day/night</option>
+              <option value="day">Day</option>
+              <option value="night">Night</option>
+            </select>
+          </label>
           <label class="row"><input type="checkbox" id="sound-toggle" checked /> Sound effects</label>
           <button id="save-settings">Save</button>
 
@@ -215,6 +223,7 @@
     </div>
   </section>
 
+  <script src="./theme-engine.js"></script>
   <script src="./dabsy-core.js"></script>
   <script src="./emotion-engine.js"></script>
   <script src="./memory-engine.js"></script>

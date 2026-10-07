@@ -37,6 +37,7 @@
     isDragging = false;
 
     window.DABSy.face.lookAt(p.x, p.y);
+    tiltFace(p.x,p.y);
     ripplePick(p);
 
     longPressTimer = setTimeout(()=>{
@@ -56,13 +57,28 @@
       isDragging = true;
       if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
       window.DABSy.face.lookAt(p.x, p.y);
+      tiltFace(p.x,p.y);
     }
+  }
+
+
+  function tiltFace(x,y){
+    const r=face.getBoundingClientRect();
+    const nx=Math.max(-1,Math.min(1,(x-(r.left+r.width/2))/(r.width/2)));
+    const ny=Math.max(-1,Math.min(1,(y-(r.top+r.height/2))/(r.height/2)));
+    face.style.setProperty("--tilt-x", `${(nx*3.2).toFixed(2)}deg`);
+    face.style.setProperty("--tilt-y", `${(-ny*2.4).toFixed(2)}deg`);
+  }
+  function resetTilt(){
+    face.style.setProperty("--tilt-x","0deg");
+    face.style.setProperty("--tilt-y","0deg");
   }
 
   function onFacePointerUp(e){
     face.removeEventListener("pointermove", onFacePointerMove);
     if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
 
+    resetTilt();
     if(isDragging && dragDistance > 40){
       bus.emit("face:petted", { distance: dragDistance });
       isDragging = false; dragDistance = 0; lastPoint = null;
@@ -101,6 +117,7 @@
     face.removeEventListener("pointermove", onFacePointerMove);
     if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
     isDragging = false; dragDistance = 0; lastPoint = null;
+    resetTilt();
   });
 
   /* ---------- bow tie: double tap opens the full menu ---------- */

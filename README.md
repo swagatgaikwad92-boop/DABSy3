@@ -68,7 +68,7 @@ The same endpoint can later implement:
 
 DABSy can use same-origin communication through the existing `dabsy-core.js` approach when apps are hosted under the same GitHub Pages origin. Ghibli Calendar is wired to the existing relative route from the project.
 
-Study Space and SolveCount are deliberately shown as ecosystem destinations without pretending they are installed. Change their route constants in `ecosystem-engine.js` once their real repositories/paths exist.
+Study Space and SolveCount are deliberately shown as ecosystem destinations without pretending they are installed. The current ecosystem destinations are wired to the supplied live URLs for Study Space, Ghibli Calendar, and SolveCount. They open as real destinations rather than simulated in-app panels.
 
 A future shared contract can pass:
 
@@ -150,3 +150,12 @@ A normal PWA cannot guarantee native Android delivery while completely closed on
 ## Important limitation
 
 The ZIP cannot magically contain a secure AI backend because GitHub Pages is static hosting. This build therefore removes the unsafe API-key UX and provides the correct interface boundary rather than hiding a secret in JavaScript.
+
+
+## Multilingual voice and Live Talk
+
+- DABSy supports device/browser speech synthesis voices and configurable recognition languages including English (India), Hindi, Marathi, Gujarati, Tamil, Telugu, Kannada, and Bengali where the device exposes them.
+- `Auto` follows the device language.
+- Live Talk uses the browser SpeechRecognition API plus speech synthesis. It is a real microphone conversation loop, but browser/device support and available voices vary.
+- Microphone permission is requested by the browser when Live Talk is started.
+- Live Talk does not provide server-side voice intelligence; the spoken content still comes from DABSy's AI/local response pipeline.

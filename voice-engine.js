@@ -13,13 +13,15 @@
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let recognizer = null;
   let listening = false;
+  let liveTalk = false;
+  let liveRestartTimer = null;
 
   function initRecognizer(){
     if(!SR) return null;
     const r = new SR();
     r.continuous = false;
     r.interimResults = false;
-    r.lang = navigator.language || "en-US"; // en-IN isn't supported on every device/browser
+    r.lang = getSpeechLang();
     r.onstart = ()=>{ listening = true; bus.emit("voice:listening:start"); };
     r.onend = ()=>{ listening = false; bus.emit("voice:listening:end"); };
     r.onerror = (e)=>{
@@ -35,6 +37,11 @@
     return r;
   }
 
+  function getSpeechLang(){
+    const lang = memory.getSettings().speechLang || "auto";
+    return lang === "auto" ? (navigator.language || "en-US") : lang;
+  }
+
   function startListening(){
     if(!SR){ bus.emit("voice:unsupported"); return; }
     if(listening) return;
@@ -43,6 +50,31 @@
   }
   function stopListening(){
     if(recognizer && listening) recognizer.stop();
+  }
+
+  function restartLiveListening(){
+    if(!liveTalk) return;
+    clearTimeout(liveRestartTimer);
+    liveRestartTimer=setTimeout(()=>{
+      if(!liveTalk || listening) return;
+      recognizer=null;
+      startListening();
+    },260);
+  }
+
+  function startLiveTalk(){
+    if(!SR){ bus.emit("voice:unsupported"); return false; }
+    liveTalk=true;
+    bus.emit("voice:live:start");
+    startListening();
+    return true;
+  }
+
+  function stopLiveTalk(){
+    liveTalk=false;
+    clearTimeout(liveRestartTimer);
+    stopListening();
+    bus.emit("voice:live:end");
   }
 
   /* ---------- speech synthesis ---------- */
@@ -62,7 +94,13 @@
       const v = voices.find(v=>v.voiceURI === settings.voiceURI);
       if(v) return v;
     }
-    const order = ["en-IN","en-GB","en-US"];
+    const wanted = settings.speechLang === "auto" ? (navigator.language || "en-US") : (settings.speechLang || "en-US");
+    const exact = voices.find(v=>v.lang.toLowerCase() === wanted.toLowerCase());
+    if(exact) return exact;
+    const base = wanted.split("-")[0].toLowerCase();
+    const sameBase = voices.find(v=>v.lang.toLowerCase().startsWith(base+"-"));
+    if(sameBase) return sameBase;
+    const order = ["en-IN","hi-IN","mr-IN","en-GB","en-US"];
     for(const lang of order){
       const v = voices.find(v=>v.lang === lang);
       if(v) return v;
@@ -72,6 +110,7 @@
 
   function buildUtterance(text){
     const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = getSpeechLang();
     const v = pickVoice();
     if(v) utt.voice = v;
     utt.pitch = 1.08;
@@ -109,6 +148,13 @@
 
   function stopSpeaking(){ if(window.speechSynthesis) window.speechSynthesis.cancel(); }
 
+  bus.on("voice:speaking:start",()=>{
+    if(liveTalk && listening) stopListening();
+  });
+  bus.on("voice:speaking:end",()=>{
+    if(liveTalk) restartLiveListening();
+  });
+
   window.DABSy = window.DABSy || {};
-  window.DABSy.voice = { startListening, stopListening, speak, speakWithTracking, stopSpeaking, getVoices: ()=>voices, isListening: ()=>listening };
+  window.DABSy.voice = { startListening, stopListening, startLiveTalk, stopLiveTalk, speak, speakWithTracking, stopSpeaking, getVoices: ()=>voices, isListening: ()=>listening, isLiveTalk: ()=>liveTalk, getSpeechLang };
 })();

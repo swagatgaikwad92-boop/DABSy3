@@ -103,7 +103,7 @@
   function savePetStats(stats){ writeJSON(KEYS.petStats, stats); }
 
   /* ---------- settings (api key, voice, sound) ---------- */
-  function getSettings(){ return readJSON(KEYS.settings, { voiceURI:"", sound:true, aiEndpoint:"" }); }
+  function getSettings(){ return readJSON(KEYS.settings, { voiceURI:"", speechLang:"auto", sound:true, aiEndpoint:"" }); }
   function saveSettings(patch){
     const cur = getSettings();
     const next = { ...cur, ...patch };

@@ -108,6 +108,18 @@
     <div id="quick-bubbles-backdrop"></div>
   </div>
 
+  <!-- ================= LIVE TALK ================= -->
+  <section id="live-talk" aria-hidden="true">
+    <div class="live-talk-card">
+      <div class="live-talk-orb">◉</div>
+      <div>
+        <strong>Live talk</strong>
+        <small id="live-talk-status">DABSy is ready to listen.</small>
+      </div>
+      <button id="live-talk-stop" aria-label="End live talk">End</button>
+    </div>
+  </section>
+
   <!-- ================= FULL MENU (double-tap bow tie) ================= -->
   <section id="world" aria-hidden="true">
     <div id="world-backdrop"></div>
@@ -178,9 +190,23 @@
           <label>Secure AI service endpoint
             <input id="ai-endpoint" type="url" placeholder="/api/ai (optional)" />
           </label>
+          <label>Language
+            <select id="speech-lang">
+              <option value="auto">Auto · device language</option>
+              <option value="en-IN">English · India</option>
+              <option value="hi-IN">हिन्दी · Hindi</option>
+              <option value="mr-IN">मराठी · Marathi</option>
+              <option value="gu-IN">ગુજરાતી · Gujarati</option>
+              <option value="ta-IN">தமிழ் · Tamil</option>
+              <option value="te-IN">తెలుగు · Telugu</option>
+              <option value="kn-IN">ಕನ್ನಡ · Kannada</option>
+              <option value="bn-IN">বাংলা · Bengali</option>
+            </select>
+          </label>
           <label>Voice
             <select id="voice-select"></select>
           </label>
+          <button id="live-talk-btn" class="util-btn">🎙️ Start live talk</button>
           <label>Atmosphere
             <select id="theme-select">
               <option value="auto">Auto · follows day/night</option>

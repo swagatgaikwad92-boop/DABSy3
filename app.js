@@ -566,12 +566,18 @@
   const aiStatusText = document.getElementById("ai-status-text");
   const voiceSelect = document.getElementById("voice-select");
   const soundToggle = document.getElementById("sound-toggle");
+  const speechLangSelect = document.getElementById("speech-lang");
+  const liveTalkBtn = document.getElementById("live-talk-btn");
+  const liveTalkStop = document.getElementById("live-talk-stop");
+  const liveTalkStatus = document.getElementById("live-talk-status");
+  const liveTalkPanel = document.getElementById("live-talk");
   const saveSettingsBtn = document.getElementById("save-settings");
 
   function populateSettings(){
     const s = memory.getSettings();
     aiEndpointInput.value = s.aiEndpoint || "";
     soundToggle.checked = s.sound !== false;
+    if(speechLangSelect) speechLangSelect.value = s.speechLang || "auto";
     if(aiStatusText) aiStatusText.textContent = s.aiEndpoint ? "Secure endpoint configured" : "No AI backend configured in this deployment";
     const voices = voice.getVoices();
     voiceSelect.innerHTML = "";
@@ -591,10 +597,34 @@
     memory.saveSettings({
       aiEndpoint: aiEndpointInput.value.trim(),
       voiceURI: voiceSelect.value,
+      speechLang: speechLangSelect?.value || "auto",
       sound: soundToggle.checked,
     });
     window.DABSy.director.dispatch("DABSY_REPLY", { speakText: "Settings saved." });
   });
+
+
+  function setLiveTalkUI(active){
+    if(liveTalkPanel){ liveTalkPanel.classList.toggle("open",active); liveTalkPanel.setAttribute("aria-hidden",String(!active)); }
+    if(liveTalkBtn) liveTalkBtn.textContent = active ? "🎙️ Live talk is on" : "🎙️ Start live talk";
+  }
+  liveTalkBtn?.addEventListener("click",()=>{
+    if(voice.isLiveTalk()) voice.stopLiveTalk();
+    else voice.startLiveTalk();
+  });
+  liveTalkStop?.addEventListener("click",()=>voice.stopLiveTalk());
+  bus.on("voice:live:start",()=>{
+    setLiveTalkUI(true);
+    if(liveTalkStatus) liveTalkStatus.textContent="Listening… talk naturally. DABSy will answer and listen again.";
+    showSubtitle("Live talk is on. I'm listening…");
+  });
+  bus.on("voice:live:end",()=>{
+    setLiveTalkUI(false);
+    if(liveTalkStatus) liveTalkStatus.textContent="DABSy is ready to listen.";
+    if(subtitle.textContent === "Live talk is on. I'm listening…") hideSubtitle();
+  });
+  bus.on("voice:listening:start",()=>{ if(voice.isLiveTalk() && liveTalkStatus) liveTalkStatus.textContent="Listening…"; });
+  bus.on("voice:heard",()=>{ if(voice.isLiveTalk() && liveTalkStatus) liveTalkStatus.textContent="Thinking…"; });
 
   const notificationBtn = document.getElementById("request-notifications-btn");
   notificationBtn?.addEventListener("click", async ()=>{

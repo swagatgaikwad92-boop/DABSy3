@@ -25,6 +25,7 @@
       document.body.classList.remove("booting");
       await window.DABSy.face.playWakeSequence();
       window.DABSy.app.say(greeting(), "HAPPY");
+      window.DABSy.bus.emit("boot:ready");
     }, 300);
   });
 })();

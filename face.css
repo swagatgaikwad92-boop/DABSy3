@@ -6,6 +6,22 @@
 #face{
   position: relative;
   display: flex;
+  width: clamp(250px, 64vw, 420px);
+  min-height: clamp(210px, 48vw, 320px);
+  justify-content: center;
+  padding: 38px 34px 58px;
+  border-radius: 46% 46% 42% 42% / 48% 48% 38% 38%;
+  background:
+    radial-gradient(100% 80% at 50% 18%, rgba(255,255,255,.11), transparent 58%),
+    linear-gradient(155deg, rgba(42,48,60,.98), rgba(15,18,25,.98));
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.09),
+    inset 0 -22px 45px rgba(0,0,0,.34),
+    0 34px 80px rgba(0,0,0,.48),
+    0 0 55px rgba(143,216,255,.06);
+  overflow: visible;
+  isolation: isolate;
+  display: flex;
   align-items: center;
   gap: clamp(18px, 6vw, 46px);
   transition: transform var(--dur-med) var(--ease-spring), gap var(--dur-med) var(--ease-spring);
@@ -179,3 +195,37 @@
   animation: ripple 480ms var(--ease-out);
   pointer-events: none;
 }
+
+
+/* Creature shell: CSS-rendered so the existing eye system remains intact. */
+#face::before{
+  content:"";
+  position:absolute;
+  z-index:-1;
+  left:10%;
+  right:10%;
+  bottom:-16%;
+  height:42%;
+  border-radius:50% 50% 42% 42%;
+  background:linear-gradient(180deg,rgba(45,51,63,.96),rgba(12,15,21,.98));
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.05),0 24px 55px rgba(0,0,0,.38);
+}
+#face::after{
+  content:"";
+  position:absolute;
+  z-index:-2;
+  left:7%;
+  top:-11%;
+  width:26%;
+  height:25%;
+  border-radius:65% 35% 55% 45%;
+  background:linear-gradient(145deg,#353d4b,#11151d);
+  transform:rotate(-18deg);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.05);
+}
+#face .eye{z-index:2}
+#bowtie{z-index:4}
+[data-outfit="formal"] #face::before{filter:contrast(1.04)}
+[data-outfit="winter"] #face::before{box-shadow:inset 0 2px 0 rgba(255,255,255,.05),0 24px 55px rgba(0,0,0,.38),0 0 24px rgba(143,216,255,.08)}
+[data-outfit="tech"] #face::before{background:linear-gradient(180deg,#26303a,#0c1017)}
+[data-outfit="festival"] #face::before{background:linear-gradient(180deg,#34303c,#11131a)}

@@ -6,7 +6,7 @@
    live flat, at the same level as this one.
    ============================================================ */
 
-const CACHE_VERSION = "dabsy-v6";
+const CACHE_VERSION = "dabsy-v7-creature";
 const SCOPE = self.registration.scope;
 
 const SHELL_FILES = [
@@ -19,6 +19,7 @@ const SHELL_FILES = [
   "./panels.css",
   "./bubbles.css",
   "./projection.css",
+  "./ecosystem.css",
   "./dabsy-core.js",
   "./emotion-engine.js",
   "./memory-engine.js",
@@ -29,7 +30,13 @@ const SHELL_FILES = [
   "./interaction-engine.js",
   "./voice-engine.js",
   "./vision-engine.js",
+  "./ai-provider.js",
   "./ai-engine.js",
+  "./agent-engine.js",
+  "./notification-engine.js",
+  "./ecosystem-engine.js",
+  "./onboarding-engine.js",
+  "./outfit-engine.js",
   "./pet-engine.js",
   "./projection-engine.js",
   "./quickbubbles-engine.js",

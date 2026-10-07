@@ -17,6 +17,9 @@
     reminders: NS + "reminders",
     petStats: NS + "pet_stats",
     settings: NS + "settings",
+    tutorial: NS + "tutorial_v1",
+    outfit: NS + "outfit_v1",
+    learning: NS + "learning_prefs_v1",
   };
 
   function readJSON(key, fallback){
@@ -100,13 +103,22 @@
   function savePetStats(stats){ writeJSON(KEYS.petStats, stats); }
 
   /* ---------- settings (api key, voice, sound) ---------- */
-  function getSettings(){ return readJSON(KEYS.settings, { geminiKey:"", voiceURI:"", sound:true }); }
+  function getSettings(){ return readJSON(KEYS.settings, { voiceURI:"", sound:true, aiEndpoint:"" }); }
   function saveSettings(patch){
     const cur = getSettings();
     const next = { ...cur, ...patch };
     writeJSON(KEYS.settings, next);
     return next;
   }
+
+
+  /* ---------- onboarding / creature customization ---------- */
+  function getTutorialState(){ return readJSON(KEYS.tutorial, { completed:false, skipped:false }); }
+  function setTutorialState(patch){ const next={...getTutorialState(),...patch}; writeJSON(KEYS.tutorial,next); return next; }
+  function getOutfit(){ return readJSON(KEYS.outfit, { id:"scholar", unlocked:["scholar"] }); }
+  function setOutfit(id){ const cur=getOutfit(); cur.id=id; writeJSON(KEYS.outfit,cur); return cur; }
+  function getLearningPrefs(){ return readJSON(KEYS.learning, { resourceTypes:{}, videoLengths:{}, styles:{}, sessionLengths:{}, breakStyles:{}, chosen:{}, rejected:{} }); }
+  function saveLearningPrefs(patch){ const next={...getLearningPrefs(),...patch}; writeJSON(KEYS.learning,next); return next; }
 
   /* ---------- full wipe ---------- */
   function forgetEverything(){

@@ -18,6 +18,7 @@
 <link rel="stylesheet" href="./panels.css" />
 <link rel="stylesheet" href="./bubbles.css" />
 <link rel="stylesheet" href="./projection.css" />
+<link rel="stylesheet" href="./ecosystem.css" />
 </head>
 <body>
 
@@ -69,6 +70,38 @@
     </div>
   </main>
 
+  <!-- ================= STUDY AGENT SHEET ================= -->
+  <section id="agent-sheet" aria-hidden="true">
+    <div id="agent-card">
+      <div class="agent-top"><span>DABSy / Study plan</span><button id="agent-close">✕</button></div>
+      <div id="agent-content"></div>
+    </div>
+  </section>
+
+  <!-- ================= CREATURE-FIRST ECOSYSTEM HUB ================= -->
+  <section id="ecosystem-hub" aria-hidden="true">
+    <div id="ecosystem-backdrop"></div>
+    <div id="ecosystem-core">
+      <div class="eco-heading"><span>DA.B.S.y</span><small>your little ecosystem</small></div>
+      <div id="ecosystem-items"></div>
+      <button id="ecosystem-close" aria-label="Close ecosystem">Close</button>
+    </div>
+  </section>
+
+  <!-- ================= ONE-TIME TUTORIAL ================= -->
+  <section id="tutorial" aria-hidden="true">
+    <div class="tutorial-card">
+      <div class="tutorial-orb">✦</div>
+      <small data-progress>1 / 4</small>
+      <h2 data-title>Meet DABSy</h2>
+      <p data-copy></p>
+      <div class="tutorial-actions">
+        <button data-tutorial-skip>Skip</button>
+        <button data-tutorial-next>Next</button>
+      </div>
+    </div>
+  </section>
+
   <!-- ================= QUICK BUBBLES (double-tap eyes) ================= -->
   <div id="quick-bubbles" aria-hidden="true">
     <div id="quick-bubbles-backdrop"></div>
@@ -84,6 +117,7 @@
         <button data-tab="play">Play</button>
         <button data-tab="room">Room</button>
         <button data-tab="memory">Memory</button>
+        <button data-tab="notifications">Inbox</button>
         <button data-tab="settings">Settings</button>
       </nav>
 
@@ -128,11 +162,20 @@
         <div id="memory-body"></div>
       </div>
 
+      <div class="world-panel" data-panel="notifications">
+        <h2>DABSy Inbox</h2>
+        <div id="notifications-body"></div>
+      </div>
+
       <div class="world-panel" data-panel="settings">
         <h2>Settings</h2>
         <div id="settings-body">
-          <label>Gemini API Key
-            <input id="gemini-key" type="password" placeholder="Paste your key" />
+          <div class="ai-status-card">
+            <span class="status-dot"></span>
+            <div><strong>DABSy AI</strong><small id="ai-status-text">Checking secure connection…</small></div>
+          </div>
+          <label>Secure AI service endpoint
+            <input id="ai-endpoint" type="url" placeholder="/api/ai (optional)" />
           </label>
           <label>Voice
             <select id="voice-select"></select>
@@ -149,9 +192,10 @@
               <option value="automatic">Automatic — I can add/move/cancel freely</option>
             </select>
           </label>
-          <p class="hint">Off by default. Turning this on lets D.A.B.S.y read and (depending on the level above) write events in Ghibli Calendar — nothing leaves this device.</p>
+          <p class="hint">Calendar communication stays on the shared GitHub Pages origin. AI requests use the secure endpoint above when one is deployed; DABSy never asks normal users for provider secrets.</p>
           <button id="install-app-btn" class="util-btn" style="display:none;">📲 Install D.A.B.S.y</button>
-          <p class="hint">Your key stays on this device only — it's never sent anywhere except directly to Google's API.</p>
+          <button id="request-notifications-btn" class="util-btn">🔔 Enable notifications when needed</button>
+          <button id="replay-tutorial-btn" class="util-btn">✨ Replay tiny tutorial</button>
         </div>
       </div>
 
@@ -181,7 +225,13 @@
   <script src="./interaction-engine.js"></script>
   <script src="./voice-engine.js"></script>
   <script src="./vision-engine.js"></script>
+  <script src="./ai-provider.js"></script>
   <script src="./ai-engine.js"></script>
+  <script src="./agent-engine.js"></script>
+  <script src="./notification-engine.js"></script>
+  <script src="./ecosystem-engine.js"></script>
+  <script src="./onboarding-engine.js"></script>
+  <script src="./outfit-engine.js"></script>
   <script src="./pet-engine.js"></script>
   <script src="./projection-engine.js"></script>
   <script src="./quickbubbles-engine.js"></script>

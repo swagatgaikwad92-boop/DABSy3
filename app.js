@@ -67,6 +67,8 @@
   bus.on("face:tap", ({count})=>{ if(count===1) showDock(); });
   bus.on("quickbubbles:focus-input", ()=>showDock(true));
 
+  document.getElementById("agent-close")?.addEventListener("click",()=>document.getElementById("agent-sheet")?.classList.remove("open"));
+
   /* ---------- mic button ---------- */
   micBtn.addEventListener("click", ()=>{
     if(voice.isListening()){ voice.stopListening(); }
@@ -127,10 +129,76 @@
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
   }
 
+  function renderAgentResult(result, resources=[]){
+    const sheet=document.getElementById("agent-sheet"), content=document.getElementById("agent-content");
+    if(!sheet||!content)return;
+    content.innerHTML="";
+    if(!result.ok){
+      content.innerHTML=`<div class="agent-empty"><strong>I can plan this, but the secure AI service isn't connected.</strong><p>Deploy the backend described in the project README, then DABSy can turn goals into adaptive plans and research resources.</p></div>`;
+    }else{
+      const h=document.createElement("h2");h.textContent=result.sessionTitle||"Study session";content.appendChild(h);
+      if(result.message){const p=document.createElement("p");p.className="hint";p.textContent=result.message;content.appendChild(p)}
+      (result.steps||[]).forEach(step=>{
+        const row=document.createElement("div");row.className="agent-step";
+        row.innerHTML=`<span>${escapeHtml(step.title||step.kind||"Step")}</span><strong>${Number(step.minutes)||0}m</strong>`;
+        content.appendChild(row);
+      });
+      if(resources.length){
+        const rh=document.createElement("h3");rh.textContent="Choose your material";content.appendChild(rh);
+        const list=document.createElement("div");list.className="agent-resources";
+        resources.forEach((r,i)=>{
+          const card=document.createElement("article");card.className="resource-card";
+          card.innerHTML=`<div><strong>${escapeHtml(r.title||"Resource")}</strong><small>${escapeHtml([r.type,r.source,r.duration].filter(Boolean).join(" · "))}</small><p>${escapeHtml(r.description||"")}</p></div>`;
+          let startX=0;
+          card.addEventListener("pointerdown",e=>{startX=e.clientX});
+          card.addEventListener("pointerup",e=>{
+            const dx=e.clientX-startX;
+            if(Math.abs(dx)>70){ card.classList.toggle(dx>0?"chosen":"rejected"); }
+          });
+          const actions=document.createElement("div");actions.className="resource-actions";
+          const reject=document.createElement("button");reject.textContent="Reject";reject.onclick=()=>{card.classList.add("rejected");};
+          const choose=document.createElement("button");choose.textContent="Choose";choose.onclick=()=>{card.classList.toggle("chosen");};
+          actions.append(reject,choose);card.appendChild(actions);list.appendChild(card);
+        });
+        content.appendChild(list);
+      }
+      const ready=document.createElement("button");ready.className="agent-primary";ready.textContent="Prepare Study Space";
+      ready.onclick=()=>{
+        const chosen=[...content.querySelectorAll(".resource-card.chosen")].map((card,i)=>resources[i]).filter(Boolean);
+        const finalResources=chosen.length?chosen:window.DABSy.agent.getSelection();
+        window.DABSy.agent.saveSelection(finalResources);
+        const session=window.DABSy.agent.buildSession(result,finalResources);
+        window.DABSy.notifications.push({title:"Study session ready",body:`${session.title} is prepared in DABSy.`});
+        say("Your study session is prepared. Study Space can pick it up through the shared ecosystem contract.","HAPPY");
+        sheet.classList.remove("open");
+      };
+      content.appendChild(ready);
+    }
+    sheet.classList.add("open");
+  }
+  async function runAgentGoal(text){
+    const minsMatch=text.match(/\b(\d{2,3})\s*(?:minutes?|mins?|m)\b/i);
+    const minutes=minsMatch?Number(minsMatch[1]):60;
+    window.DABSy.director.dispatch("AI_THINKING");
+    const result=await window.DABSy.ai.agentGoal(text,minutes);
+    let resources=[];
+    if(result.ok && result.needsResearch && result.searchQuery){
+      const research=await window.DABSy.agent.research(result.searchQuery);
+      resources=research.resources||[];
+      if(resources.length) window.DABSy.agent.saveSelection(resources);
+    }
+    renderAgentResult(result,resources);
+    return true;
+  }
+
   async function handleUserUtterance(text){
     showDock();
     showSubtitle(text);
     memory.addSession("user", text);
+    if(/\b(want to study|study .* today|study .* tonight|plan my study|help me study)\b/i.test(text)){
+      await runAgentGoal(text);
+      return;
+    }
     window.DABSy.director.dispatch("AI_THINKING");
 
     if(pendingCategoryQuestion){
@@ -404,7 +472,10 @@
   bus.on("face:overtapped", ()=>{
     window.DABSy.director.dispatch("USER_OVERTAPPED");
   });
-  bus.on("face:longpress", ()=>window.DABSy.director.dispatch("USER_LONGPRESS"));
+  bus.on("face:longpress", ()=>{
+    window.DABSy.director.dispatch("USER_LONGPRESS");
+    showDock(true);
+  });
 
   /* ---------- Schedule panel ---------- */
   function renderSchedule(){
@@ -491,15 +562,17 @@
   });
 
   /* ---------- Settings panel ---------- */
-  const geminiKeyInput = document.getElementById("gemini-key");
+  const aiEndpointInput = document.getElementById("ai-endpoint");
+  const aiStatusText = document.getElementById("ai-status-text");
   const voiceSelect = document.getElementById("voice-select");
   const soundToggle = document.getElementById("sound-toggle");
   const saveSettingsBtn = document.getElementById("save-settings");
 
   function populateSettings(){
     const s = memory.getSettings();
-    geminiKeyInput.value = s.geminiKey || "";
+    aiEndpointInput.value = s.aiEndpoint || "";
     soundToggle.checked = s.sound !== false;
+    if(aiStatusText) aiStatusText.textContent = s.aiEndpoint ? "Secure endpoint configured" : "No AI backend configured in this deployment";
     const voices = voice.getVoices();
     voiceSelect.innerHTML = "";
     voices.forEach(v=>{
@@ -516,12 +589,36 @@
 
   saveSettingsBtn.addEventListener("click", ()=>{
     memory.saveSettings({
-      geminiKey: geminiKeyInput.value.trim(),
+      aiEndpoint: aiEndpointInput.value.trim(),
       voiceURI: voiceSelect.value,
       sound: soundToggle.checked,
     });
     window.DABSy.director.dispatch("DABSY_REPLY", { speakText: "Settings saved." });
   });
+
+  const notificationBtn = document.getElementById("request-notifications-btn");
+  notificationBtn?.addEventListener("click", async ()=>{
+    const result = await window.DABSy.notifications.requestPermission();
+    const msg = result==="granted" ? "Notifications are ready when DABSy needs them." :
+      result==="denied" ? "Notifications are blocked for this site. You can change that in browser site settings." :
+      "This browser doesn't expose native notifications here.";
+    say(msg, result==="granted" ? "HAPPY" : "CURIOUS");
+  });
+  document.getElementById("replay-tutorial-btn")?.addEventListener("click",()=>window.DABSy.onboarding.open(true));
+  bus.on("ecosystem:unavailable",({id})=>say(`${id.replace(/-/g," ")} isn't connected on this deployment yet. I won't pretend it is.`, "CURIOUS"));
+
+  function renderNotifications(){
+    const el=document.getElementById("notifications-body"); if(!el)return;
+    const list=window.DABSy.notifications.getAll().slice().reverse();
+    el.innerHTML="";
+    if(!list.length){el.innerHTML='<div class="hint">Nothing here yet. I will keep this quiet unless something useful happens.</div>';return}
+    list.forEach(n=>{
+      const row=document.createElement("div"); row.className="notification-row";
+      row.innerHTML=`<div><strong>${escapeHtml(n.title||"DABSy")}</strong><p>${escapeHtml(n.body||"")}</p><small>${new Date(n.ts).toLocaleString()}</small></div>`;
+      const b=document.createElement("button"); b.textContent=n.read?"✓":"Mark read"; b.onclick=()=>{window.DABSy.notifications.markRead(n.id);renderNotifications()}; row.appendChild(b); el.appendChild(row);
+    });
+  }
+  bus.on("notifications:changed",()=>{if(document.querySelector('.world-panel[data-panel="notifications"].active'))renderNotifications()});
 
   /* ---------- Install button (only appears once Chrome says it's eligible) ---------- */
   const installBtn = document.getElementById("install-app-btn");
@@ -536,6 +633,7 @@
     if(tab === "settings"){ populateSettings(); populateConnectionsUI(); }
     if(tab === "memory") renderMemoryPanel();
     if(tab === "room") renderRoom();
+    if(tab === "notifications") renderNotifications();
   });
 
   /* ---------- Memory panel ---------- */

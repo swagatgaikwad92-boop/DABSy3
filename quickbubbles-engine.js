@@ -63,9 +63,9 @@
 
   backdrop.addEventListener("click", close);
 
-  bus.on("face:doubletap", ()=>{
-    if(container.classList.contains("open")) close(); else open();
-  });
+  // Double-tap now belongs to the creature-first ecosystem hub.
+  // Quick bubbles remain available programmatically for lightweight actions.
+  bus.on("ecosystem:opened", close);
   bus.on("world:opened", close); // if the full menu opens for any reason, don't overlap
 
   function handle(action){

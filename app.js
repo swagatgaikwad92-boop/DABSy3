@@ -668,96 +668,50 @@
 
   /* ---------- Memory panel ---------- */
   function renderMemoryPanel(){
-    const el = document.getElementById("memory-body");
-    const prefs = memory.getPreferences();
-    const history = memory.getHistory().slice(-15).reverse();
-    el.innerHTML = "";
+    const el=document.getElementById("memory-body"); if(!el)return;
+    const prefs=memory.getPreferences();
+    const history=memory.getHistory().slice(-15).reverse();
+    el.innerHTML="";
+    const add=document.createElement("div"); add.className="memory-add";
+    add.innerHTML='<input id="memory-new" placeholder="Tell DABSy something to remember…" autocomplete="off"><button class="util-btn" id="memory-add-btn">Remember</button>';
+    el.appendChild(add);
+    const addBtn=add.querySelector('#memory-add-btn');
+    addBtn.onclick=()=>{const input=add.querySelector('#memory-new'); const t=input.value.trim(); if(!t)return; memory.addPreference(t); input.value=''; renderMemoryPanel();};
 
-    const prefTitle = document.createElement("div");
-    prefTitle.className = "hint";
-    prefTitle.textContent = "Things I've been told to remember";
-    el.appendChild(prefTitle);
+    const title=document.createElement('div'); title.className='hint'; title.textContent='Things DABSy has been told to remember'; el.appendChild(title);
+    if(!prefs.length){const empty=document.createElement('div');empty.className='mem-empty';empty.textContent='Nothing remembered yet. Add something above, or tell DABSy “remember that…”';el.appendChild(empty);}
+    prefs.forEach((pref,i)=>{const row=document.createElement('div');row.className='mem-row';row.innerHTML=`<span>${escapeHtml(pref.text)}</span>`;const del=document.createElement('button');del.textContent='Forget';del.onclick=()=>{memory.removePreference(i);renderMemoryPanel();};row.appendChild(del);el.appendChild(row);});
 
-    if(prefs.length === 0){
-      const empty = document.createElement("div");
-      empty.className = "hint";
-      empty.textContent = "Nothing yet.";
-      el.appendChild(empty);
-    }
-    prefs.forEach((p, i)=>{
-      const row = document.createElement("div");
-      row.className = "mem-row";
-      row.innerHTML = `<span>${escapeHtml(p.text)}</span>`;
-      const del = document.createElement("button"); del.textContent = "Forget";
-      del.onclick = ()=>{ memory.removePreference(i); renderMemoryPanel(); };
-      row.appendChild(del);
-      el.appendChild(row);
-    });
+    const rulesTitle=document.createElement('div');rulesTitle.className='hint section-label';rulesTitle.textContent='Recurring tasks';el.appendChild(rulesTitle);
+    const rules=schedule.getRules();
+    if(!rules.length){const empty=document.createElement('div');empty.className='mem-empty';empty.textContent='No recurring tasks yet.';el.appendChild(empty);}
+    rules.forEach(r=>{const row=document.createElement('div');row.className='mem-row';row.innerHTML=`<span>${escapeHtml(r.title)} · ${String(r.hour).padStart(2,'0')}:${String(r.minute).padStart(2,'0')}</span>`;const del=document.createElement('button');del.textContent='Stop';del.onclick=()=>{schedule.removeRecurringByTitle(r.title);renderMemoryPanel();};row.appendChild(del);el.appendChild(row);});
 
-    const rulesTitle = document.createElement("div");
-    rulesTitle.className = "hint";
-    rulesTitle.style.marginTop = "10px";
-    rulesTitle.textContent = "Recurring tasks";
-    el.appendChild(rulesTitle);
-    const rules = schedule.getRules();
-    if(rules.length === 0){
-      const empty = document.createElement("div");
-      empty.className = "hint";
-      empty.textContent = "None yet.";
-      el.appendChild(empty);
-    }
-    rules.forEach(r=>{
-      const row = document.createElement("div");
-      row.className = "mem-row";
-      row.innerHTML = `<span>${escapeHtml(r.title)} — ${String(r.hour).padStart(2,"0")}:${String(r.minute).padStart(2,"0")}</span>`;
-      const del = document.createElement("button"); del.textContent = "Stop";
-      del.onclick = ()=>{ schedule.removeRecurringByTitle(r.title); renderMemoryPanel(); };
-      row.appendChild(del);
-      el.appendChild(row);
-    });
-
-    const histTitle = document.createElement("div");
-    histTitle.className = "hint";
-    histTitle.style.marginTop = "10px";
-    histTitle.textContent = "Recent history";
-    el.appendChild(histTitle);
-    history.forEach(h=>{
-      const row = document.createElement("div");
-      row.className = "mem-row";
-      const label = h.type === "study-session" ? `Studied for ${h.minutes} min`
-        : h.type === "chat" ? `"${h.user}"`
-        : h.type;
-      row.innerHTML = `<span>${escapeHtml(label)}</span>`;
-      el.appendChild(row);
-    });
-
-    const clearBtn = document.createElement("button");
-    clearBtn.className = "util-btn";
-    clearBtn.style.marginTop = "10px";
-    clearBtn.textContent = "Clear all history";
-    clearBtn.onclick = ()=>{ memory.clearHistory(); renderMemoryPanel(); };
-    el.appendChild(clearBtn);
+    const histTitle=document.createElement('div');histTitle.className='hint section-label';histTitle.textContent='Recent history';el.appendChild(histTitle);
+    if(!history.length){const empty=document.createElement('div');empty.className='mem-empty';empty.textContent='Your recent conversations and study activity will appear here.';el.appendChild(empty);}
+    history.forEach(h=>{const row=document.createElement('div');row.className='mem-row';const label=h.type==='study-session'?`Studied for ${h.minutes} min`:h.type==='chat'?`“${h.user}”`:h.type;row.innerHTML=`<span>${escapeHtml(label)}</span>`;el.appendChild(row);});
+    const clear=document.createElement('button');clear.className='util-btn';clear.textContent='Clear conversation history';clear.onclick=()=>{memory.clearHistory();renderMemoryPanel();};el.appendChild(clear);
   }
 
-  /* ---------- Room panel: evolving pet stats ---------- */
+  /* ---------- Room panel ---------- */
   function renderRoom(){
-    const el = document.getElementById("room-grid");
-    const stats = memory.getPetStats();
-    const tasks = memory.getTasks();
-    const done = tasks.filter(t=>t.done).length;
-    el.innerHTML = "";
-    [
-      { label: "Affection", value: Math.round((stats.affection||0.4)*100)+"%" },
-      { label: "Tasks done", value: `${done}/${tasks.length}` },
-      { label: "Study sessions", value: memory.getHistory().filter(h=>h.type==="study-session").length },
-      { label: "Streak", value: `${stats.streak||0} visits in a row` },
-      { label: "Today's items", value: schedule.getTodaysSchedule().length },
-    ].forEach(item=>{
-      const row = document.createElement("div");
-      row.className = "task-row";
-      row.innerHTML = `<span>${item.label}</span><span>${item.value}</span>`;
-      el.appendChild(row);
-    });
+    const el=document.getElementById('room-grid'); if(!el)return;
+    const stats=memory.getPetStats()||{};
+    const tasks=memory.getTasks()||[];
+    const history=memory.getHistory()||[];
+    const items=[
+      ['Affection',Math.round((Number(stats.affection)||0.4)*100)+'%'],
+      ['Tasks completed',`${tasks.filter(t=>t.done).length}/${tasks.length}`],
+      ['Study sessions',history.filter(h=>h.type==='study-session').length],
+      ['Visit streak',`${Number(stats.streak)||0} days`],
+      ["Today's scheduled items",schedule.getTodaysSchedule().length]
+    ];
+    el.innerHTML='';
+    items.forEach(([label,value])=>{const row=document.createElement('div');row.className='task-row room-stat';row.innerHTML=`<span>${label}</span><strong>${value}</strong>`;el.appendChild(row);});
+    const actions=document.createElement('div');actions.className='room-actions';
+    const pet=document.createElement('button');pet.className='util-btn';pet.textContent='🐾 Pet DABSy';pet.onclick=()=>{memory.savePetStats({...stats,affection:Math.min(1,(Number(stats.affection)||.4)+.03)});window.DABSy.director.dispatch('USER_PETTED');renderRoom();};
+    const reset=document.createElement('button');reset.className='util-btn';reset.textContent='Reset room stats';reset.onclick=()=>{memory.savePetStats({lastSeen:Date.now(),affection:.4,streak:0});renderRoom();};
+    actions.append(pet,reset);el.appendChild(actions);
   }
 
   function escapeHtml(s){

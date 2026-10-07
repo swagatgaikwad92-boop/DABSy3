@@ -157,3 +157,5 @@
   text-align: center;
   padding: 10px 0;
 }
+
+.memory-add{display:grid;grid-template-columns:1fr auto;gap:8px}.memory-add input{min-width:0;background:var(--glass-strong);border:1px solid var(--glass-border);border-radius:14px;padding:11px 12px;color:var(--ink);outline:none}.mem-empty{padding:12px 13px;border-radius:14px;background:rgba(255,255,255,.045);border:1px solid var(--glass-border);color:var(--ink-dim);font-size:.82rem;line-height:1.45}.section-label{margin-top:8px}.room-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.room-stat strong{font-variant-numeric:tabular-nums;color:var(--ink)}

@@ -3,8 +3,7 @@
    Handles the two "world expands" transitions:
      1) double-tap BOW TIE -> #world, the full menu
      2) study start -> #projection (face shrinks to corner)
-   Double-tapping the EYES opens the small quick-bubbles menu
-   instead — see quickbubbles-engine.js.
+   Double-tapping the EYES opens the radial ecosystem hub.
 
    #world can be closed three ways: the Close button, tapping the
    backdrop outside the sheet, or (from anywhere) emitting
@@ -24,7 +23,6 @@
   const projectionClose = document.getElementById("projection-close");
 
   function openWorld(tab){
-    window.DABSy.quickbubbles?.close();
     world.classList.add("open");
     world.setAttribute("aria-hidden","false");
     window.DABSy.director.dispatch("USER_DOUBLETAPPED");

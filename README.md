@@ -159,3 +159,12 @@ The ZIP cannot magically contain a secure AI backend because GitHub Pages is sta
 - Live Talk uses the browser SpeechRecognition API plus speech synthesis. It is a real microphone conversation loop, but browser/device support and available voices vary.
 - Microphone permission is requested by the browser when Live Talk is started.
 - Live Talk does not provide server-side voice intelligence; the spoken content still comes from DABSy's AI/local response pipeline.
+
+
+## v7.3 repair pass
+- Double-tap the creature now opens a radial ecosystem launcher, not a scrolling sheet.
+- Study Space, Ghibli Calendar, and SolveCount launch their real URLs.
+- The old quick-bubble layer is removed to prevent gesture/UI conflicts.
+- The creature silhouette no longer adds the CSS ear/muzzle shell that made it read as a monkey. Depth is kept in the eyes and lighting instead.
+- Room and Memory panels now render explicit state even when empty, and Memory has a real local “Remember” control. Room has live stats and pet/reset controls.
+- A true 3D model is not required for this repair. A future model can be added behind the same creature interface if a heavier 3D version is desired.

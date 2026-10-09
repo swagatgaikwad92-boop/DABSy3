@@ -3,9 +3,17 @@
    Three tiers:
      session    — in-memory only, cleared on reload (current convo)
      preferences— things DABSy was explicitly told to remember
-     history    — tasks / reminders / study progress / interaction log
-   All persisted tiers live in localStorage, namespaced, with
-   view/edit/forget/clear exposed for the Memory panel.
+     history    — interactions / study progress log
+   Everything persisted lives in localStorage under "dabsy_*",
+   so it can be viewed, exported and forgotten from Settings.
+
+   v7 changes
+     - No API key is stored any more. A leftover key from v6 is
+       deleted on first run (see migrate()).
+     - read()/write() are exposed so other modules share ONE
+       namespaced storage helper instead of each rolling their own.
+     - exportAll() / forgetEverything() cover every dabsy_* key,
+       not just the ones this file knows about.
    ============================================================ */
 
 (function(){
@@ -13,21 +21,21 @@
   const KEYS = {
     prefs: NS + "preferences",
     history: NS + "history",
-    tasks: NS + "tasks",
+    tasks: NS + "tasks",          // v6 simple task list (kept for migration only)
     reminders: NS + "reminders",
     petStats: NS + "pet_stats",
     settings: NS + "settings",
-    tutorial: NS + "tutorial_v1",
-    outfit: NS + "outfit_v1",
-    learning: NS + "learning_prefs_v1",
   };
+  // Kept across "forget everything" so the tutorial never re-appears by accident.
+  const KEEP_ON_WIPE = [NS + "onboarding_v1", NS + "dev_proxy"];
 
   function readJSON(key, fallback){
     try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
     catch(e){ return fallback; }
   }
   function writeJSON(key, val){
-    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){ console.error("memory write failed", e); }
+    try{ localStorage.setItem(key, JSON.stringify(val)); return true; }
+    catch(e){ console.error("memory write failed", e); return false; }
   }
 
   /* ---------- session (volatile) ---------- */
@@ -62,7 +70,9 @@
   }
   function clearHistory(){ writeJSON(KEYS.history, []); }
 
-  /* ---------- tasks / reminders ---------- */
+  /* ---------- v6 simple tasks / reminders ----------
+     Superseded by task-engine.js (rich task objects). These stay only so
+     old data can be migrated and old callers don't break. */
   function getTasks(){ return readJSON(KEYS.tasks, []); }
   function addTask(text){
     const list = getTasks();
@@ -82,7 +92,6 @@
     writeJSON(KEYS.tasks, list);
     return list;
   }
-
   function getReminders(){ return readJSON(KEYS.reminders, []); }
   function addReminder(text, when){
     const list = getReminders();
@@ -102,28 +111,64 @@
   }
   function savePetStats(stats){ writeJSON(KEYS.petStats, stats); }
 
-  /* ---------- settings (api key, voice, sound) ---------- */
-  function getSettings(){ return readJSON(KEYS.settings, { voiceURI:"", speechLang:"auto", sound:true, aiEndpoint:"" }); }
+  /* ---------- settings ---------- */
+  const SETTINGS_DEFAULTS = {
+    voiceURI: "",
+    sound: true,
+    speakReplies: true,      // DABSy speaks replies aloud (text always shows)
+    cheer: true,             // short, text-only encouragement between study blocks
+    personalizeAI: true,     // include my learned study preferences in AI requests
+    showShortcuts: false,    // on-screen buttons for the gestures (accessibility)
+    reduceMotion: "auto",    // auto | on | off
+  };
+  function getSettings(){ return { ...SETTINGS_DEFAULTS, ...readJSON(KEYS.settings, {}) }; }
   function saveSettings(patch){
-    const cur = getSettings();
-    const next = { ...cur, ...patch };
+    const next = { ...getSettings(), ...patch };
     writeJSON(KEYS.settings, next);
+    window.DABSy.bus?.emit("settings:changed", { patch, settings: next });
     return next;
   }
 
+  /* ---------- migration ---------- */
+  function migrate(){
+    // v6 stored the user's own Gemini key here. v7 never uses one, and a
+    // leftover secret in localStorage is a liability — remove it.
+    const raw = readJSON(KEYS.settings, null);
+    if(raw && "geminiKey" in raw){
+      delete raw.geminiKey;
+      writeJSON(KEYS.settings, raw);
+    }
+  }
+  migrate();
 
-  /* ---------- onboarding / creature customization ---------- */
-  function getTutorialState(){ return readJSON(KEYS.tutorial, { completed:false, skipped:false }); }
-  function setTutorialState(patch){ const next={...getTutorialState(),...patch}; writeJSON(KEYS.tutorial,next); return next; }
-  function getOutfit(){ return readJSON(KEYS.outfit, { id:"scholar", unlocked:["scholar"] }); }
-  function setOutfit(id){ const cur=getOutfit(); cur.id=id; writeJSON(KEYS.outfit,cur); return cur; }
-  function getLearningPrefs(){ return readJSON(KEYS.learning, { resourceTypes:{}, videoLengths:{}, styles:{}, sessionLengths:{}, breakStyles:{}, chosen:{}, rejected:{} }); }
-  function saveLearningPrefs(patch){ const next={...getLearningPrefs(),...patch}; writeJSON(KEYS.learning,next); return next; }
+  /* ---------- generic namespaced helpers for other modules ---------- */
+  function read(name, fallback){ return readJSON(NS + name, fallback); }
+  function write(name, val){ return writeJSON(NS + name, val); }
+  function remove(name){ try{ localStorage.removeItem(NS + name); }catch(e){} }
+
+  function allKeys(){
+    const out = [];
+    for(let i=0;i<localStorage.length;i++){
+      const k = localStorage.key(i);
+      if(k && k.startsWith(NS)) out.push(k);
+    }
+    return out;
+  }
+  // Captured ONCE, at load, before any v7 module has had a chance to write
+  // anything — so "was there data from an earlier DABSy?" stays truthful.
+  const PRIOR_DATA = allKeys().some(k => k !== NS + "onboarding_v1" && k !== NS + "dev_proxy");
+  function hadPriorData(){ return PRIOR_DATA; }
+  function exportAll(){
+    const out = {};
+    allKeys().forEach(k => { out[k] = readJSON(k, null); });
+    return out;
+  }
 
   /* ---------- full wipe ---------- */
   function forgetEverything(){
-    Object.values(KEYS).forEach(k=>localStorage.removeItem(k));
+    allKeys().filter(k => !KEEP_ON_WIPE.includes(k)).forEach(k => localStorage.removeItem(k));
     session = [];
+    window.DABSy.bus?.emit("memory:wiped");
   }
 
   window.DABSy = window.DABSy || {};
@@ -134,7 +179,8 @@
     getTasks, addTask, toggleTask, removeTask,
     getReminders, addReminder, removeReminder,
     getPetStats, savePetStats,
-    getSettings, saveSettings,
+    getSettings, saveSettings, SETTINGS_DEFAULTS,
+    read, write, remove, allKeys, hadPriorData, exportAll,
     forgetEverything,
   };
 })();

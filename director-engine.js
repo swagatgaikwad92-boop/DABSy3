@@ -35,6 +35,8 @@
       priority: "normal",
       transitionSteps: [{expr:"curious",holdMs:220},{expr:"happy",holdMs:1100}],
       speakPool: ["Mm, that's nice.", "Okay, that actually feels good.", "Keep doing that.", "I like this."],
+      speakChance: 0.35,   // petting is mostly a look and a purr, not a speech
+      react: "nod",
       quietSuppressible: true,
     },
     USER_TAPPED: {
@@ -56,6 +58,7 @@
       priority: "normal",
       transitionSteps: [{expr:"playful",holdMs:1400}],
       speakPool: ["Okay okay, I'm awake!"],
+      react: "wiggle",
       quietSuppressible: true,
     },
     AI_THINKING: {
@@ -101,6 +104,33 @@
       transitionSteps: [{expr:"happy",holdMs:1400}],
       quietSuppressible: false,
     },
+    NOTIF_ARRIVED: {
+      priority: "normal",
+      transitionSteps: [{expr:"curious",holdMs:700},{expr:"neutral",holdMs:0}],
+      react: "perk",
+      quietSuppressible: true,
+    },
+    SUCCESS_MOMENT: {
+      priority: "high",
+      transitionSteps: [{expr:"proud",holdMs:1500}],
+      react: "hop",
+      finalState: "IDLE",
+      quietSuppressible: false,
+    },
+    CONFUSED_BEAT: {
+      priority: "normal",
+      transitionSteps: [{expr:"concerned",holdMs:260},{expr:"confused",holdMs:1100}],
+      react: "shake",
+      finalState: "IDLE",
+      quietSuppressible: false,
+    },
+    BLOCK_DONE: {
+      priority: "normal",
+      transitionSteps: [{expr:"happy",holdMs:1100}],
+      react: "nod",
+      finalState: "STUDY_FOCUS",
+      quietSuppressible: false,
+    },
     IDLE_BEAT: {
       // ambient personality — the lowest-priority, most suppressible intent.
       priority: "low",
@@ -143,6 +173,9 @@
     if(steps.length){
       try{ await emotion.transition(steps); }catch(e){ console.warn("transition failed", e); }
     }
+
+    const reactName = payload.react || def.react;
+    if(reactName) bus.emit("face:react", { name: reactName });
 
     if(def.setStateImmediate) emotion.setState(def.setStateImmediate, { silent:true });
 

@@ -1,0 +1,11 @@
+/* D.A.B.S.y — tour.css */
+#tour{position:fixed;left:0;right:0;bottom:0;z-index:95;display:flex;justify-content:center;padding:0 12px calc(12px + var(--sab));pointer-events:none}
+.tour-card{pointer-events:auto;width:min(480px,100%);padding:18px;border-radius:28px;display:flex;flex-direction:column;gap:10px;align-items:flex-start;
+  background:linear-gradient(160deg,rgba(44,50,100,.92),rgba(16,19,44,.95));border:1px solid var(--glass-border);box-shadow:0 20px 60px rgba(0,0,0,.55);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);animation:tour-in .35s var(--ease-out)}
+.tour-card h2{margin:0;font-size:1.15rem}.tour-card p{margin:0;color:var(--ink-dim);line-height:1.5;font-size:.95rem}
+.tour-step{font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-2)}
+.tour-dots{display:flex;gap:6px}.tour-dots i{width:6px;height:6px;border-radius:50%;background:var(--glass-border)}.tour-dots i.on{background:var(--accent);width:16px;border-radius:4px}
+.tour-card .popup-actions{margin-top:2px}
+.tour-hl{box-shadow:0 0 0 3px var(--accent),0 0 24px var(--accent)!important;border-radius:50%;z-index:96!important}
+body.touring #creature-wrap{transform:translate(-50%,-50%) scale(.8) translateY(-10vh)}
+@keyframes tour-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}

@@ -9,7 +9,8 @@
 (function(){
   const STATES = [
     "IDLE","LISTENING","THINKING","SPEAKING",
-    "CURIOUS","HAPPY","FOCUSED","SLEEPY","SURPRISED","PLAYFUL","STUDY_FOCUS"
+    "CURIOUS","HAPPY","FOCUSED","SLEEPY","SURPRISED","PLAYFUL","STUDY_FOCUS",
+    "CONFUSED","SUCCESS"
   ];
 
   // state -> expression class shown on the face
@@ -24,7 +25,9 @@
     SLEEPY: "sleepy",
     SURPRISED: "surprised",
     PLAYFUL: "playful",
-    STUDY_FOCUS: "focused"
+    STUDY_FOCUS: "focused",
+    CONFUSED: "confused",   // (v6 set this state from ai-engine but it was never registered — fixed)
+    SUCCESS: "proud"
   };
 
   /* ---------- tiny event bus ---------- */

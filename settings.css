@@ -1,0 +1,17 @@
+/* D.A.B.S.y — settings.css */
+.sheet.settings{max-height:88vh}
+.set-sec{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.wd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.wd-tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px 10px;border-radius:18px;background:var(--glass);border:1px solid var(--glass-border);text-align:center;position:relative}
+.wd-tile svg{width:100%;height:auto;max-height:92px}
+.wd-tile.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.wd-tile.locked svg,.wd-tile.locked .wd-q{opacity:.35;filter:grayscale(.8)}
+.wd-name{font-size:.78rem;font-weight:600;line-height:1.15}
+.wd-note{font-size:.68rem;color:var(--ink-faint);line-height:1.2}
+.wd-q{width:100%;height:80px;display:grid;place-items:center;font-size:2rem;color:var(--ink-faint)}
+.settings .row input.field,.settings .row select.field{max-width:200px}
+.settings .row input[type=time].field{max-width:112px;padding:8px}
+.g-area{display:flex;flex-direction:column;gap:12px;align-items:stretch}
+.g-result{text-align:center;color:var(--ink-dim);min-height:2.6em}
+.g-big{min-height:110px;font-size:1.3rem;border-radius:28px}
+.g-big.go{background:linear-gradient(135deg,#9ef0c4,#7fb6ff);color:#0b0d1c}

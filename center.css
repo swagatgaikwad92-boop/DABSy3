@@ -1,0 +1,19 @@
+/* D.A.B.S.y — center.css : notification centre + tasks */
+.sheet.center{max-height:78vh}
+.nc-list{display:flex;flex-direction:column;gap:10px}
+.nc-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:20px;background:var(--glass);border:1px solid var(--glass-border)}
+.nc-item.new{border-color:rgba(157,220,255,.5);background:rgba(157,220,255,.08)}
+.nc-item.acted{opacity:.6}
+.nc-main{flex:1;min-width:0}
+.nc-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.nc-head strong{font-size:.97rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nc-time{font-size:.74rem;color:var(--ink-faint);flex-shrink:0}
+.nc-body{font-size:.9rem;color:var(--ink-dim);line-height:1.4;margin-top:2px}
+.nc-foot{display:flex;justify-content:center;padding-top:4px}
+.empty{padding:26px 10px;text-align:center;color:var(--ink-dim)}
+.task-row .tick{width:30px;height:30px;border-radius:50%;border:2px solid var(--glass-border);display:grid;place-items:center;flex-shrink:0;color:#0b0d1c}
+.task-row .tick.on{background:linear-gradient(135deg,#9ef0c4,#7fb6ff);border-color:transparent}
+.task-row.s-done .t{text-decoration:line-through;color:var(--ink-faint)}
+.task-row.overdue .s{color:var(--accent-warm)}
+.task-acts{display:flex;gap:2px}
+.tasks .row input.field{flex:1;min-width:0}

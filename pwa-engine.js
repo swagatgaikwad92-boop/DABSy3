@@ -30,5 +30,5 @@
   }
 
   window.DABSy = window.DABSy || {};
-  window.DABSy.pwa = { promptInstall };
+  window.DABSy.pwa = { promptInstall, canInstall: () => !!deferredPrompt };
 })();

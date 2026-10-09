@@ -16,11 +16,8 @@
 
   let cancelled = false;
 
-  function splitStudyBlocks(text){
-    return text
-      .split(/\n{2,}/)
-      .map(s => s.replace(/^\s*\d+[\.\)]\s*/, "").trim())
-      .filter(Boolean);
+  function splitSteps(stepsText){
+    return stepsText.split(/\n{2,}|(?=^\d+[\.\)])/m).map(s=>s.trim()).filter(Boolean);
   }
 
   // Wraps each word of a step in a span so the pointer can target it, and
@@ -50,13 +47,14 @@
     const h = document.createElement("h3");
     h.textContent = title;
     projectionContent.appendChild(h);
-    const blockEls = chunks.map((chunk)=>{
-      const p = document.createElement("p");
-      p.className = "study-answer-block";
-      projectionContent.appendChild(p);
-      return p;
+    const stepEls = chunks.map((chunk, i)=>{
+      const div = document.createElement("div");
+      div.className = "step" + (i===0 ? " highlight" : "");
+      div.dataset.stepIndex = i;
+      projectionContent.appendChild(div);
+      return div;
     });
-    return blockEls;
+    return stepEls;
   }
 
   function movePointerTo(span){
@@ -73,6 +71,7 @@
   async function speakStepsSequentially(stepEls, texts){
     for(let i=0; i<stepEls.length; i++){
       if(cancelled) return;
+      stepEls.forEach((el,j)=>el.classList.toggle("highlight", j===i));
       stepEls[i].scrollIntoView({ block:"center", behavior:"smooth" });
 
       const { html, offsets } = wrapWords(texts[i]);
@@ -95,17 +94,17 @@
   async function startStudy(topic){
     if(!topic || !topic.trim()) return;
     cancelled = false;
-    bus.emit("world:close");
+    
     bus.emit("projection:open");
     projectionContent.innerHTML = "<h3>Thinking it through…</h3>";
     pointer.style.opacity = "0";
 
     const result = await ai.askDABSy(
-      `Teach this clearly for a Class 11 science student: ${topic}. Use short paragraphs with a natural teaching flow. Explain the idea, reasoning, and a small example where useful. Do not number the paragraphs or put each idea inside a separate card.`,
-      { context: "Study Mode: clean textbook-like explanation. No numbered steps, no boxed sections, no UI-style cards. Use short paragraphs and simple headings only when genuinely useful." }
+      `Teach this step by step, in short numbered steps, for a Class 11 science student: ${topic}`,
+      { context: "Study Mode: produce a clear step-by-step explanation, one idea per step, each step a short sentence or two." }
     );
 
-    const chunks = splitStudyBlocks(result.text);
+    const chunks = splitSteps(result.text);
     const title = topic.length > 60 ? topic.slice(0,60)+"…" : topic;
     const stepEls = renderScaffold(title, chunks);
     await speakStepsSequentially(stepEls, chunks);
@@ -119,6 +118,7 @@
 
   bus.on("study:launch", ({topic})=>startStudy(topic));
   bus.on("projection:close", stopStudy);
+  bus.on("study:end", stopStudy); // the Done button closes via study:end
 
   window.DABSy = window.DABSy || {};
   window.DABSy.study = { startStudy, stopStudy };

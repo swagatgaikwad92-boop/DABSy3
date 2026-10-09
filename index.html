@@ -2,271 +2,134 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>D.A.B.S.y</title>
-<meta name="theme-color" content="#05060a" />
-<meta name="description" content="D.A.B.S.y — your personal AI desk & study companion." />
+<meta name="theme-color" content="#070914" />
+<meta name="description" content="D.A.B.S.y — your plush AI study companion and hub for your study apps." />
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <link rel="icon" href="./icon-192.png" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
 <link rel="stylesheet" href="./core.css" />
-<link rel="stylesheet" href="./face.css" />
+<link rel="stylesheet" href="./creature.css" />
 <link rel="stylesheet" href="./animations.css" />
-<link rel="stylesheet" href="./panels.css" />
-<link rel="stylesheet" href="./projection.css" />
+<link rel="stylesheet" href="./ui.css" />
 <link rel="stylesheet" href="./ecosystem.css" />
-<link rel="stylesheet" href="./theme.css" />
+<link rel="stylesheet" href="./projection.css" />
 </head>
 <body>
 
-  <!-- ================= BOOT / ATMOSPHERE ================= -->
+  <!-- soft-fur displacement filter, applied once to a static layer of the creature -->
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <filter id="fur-fuzz" x="-6%" y="-6%" width="112%" height="112%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </svg>
+
   <div id="boot-veil"></div>
 
-  <!-- ================= STAGE (default home: only the eyes) ================= -->
-  <main id="stage" aria-label="D.A.B.S.y">
+  <main id="stage" aria-label="D.A.B.S.y, your study companion">
     <div id="atmosphere"></div>
 
-    <div id="face" role="button" aria-label="D.A.B.S.y">
-      <div class="eye" id="eye-left">
-        <div class="eye-glow"></div>
-        <div class="eye-shape">
-          <div class="eye-core"></div>
-          <div class="eye-highlight"></div>
-        </div>
-        <div class="eye-lid"></div>
-      </div>
-      <div class="eye" id="eye-right">
-        <div class="eye-glow"></div>
-        <div class="eye-shape">
-          <div class="eye-core"></div>
-          <div class="eye-highlight"></div>
-        </div>
-        <div class="eye-lid"></div>
-      </div>
+    <!-- top bar: notifications -->
+    <button id="bell-btn" class="icon-btn glass" type="button" aria-label="Notifications">
+      <span id="bell-icon"></span><i id="bell-dot" hidden></i>
+    </button>
 
-      <div id="bowtie" role="button" aria-label="D.A.B.S.y menu">
-        <div class="bt-wing bt-left"></div>
-        <div class="bt-knot"></div>
-        <div class="bt-wing bt-right"></div>
+    <!-- the creature -->
+    <div id="creature-wrap">
+      <div id="face" class="exp-neutral" role="button" tabindex="0"
+           aria-label="D.A.B.S.y. Tap to talk, double-tap for apps, long-press for commands. Arrow up for commands, arrow down for apps.">
+        <div class="cr-shadow"></div>
+        <div class="cr-react"><div class="cr-sway"><div class="cr-tilt">
+          <div class="cr-ear cr-ear-l"></div>
+          <div class="cr-ear cr-ear-r"></div>
+          <div class="cr-body">
+            <div class="cr-fur"></div>
+            <div class="cr-grain"></div>
+            <div class="cr-sheen"></div>
+          </div>
+          <div class="cr-plate"></div>
+          <div class="eye" id="eye-left">
+            <div class="eye-glow"></div>
+            <div class="eye-shape"><div class="eye-core"></div><div class="eye-highlight"></div></div>
+            <div class="eye-lid"></div>
+          </div>
+          <div class="eye" id="eye-right">
+            <div class="eye-glow"></div>
+            <div class="eye-shape"><div class="eye-core"></div><div class="eye-highlight"></div></div>
+            <div class="eye-lid"></div>
+          </div>
+          <div class="cr-cheek cr-cheek-l"></div>
+          <div class="cr-cheek cr-cheek-r"></div>
+          <svg class="cr-wear" viewBox="0 0 300 330" aria-hidden="true" focusable="false">
+            <g id="slot-neck"></g>
+            <g id="slot-eyes"></g>
+            <g id="slot-ears"></g>
+            <g id="slot-head"></g>
+          </svg>
+        </div></div></div>
       </div>
     </div>
 
-    <!-- subtitle strip (speech / thoughts), independent of any panel -->
+    <!-- visible alternatives to the gestures (Settings → Accessibility turns these on) -->
+    <div id="shortcuts" aria-label="DABSy shortcuts">
+      <button id="sc-apps" class="btn glass" type="button" aria-label="Open my apps (same as double-tap)"></button>
+      <button id="sc-talk" class="btn glass" type="button" aria-label="Talk or type a command (same as long-press)"></button>
+    </div>
+
     <div id="subtitle" aria-live="polite"></div>
 
-    <!-- chat area: the glass chatbox + the draggable Study Block blob, side by side -->
+    <!-- command mode: type or speak -->
     <div id="chat-area">
+      <div id="cmd-chips" aria-label="Quick commands"></div>
       <div id="input-dock">
-        <button id="mic-btn" aria-label="Talk to D.A.B.S.y">
+        <button id="mic-btn" type="button" aria-label="Talk to D.A.B.S.y">
           <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
         </button>
-        <input id="text-input" type="text" placeholder="Ask D.A.B.S.y…" autocomplete="off" />
-        <div id="study-blob-docked" aria-label="Drag out to end Study Mode">📖</div>
+        <input id="text-input" type="text" placeholder="Tell me what you want to do…" autocomplete="off" enterkeyhint="send" aria-label="Message to D.A.B.S.y" />
+        <div id="study-blob-docked" aria-label="Study Block is on. Drag out or tap to end it.">📖</div>
       </div>
-      <div id="study-blob" aria-label="Drag into the chat to start Study Mode">📖</div>
+      <div id="study-blob" role="button" tabindex="0" aria-label="Study Block. Drag into the chat or tap to start it.">📖</div>
     </div>
   </main>
 
-  <!-- ================= STUDY AGENT SHEET ================= -->
-  <section id="agent-sheet" aria-hidden="true">
-    <div id="agent-card">
-      <div class="agent-top"><span>DABSy / Study plan</span><button id="agent-close">✕</button></div>
-      <div id="agent-content"></div>
-    </div>
-  </section>
-
-  <!-- ================= CREATURE-FIRST ECOSYSTEM HUB ================= -->
-  <section id="ecosystem-hub" aria-hidden="true">
-    <div id="ecosystem-backdrop"></div>
-    <div id="ecosystem-core">
-      <div class="eco-heading"><span>DA.B.S.y</span><small>your little ecosystem</small></div>
-      <div id="ecosystem-items"></div>
-      <button id="ecosystem-close" aria-label="Close ecosystem">Close</button>
-    </div>
-  </section>
-
-  <!-- ================= ONE-TIME TUTORIAL ================= -->
-  <section id="tutorial" aria-hidden="true">
-    <div class="tutorial-card">
-      <div class="tutorial-orb">✦</div>
-      <small data-progress>1 / 4</small>
-      <h2 data-title>Meet DABSy</h2>
-      <p data-copy></p>
-      <div class="tutorial-actions">
-        <button data-tutorial-skip>Skip</button>
-        <button data-tutorial-next>Next</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= LIVE TALK ================= -->
-  <section id="live-talk" aria-hidden="true">
-    <div class="live-talk-card">
-      <div class="live-talk-orb">◉</div>
-      <div>
-        <strong>Live talk</strong>
-        <small id="live-talk-status">DABSy is ready to listen.</small>
-      </div>
-      <button id="live-talk-stop" aria-label="End live talk">End</button>
-    </div>
-  </section>
-
-  <!-- ================= FULL MENU (double-tap bow tie) ================= -->
-  <section id="world" aria-hidden="true">
-    <div id="world-backdrop"></div>
-    <div id="world-sheet">
-      <nav id="world-tabs">
-        <button data-tab="schedule" class="active">Schedule</button>
-        <button data-tab="utility">Utility</button>
-        <button data-tab="play">Play</button>
-        <button data-tab="room">Room</button>
-        <button data-tab="memory">Memory</button>
-        <button data-tab="notifications">Inbox</button>
-        <button data-tab="settings">Settings</button>
-      </nav>
-
-      <div class="world-panel active" data-panel="schedule">
-        <h2>Today</h2>
-        <div id="schedule-body"></div>
-        <div style="display:flex; gap:8px; margin-top:4px;">
-          <input id="manual-task-title" placeholder="Task name…" style="flex:1; background:var(--glass-strong); border:1px solid var(--glass-border); border-radius:12px; padding:10px; color:var(--ink); outline:none;" />
-          <input id="manual-task-time" type="time" style="background:var(--glass-strong); border:1px solid var(--glass-border); border-radius:12px; padding:10px; color:var(--ink); outline:none;" />
-          <button class="util-btn" id="manual-task-add">Add</button>
-        </div>
-        <p class="hint">Or just tell D.A.B.S.y out loud — "I have chemistry revision at 5:45."</p>
-      </div>
-
-      <div class="world-panel" data-panel="utility">
-        <h2>Utility</h2>
-        <div id="utility-grid">
-          <button class="util-btn" data-util="timer">⏰ Timer</button>
-          <button class="util-btn" data-util="tasks">📝 Tasks</button>
-          <button class="util-btn" data-util="reminders">🔔 Reminders</button>
-        </div>
-        <div id="utility-body"></div>
-      </div>
-
-      <div class="world-panel" data-panel="play">
-        <h2>Play</h2>
-        <div id="play-grid">
-          <button class="util-btn" data-game="reaction">Reaction test</button>
-          <button class="util-btn" data-game="guess">Guess the number</button>
-          <button class="util-btn" data-game="focus">Follow the eye</button>
-        </div>
-        <div id="play-body"></div>
-      </div>
-
-      <div class="world-panel" data-panel="room">
-        <h2>D.A.B.S.y's Room</h2>
-        <div id="room-grid"></div>
-      </div>
-
-      <div class="world-panel" data-panel="memory">
-        <h2>Memory</h2>
-        <div id="memory-body"></div>
-      </div>
-
-      <div class="world-panel" data-panel="notifications">
-        <h2>DABSy Inbox</h2>
-        <div id="notifications-body"></div>
-      </div>
-
-      <div class="world-panel" data-panel="settings">
-        <h2>Settings</h2>
-        <div id="settings-body">
-          <div class="ai-status-card">
-            <span class="status-dot"></span>
-            <div><strong>DABSy AI</strong><small id="ai-status-text">Checking secure connection…</small></div>
-          </div>
-          <label>Secure AI service endpoint
-            <input id="ai-endpoint" type="url" placeholder="/api/ai (optional)" />
-          </label>
-          <label>Language
-            <select id="speech-lang">
-              <option value="auto">Auto · device language</option>
-              <option value="en-IN">English · India</option>
-              <option value="hi-IN">हिन्दी · Hindi</option>
-              <option value="mr-IN">मराठी · Marathi</option>
-              <option value="gu-IN">ગુજરાતી · Gujarati</option>
-              <option value="ta-IN">தமிழ் · Tamil</option>
-              <option value="te-IN">తెలుగు · Telugu</option>
-              <option value="kn-IN">ಕನ್ನಡ · Kannada</option>
-              <option value="bn-IN">বাংলা · Bengali</option>
-            </select>
-          </label>
-          <label>Voice
-            <select id="voice-select"></select>
-          </label>
-          <button id="live-talk-btn" class="util-btn">🎙️ Start live talk</button>
-          <label>Atmosphere
-            <select id="theme-select">
-              <option value="auto">Auto · follows day/night</option>
-              <option value="day">Day</option>
-              <option value="night">Night</option>
-            </select>
-          </label>
-          <label class="row"><input type="checkbox" id="sound-toggle" checked /> Sound effects</label>
-          <button id="save-settings">Save</button>
-
-          <h2 style="margin-top:18px;">Connections</h2>
-          <label class="row"><input type="checkbox" id="conn-calendar-enabled" /> 🌿 Ghibli Calendar</label>
-          <label>Calendar permission
-            <select id="conn-calendar-level">
-              <option value="read">Read only — I can see your events</option>
-              <option value="suggest">Suggest — I'll ask before changing anything</option>
-              <option value="automatic">Automatic — I can add/move/cancel freely</option>
-            </select>
-          </label>
-          <p class="hint">Calendar communication stays on the shared GitHub Pages origin. AI requests use the secure endpoint above when one is deployed; DABSy never asks normal users for provider secrets.</p>
-          <button id="install-app-btn" class="util-btn" style="display:none;">📲 Install D.A.B.S.y</button>
-          <button id="request-notifications-btn" class="util-btn">🔔 Enable notifications when needed</button>
-          <button id="replay-tutorial-btn" class="util-btn">✨ Replay tiny tutorial</button>
-        </div>
-      </div>
-
-      <div id="world-corner-buttons">
-        <button id="world-settings-shortcut" aria-label="Settings">⚙️</button>
-        <button id="world-close" aria-label="Close menu">✕</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ================= STUDY PROJECTION (face shrinks to corner) ================= -->
+  <!-- explanation surface (Study Block answers) -->
   <section id="projection" aria-hidden="true">
     <div id="projection-surface">
       <div id="projection-content"></div>
       <div id="projection-pointer">▲</div>
-      <button id="projection-close">Done</button>
+      <button id="projection-close" type="button">Done</button>
     </div>
   </section>
 
-  <script src="./theme-engine.js"></script>
+  <script src="./dabsy-config.js"></script>
   <script src="./dabsy-core.js"></script>
   <script src="./emotion-engine.js"></script>
   <script src="./memory-engine.js"></script>
+  <script src="./ui-kit.js"></script>
+  <script src="./permissions-engine.js"></script>
+  <script src="./task-engine.js"></script>
   <script src="./schedule-engine.js"></script>
   <script src="./context-engine.js"></script>
   <script src="./director-engine.js"></script>
+  <script src="./outfits-data.js"></script>
+  <script src="./outfit-engine.js"></script>
   <script src="./face-engine.js"></script>
   <script src="./interaction-engine.js"></script>
   <script src="./voice-engine.js"></script>
-  <script src="./vision-engine.js"></script>
-  <script src="./ai-provider.js"></script>
   <script src="./ai-engine.js"></script>
-  <script src="./agent-engine.js"></script>
-  <script src="./notification-engine.js"></script>
-  <script src="./ecosystem-engine.js"></script>
-  <script src="./onboarding-engine.js"></script>
-  <script src="./outfit-engine.js"></script>
+  <script src="./notify-engine.js"></script>
   <script src="./pet-engine.js"></script>
   <script src="./projection-engine.js"></script>
   <script src="./study-blob-engine.js"></script>
   <script src="./study-engine.js"></script>
-  <script src="./utility-engine.js"></script>
-  <script src="./entertainment-engine.js"></script>
+  <script src="./ecosystem-engine.js"></script>
+  <script src="./reactions.js"></script>
   <script src="./pwa-engine.js"></script>
   <script src="./app.js"></script>
   <script src="./boot.js"></script>

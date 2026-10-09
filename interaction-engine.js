@@ -1,149 +1,96 @@
 /* ============================================================
    D.A.B.S.y — interaction-engine.js
-   All raw touch/pointer handling lives here. Translates gestures
-   into bus events; never touches AI/voice logic directly.
+   All raw pointer/keyboard handling for the creature.
 
-   Tap / double-tap / long-press are all resolved on pointerup.
-   A drag across the face (not just a stationary hold) is treated
-   as petting instead of a tap.
+     tap          -> face:tap        (contextual reaction)
+     double-tap   -> face:doubletap  (ecosystem bubbles)
+     long-press   -> face:longpress  (command mode)
+     drag/stroke  -> face:petted
+
+   Every gesture has a non-gesture route:
+     Enter / Space = tap      ArrowDown = double-tap (apps)
+     ArrowUp = long-press (commands)
+     plus on-screen shortcut buttons (Settings → Accessibility).
+   pressdown/pressup events carry a region (eyes | body | tie) so
+   reactions can be contextual.
    ============================================================ */
-
 (function(){
   const bus = window.DABSy.bus;
   const face = document.getElementById("face");
-  const bowtie = document.getElementById("bowtie");
+  const LONG_MS = 520, DOUBLE_MS = 300;
 
-  let lastTapTime = 0;
-  let tapCount = 0;
-  let tapResetTimer = null;
-  let longPressTimer = null;
-  let pressedAt = 0;
+  let tapCount = 0, tapTimer = null, lastTapAt = 0, longTimer = null;
+  let pressedAt = 0, dist = 0, last = null, dragging = false, longFired = false, down = false, region = "body";
 
-  let dragDistance = 0;
-  let lastPoint = null;
-  let isDragging = false;
-
-  function point(e){
-    if(e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    if(e.changedTouches && e.changedTouches[0]) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
-    return { x: e.clientX, y: e.clientY };
+  function regionOf(p){
+    const r = face.getBoundingClientRect();
+    const x = (p.x - r.left) / r.width, y = (p.y - r.top) / r.height;
+    if(y > .74 && y < .9 && x > .3 && x < .7) return "tie";
+    if(y > .38 && y < .68 && x > .22 && x < .78) return "eyes";
+    if(y < .3) return "head";
+    return "body";
   }
 
-  function onFacePointerDown(e){
-    const p = point(e);
-    pressedAt = Date.now();
-    dragDistance = 0;
-    lastPoint = p;
-    isDragging = false;
+  face.addEventListener("pointerdown", e => {
+    down = true; longFired = false; dragging = false; dist = 0;
+    last = { x: e.clientX, y: e.clientY }; pressedAt = Date.now();
+    region = regionOf(last);
+    try{ face.setPointerCapture(e.pointerId); }catch(_){}
+    window.DABSy.face.lookAt(last.x, last.y);
+    bus.emit("face:ripple", { index: (last.x - face.getBoundingClientRect().left) < face.offsetWidth / 2 ? 0 : 1 });
+    bus.emit("face:pressdown", { region });
+    longTimer = setTimeout(() => {
+      if(!down || dragging) return;
+      longFired = true;
+      window.DABSy.ui.vibrate(18);
+      bus.emit("face:longpress", { x: last.x, y: last.y, region });
+    }, LONG_MS);
+  });
 
-    window.DABSy.face.lookAt(p.x, p.y);
-    tiltFace(p.x,p.y);
-    ripplePick(p);
+  face.addEventListener("pointermove", e => {
+    if(!down || !last) return;
+    const p = { x: e.clientX, y: e.clientY };
+    dist += Math.hypot(p.x - last.x, p.y - last.y); last = p;
+    if(dist > 16){ dragging = true; clearTimeout(longTimer); window.DABSy.face.lookAt(p.x, p.y); }
+  });
 
-    longPressTimer = setTimeout(()=>{
-      bus.emit("face:longpress", { x:p.x, y:p.y });
-      longPressTimer = null;
-    }, 550);
-
-    face.addEventListener("pointermove", onFacePointerMove);
-  }
-
-  function onFacePointerMove(e){
-    if(!lastPoint) return;
-    const p = point(e);
-    dragDistance += Math.hypot(p.x-lastPoint.x, p.y-lastPoint.y);
-    lastPoint = p;
-    if(dragDistance > 14){
-      isDragging = true;
-      if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-      window.DABSy.face.lookAt(p.x, p.y);
-      tiltFace(p.x,p.y);
-    }
-  }
-
-
-  function tiltFace(x,y){
-    const r=face.getBoundingClientRect();
-    const nx=Math.max(-1,Math.min(1,(x-(r.left+r.width/2))/(r.width/2)));
-    const ny=Math.max(-1,Math.min(1,(y-(r.top+r.height/2))/(r.height/2)));
-    face.style.setProperty("--tilt-x", `${(nx*3.2).toFixed(2)}deg`);
-    face.style.setProperty("--tilt-y", `${(-ny*2.4).toFixed(2)}deg`);
-  }
-  function resetTilt(){
-    face.style.setProperty("--tilt-x","0deg");
-    face.style.setProperty("--tilt-y","0deg");
-  }
-
-  function onFacePointerUp(e){
-    face.removeEventListener("pointermove", onFacePointerMove);
-    if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer = null; }
-
-    resetTilt();
-    if(isDragging && dragDistance > 40){
-      bus.emit("face:petted", { distance: dragDistance });
-      isDragging = false; dragDistance = 0; lastPoint = null;
-      return; // a pet, not a tap — don't also fire tap/doubletap logic
-    }
-
+  function end(e, cancelled){
+    if(!down) return; down = false; clearTimeout(longTimer);
+    bus.emit("face:pressup", { region });
+    window.DABSy.face.settle();
+    if(cancelled) return;
+    if(longFired) return;
+    if(dragging && dist > 44){ bus.emit("face:petted", { distance: dist }); return; }
+    if(dragging) return;
     const now = Date.now();
-    const held = now - pressedAt;
-    if(held > 550) return; // already handled as long-press
-
-    const gap = now - lastTapTime;
-    lastTapTime = now;
-    tapCount = gap < 320 ? tapCount+1 : 1;
-
-    clearTimeout(tapResetTimer);
-    tapResetTimer = setTimeout(()=>{
-      if(tapCount >= 2){
-        bus.emit("face:doubletap");
-      } else {
-        bus.emit("face:tap", { count: tapCount });
-      }
+    tapCount = (now - lastTapAt < DOUBLE_MS) ? tapCount + 1 : 1;
+    lastTapAt = now;
+    clearTimeout(tapTimer);
+    tapTimer = setTimeout(() => {
+      if(tapCount >= 2) bus.emit("face:doubletap", { region });
+      else bus.emit("face:tap", { count: 1, region });
       tapCount = 0;
-    }, 260);
+    }, DOUBLE_MS - 40);
   }
+  face.addEventListener("pointerup", e => end(e, false));
+  face.addEventListener("pointercancel", e => end(e, true));
+  face.addEventListener("contextmenu", e => e.preventDefault());
 
-  function ripplePick(p){
-    const rect = face.getBoundingClientRect();
-    const relX = p.x - rect.left;
-    const index = relX < rect.width/2 ? 0 : 1;
-    bus.emit("face:ripple", { index });
-  }
+  /* ---- keyboard + visible alternatives ---- */
+  face.addEventListener("keydown", e => {
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); bus.emit("face:tap", { count: 1, region: "body" }); }
+    else if(e.key === "ArrowDown"){ e.preventDefault(); bus.emit("face:doubletap", { region: "body" }); }
+    else if(e.key === "ArrowUp"){ e.preventDefault(); bus.emit("face:longpress", { region: "body" }); }
+  });
+  document.getElementById("sc-apps").addEventListener("click", () => bus.emit("face:doubletap", { region: "body", via: "button" }));
+  document.getElementById("sc-talk").addEventListener("click", () => bus.emit("face:longpress", { region: "body", via: "button" }));
 
-  face.addEventListener("pointerdown", onFacePointerDown);
-  face.addEventListener("pointerup", onFacePointerUp);
-  face.addEventListener("pointercancel", ()=>{
-    face.removeEventListener("pointermove", onFacePointerMove);
-    if(longPressTimer){ clearTimeout(longPressTimer); longPressTimer=null; }
-    isDragging = false; dragDistance = 0; lastPoint = null;
-    resetTilt();
+  /* ---- rapid tapping -> playful annoyance ---- */
+  let rapid = 0, rapidTimer = null;
+  bus.on("face:tap", () => {
+    rapid++; clearTimeout(rapidTimer); rapidTimer = setTimeout(() => { rapid = 0; }, 2500);
+    if(rapid >= 5){ bus.emit("face:overtapped"); rapid = 0; }
   });
 
-  /* ---------- bow tie: double tap opens the full menu ---------- */
-  let btLast = 0;
-  bowtie.addEventListener("pointerdown", (e)=>{
-    e.stopPropagation();
-    const now = Date.now();
-    if(now - btLast < 320){
-      bus.emit("world:open", { tab: "schedule" });
-    }
-    btLast = now;
-  });
-
-  /* ---------- repeated rapid tapping -> playful/annoyed reaction ---------- */
-  let rapidCount = 0;
-  let rapidTimer = null;
-  bus.on("face:tap", ()=>{
-    rapidCount++;
-    clearTimeout(rapidTimer);
-    rapidTimer = setTimeout(()=>{ rapidCount = 0; }, 2500);
-    if(rapidCount >= 5){
-      bus.emit("face:overtapped");
-      rapidCount = 0;
-    }
-  });
-
-  window.DABSy = window.DABSy || {};
   window.DABSy.interaction = {};
 })();

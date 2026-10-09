@@ -1,0 +1,115 @@
+/* ============================================================
+   D.A.B.S.y — creature.css : the plush creature
+   Everything is laid out in % of the 300x330 box so the wardrobe SVG
+   (same viewBox) lines up exactly. Layer stack, one transform job each:
+     .cr-react (one-shot reactions) > .cr-sway (breathing) > .cr-tilt (look-at)
+   The fuzzy-fur displacement filter is applied ONCE to a static layer.
+   ============================================================ */
+#face{
+  --fur-hi:#7482d8;--fur-mid:#4552a6;--fur-lo:#222a66;
+  --eye-rgb:191,233,255;--glow-rgb:157,220,255;
+  position:absolute;inset:0;cursor:pointer;touch-action:none;
+  -webkit-touch-callout:none;outline-offset:6px;
+}
+.cr-shadow{position:absolute;left:14%;right:14%;bottom:-1%;height:7%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent);filter:blur(3px)}
+.cr-react,.cr-sway,.cr-tilt{position:absolute;inset:0;transform-origin:50% 92%;will-change:transform}
+.cr-tilt{transform:translate(var(--tx,0px),var(--ty,0px)) rotate(var(--rot,0deg));transition:transform .5s var(--ease-out)}
+
+.cr-ear{
+  position:absolute;top:19.4%;width:17.3%;height:19.4%;border-radius:50%;
+  background:radial-gradient(60% 60% at 40% 30%,var(--fur-hi),var(--fur-mid) 70%,var(--fur-lo));
+  box-shadow:inset 0 0 10px rgba(0,0,0,.35);
+}
+.cr-ear::after{content:"";position:absolute;inset:22% 24%;border-radius:50%;background:rgba(255,170,190,.14);filter:blur(2px)}
+.cr-ear-l{left:20.7%;transform:rotate(-18deg)}
+.cr-ear-r{left:62%;transform:rotate(18deg)}
+
+.cr-body{position:absolute;left:12.67%;top:23.64%;width:74.67%;height:70.9%}
+.cr-fur{
+  position:absolute;inset:0;border-radius:50% 50% 46% 46%/44% 44% 56% 56%;
+  background:
+    radial-gradient(72% 62% at 36% 24%,var(--fur-hi),transparent 70%),
+    radial-gradient(90% 80% at 50% 40%,var(--fur-mid),var(--fur-lo) 100%);
+  box-shadow:inset 0 -16px 28px rgba(8,10,40,.42),inset 0 12px 24px rgba(255,255,255,.16),0 0 0 1px rgba(170,180,255,.16),0 0 40px rgba(120,140,255,.18),0 16px 28px rgba(0,0,0,.35);
+  filter:url(#fur-fuzz);
+}
+.cr-grain{
+  position:absolute;inset:1%;border-radius:inherit;opacity:.5;mix-blend-mode:soft-light;pointer-events:none;
+  background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='140'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 -.25'/></filter><rect width='140' height='140' filter='url(%23n)'/></svg>");
+  background-size:70px 70px;border-radius:50% 50% 46% 46%/44% 44% 56% 56%;
+}
+.cr-sheen{position:absolute;left:14%;top:6%;width:44%;height:26%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,255,255,.17),transparent);filter:blur(6px);transform:rotate(-20deg);pointer-events:none}
+.cr-plate{
+  position:absolute;left:20%;top:36.4%;width:60%;height:33%;border-radius:50%;
+  background:radial-gradient(closest-side,rgba(6,8,22,.55),rgba(6,8,22,.28) 70%,transparent);filter:blur(5px);
+}
+.cr-cheek{position:absolute;top:61%;width:10%;height:7%;border-radius:50%;background:radial-gradient(closest-side,rgba(255,150,175,.32),transparent);filter:blur(2px);opacity:.8;transition:opacity .4s}
+.cr-cheek-l{left:19%}.cr-cheek-r{left:71%}
+.exp-happy .cr-cheek,.exp-proud .cr-cheek,.exp-playful .cr-cheek{opacity:1}
+.cr-wear{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+
+/* ---- eyes ---- */
+.eye{position:absolute;top:42.1%;width:14%;height:20%;transition:transform var(--dur-fast) var(--ease-spring)}
+#eye-left{left:28.3%}#eye-right{left:57.7%}
+.eye-glow{position:absolute;inset:-60%;border-radius:50%;pointer-events:none;opacity:.7;filter:blur(10px);
+  background:radial-gradient(closest-side,rgba(var(--glow-rgb),.42),rgba(var(--glow-rgb),.12) 50%,transparent 72%);
+  transition:opacity var(--dur-med) var(--ease-soft),background var(--dur-med) var(--ease-soft)}
+.eye-shape{
+  position:absolute;inset:0;border-radius:48% 48% 46% 46%/38% 38% 42% 42%;overflow:hidden;transform-origin:center;
+  background:linear-gradient(180deg,#fff,rgba(var(--eye-rgb),.92) 58%,rgba(var(--eye-rgb),.62));
+  box-shadow:0 0 18px rgba(var(--glow-rgb),.55),0 0 2px rgba(255,255,255,.9) inset;
+  transition:border-radius var(--dur-med) var(--ease-spring),transform var(--dur-fast) var(--ease-spring),height var(--dur-fast) var(--ease-spring),background var(--dur-med);
+}
+.eye-core{position:absolute;inset:0;background:radial-gradient(120% 90% at 50% 30%,rgba(255,255,255,.55),transparent 60%);mix-blend-mode:screen}
+.eye-highlight{position:absolute;width:30%;height:18%;top:16%;left:20%;background:#fff;border-radius:50%;filter:blur(.6px);opacity:.95}
+.eye-lid{position:absolute;left:-8%;right:-8%;top:-12%;height:0;background:var(--fur-lo);border-radius:50% 50% 0 0;transition:height var(--dur-fast) var(--ease-soft);pointer-events:none}
+.eye.blinking .eye-lid{height:116%;transition-duration:80ms}
+
+/* ---- expressions (class exp-* on #face) ---- */
+.exp-neutral .eye-shape{height:100%}
+.exp-curious .eye-shape{height:106%}
+.exp-listening .eye-glow{opacity:.95}
+.exp-listening .eye-shape{height:104%}
+.exp-happy .eye-shape{height:60%;border-radius:50% 50% 42% 42%/70% 70% 30% 30%;transform:translateY(8%)}
+.exp-happy .eye-glow{background:radial-gradient(closest-side,rgba(255,216,166,.40),transparent 70%)}
+.exp-proud .eye-shape{height:68%;border-radius:50% 50% 38% 38%/70% 70% 30% 30%;transform:translateY(5%)}
+.exp-proud .eye-glow{background:radial-gradient(closest-side,rgba(255,216,166,.45),transparent 70%);opacity:1}
+.exp-excited .eye-shape{height:110%}
+.exp-confused #eye-left .eye-shape{height:84%;transform:translateY(6%) rotate(-5deg)}
+.exp-confused #eye-right .eye-shape{height:104%;transform:translateY(-3%) rotate(3deg)}
+.exp-thinking .eye-shape{height:80%;transform:translateY(-4%)}
+.exp-thinking .eye-glow{background:radial-gradient(closest-side,rgba(185,164,255,.42),transparent 70%)}
+.exp-focused .eye-shape{height:88%;border-radius:40% 40% 38% 38%/34% 34% 38% 38%}
+.exp-sleepy .eye-shape{height:24%;transform:translateY(120%)}
+.exp-sleepy .eye-glow{opacity:.3}
+.exp-surprised .eye-shape{height:120%;border-radius:50%}
+.exp-concerned #eye-left .eye-shape{transform:rotate(6deg)}
+.exp-concerned #eye-right .eye-shape{transform:rotate(-6deg)}
+.exp-playful #eye-left .eye-shape{height:36%;transform:translateY(80%)}
+.exp-speaking .eye-glow{opacity:.9}
+.eye .touch-ripple{position:absolute;inset:0;border-radius:inherit;animation:ripple 480ms var(--ease-out);pointer-events:none}
+
+/* ---- one-shot reactions on .cr-react ---- */
+.r-hop{animation:r-hop .6s var(--ease-spring)}
+.r-wiggle{animation:r-wiggle .7s ease-in-out}
+.r-nod{animation:r-nod .6s ease-in-out}
+.r-shake{animation:r-shake .6s ease-in-out}
+.r-perk{animation:r-perk .55s var(--ease-spring)}
+.r-dance{animation:r-dance 1.2s ease-in-out}
+.r-yawn{animation:r-yawn 1.6s ease-in-out}
+.r-dizzy{animation:r-dizzy 1.1s ease-in-out}
+.r-spin{animation:r-spin .9s var(--ease-spring)}
+@keyframes r-hop{0%{transform:none}35%{transform:translateY(-9%) scale(.97,1.05)}60%{transform:translateY(0) scale(1.05,.94)}80%{transform:translateY(-2%)}100%{transform:none}}
+@keyframes r-wiggle{0%,100%{transform:rotate(0)}20%{transform:rotate(-5deg)}40%{transform:rotate(5deg)}60%{transform:rotate(-3deg)}80%{transform:rotate(3deg)}}
+@keyframes r-nod{0%,100%{transform:none}40%{transform:translateY(4%) scale(1.02,.97)}}
+@keyframes r-shake{0%,100%{transform:none}20%{transform:translateX(-4%)}40%{transform:translateX(4%)}60%{transform:translateX(-3%)}80%{transform:translateX(2%)}}
+@keyframes r-perk{0%{transform:none}50%{transform:scale(1.06) translateY(-3%)}100%{transform:none}}
+@keyframes r-dance{0%,100%{transform:none}15%{transform:translateY(-6%) rotate(-6deg)}30%{transform:translateY(0) rotate(5deg)}45%{transform:translateY(-6%) rotate(6deg)}60%{transform:translateY(0) rotate(-5deg)}80%{transform:translateY(-3%) rotate(3deg)}}
+@keyframes r-yawn{0%,100%{transform:none}40%,60%{transform:scale(1.04,1.06) translateY(-2%)}}
+@keyframes r-dizzy{0%,100%{transform:none}25%{transform:rotate(-8deg) translateX(-3%)}50%{transform:rotate(8deg) translateX(3%)}75%{transform:rotate(-5deg)}}
+@keyframes r-spin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+
+/* low-end devices: drop the displacement filter + soft glows */
+body.lite-gfx .cr-fur{filter:none}
+body.lite-gfx .eye-glow{filter:none}
+body.lite-gfx .cr-grain{display:none}

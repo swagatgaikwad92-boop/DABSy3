@@ -1,0 +1,17 @@
+name = "dabsy-ai"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[vars]
+# Your GitHub Pages origin(s), comma separated. No wildcard.
+ALLOWED_ORIGINS = "https://YOUR-USERNAME.github.io"
+# AI_MODEL = "claude-haiku-4-5"
+
+# Optional: a KV namespace makes the per-IP daily limit survive restarts.
+# [[kv_namespaces]]
+# binding = "RATE"
+# id = "<your-kv-id>"
+
+# Secrets are NOT stored here. Set them with:
+#   npx wrangler secret put ANTHROPIC_API_KEY      (or GEMINI_API_KEY)
+#   npx wrangler secret put BRAVE_API_KEY          (enables real web research)

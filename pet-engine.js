@@ -76,9 +76,8 @@
 
   /* ---------- spontaneous personality beats ---------- */
   function anyMenuOpen(){
-    return document.getElementById("world").classList.contains("open")
-        || document.getElementById("projection").classList.contains("open")
-        || document.getElementById("quick-bubbles").classList.contains("open");
+    const c = document.body.classList;
+    return c.contains("eco-open") || c.contains("sheet-open") || c.contains("session-active") || c.contains("study-active");
   }
   function maybeIdleBeat(){
     if(emotion.getState() !== "IDLE") return;

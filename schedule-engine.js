@@ -1,113 +1,76 @@
 /* ============================================================
    D.A.B.S.y — schedule-engine.js
-   The butler's brain for time. Two lists, kept deliberately
-   separate so "stop reminding me about X" stays reliable:
+   The butler's brain for time — as seen from the voice/chat flow.
 
-     recurringRules  — { id, title, hour, minute, days[0-6], durationMin }
-     oneOffEvents    — { id, title, startISO, durationMin }
+   v7: this is now a thin FACADE over task-engine.js. The public API is
+   unchanged (so the conflict-resolution conversation in app.js keeps
+   working exactly as before), but every item it creates is a real Task
+   object — which means the same item can be followed up on, moved or
+   skipped by the notification engine.
 
-   "Today's schedule" is always computed fresh (recurring rules
-   expanded for today + one-offs whose date is today), never
-   stored as its own persisted list — so it can't drift out of
-   sync with the rules that generate it.
+     recurring rule  = Task with a `recurrence`
+     one-off event   = Task with a `dueAt`
+
+   "Today's schedule" is still computed fresh and never stored.
    ============================================================ */
 
 (function(){
   const bus = window.DABSy.bus;
-  const NS = "dabsy_";
-  const KEY_RULES = NS + "recurring_rules";
-  const KEY_ONEOFF = NS + "oneoff_events";
+  const tasks = window.DABSy.tasks;
+  const ui = window.DABSy.ui;
 
-  function read(key, fallback){
-    try{ const raw = localStorage.getItem(key); return raw ? JSON.parse(raw) : fallback; }
-    catch(e){ return fallback; }
+  // tasks:changed is the single source of truth; relay it under the old name
+  bus.on("tasks:changed", () => bus.emit("schedule:changed"));
+
+  function getRules(){
+    return tasks.list().filter(t => t.recurrence).map(t => ({
+      id: t.id, title: t.title, hour: t.recurrence.hour, minute: t.recurrence.minute,
+      days: t.recurrence.days, durationMin: t.durationMin,
+    }));
   }
-  function write(key, val){ try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){} }
-
-  function getRules(){ return read(KEY_RULES, []); }
-  function getOneOffs(){ return read(KEY_ONEOFF, []); }
-
-  function addRecurring({title, hour, minute, days, durationMin=30}){
-    const rules = getRules();
-    const rule = { id: "r"+Date.now(), title, hour, minute, days, durationMin };
-    rules.push(rule);
-    write(KEY_RULES, rules);
-    bus.emit("schedule:changed");
-    return rule;
+  function getOneOffs(){
+    return tasks.list().filter(t => !t.recurrence && t.dueAt).map(t => ({
+      id: t.id, title: t.title, startISO: t.dueAt, durationMin: t.durationMin,
+    }));
   }
 
-  function removeRecurringByTitle(title){
-    const rules = getRules().filter(r => !titleMatches(r.title, title));
-    write(KEY_RULES, rules);
-    bus.emit("schedule:changed");
+  function addRecurring({ title, hour, minute, days, durationMin = 30, emoji, category }){
+    return tasks.add({ title, recurrence: { days, hour, minute }, durationMin, emoji, category, source: "voice" });
   }
-
-  function addOneOff({title, startISO, durationMin=30}){
-    const list = getOneOffs();
-    const ev = { id: "o"+Date.now(), title, startISO, durationMin };
-    list.push(ev);
-    write(KEY_ONEOFF, list);
-    bus.emit("schedule:changed");
-    return ev;
+  function removeRecurringByTitle(title){ tasks.removeRecurringByTitle(title); }
+  function addOneOff({ title, startISO, durationMin = 30, emoji, category, subject }){
+    return tasks.add({ title, dueAt: startISO, durationMin, emoji, category, subject, source: "voice" });
   }
-
-  function removeOneOff(id){
-    write(KEY_ONEOFF, getOneOffs().filter(e=>e.id!==id));
-    bus.emit("schedule:changed");
-  }
-
+  function removeOneOff(id){ tasks.remove(id); }
   function updateOneOff(id, patch){
-    const list = getOneOffs();
-    const ev = list.find(e=>e.id===id);
-    if(ev) Object.assign(ev, patch);
-    write(KEY_ONEOFF, list);
-    bus.emit("schedule:changed");
-  }
-
-  function titleMatches(a, b){
-    return a.trim().toLowerCase() === b.trim().toLowerCase()
-        || a.trim().toLowerCase().includes(b.trim().toLowerCase());
+    const p = {};
+    if(patch.startISO) p.dueAt = patch.startISO;
+    if(patch.title) p.title = patch.title;
+    if(patch.durationMin) p.durationMin = patch.durationMin;
+    tasks.update(id, p);
   }
 
   /* ---------- today's schedule, computed fresh ---------- */
-  function todayAt(hour, minute){
-    const d = new Date();
-    d.setHours(hour, minute, 0, 0);
-    return d;
-  }
-
   function getTodaysSchedule(){
-    const now = new Date();
-    const dow = now.getDay(); // 0=Sun
-    const rules = getRules();
-    const fromRules = rules
-      .filter(r => r.days.includes(dow))
-      .map(r => ({
-        id: r.id, title: r.title, source: "recurring",
-        start: todayAt(r.hour, r.minute), durationMin: r.durationMin
+    return tasks.instancesForDate(ui.dateKey())
+      .filter(i => i.status !== "skipped")
+      .map(i => ({
+        id: i.taskId, key: i.key, title: i.title, source: i.recurring ? "recurring" : "oneoff",
+        start: i.start, durationMin: i.durationMin, status: i.status, emoji: i.emoji,
       }));
-
-    const todayStr = now.toDateString();
-    const fromOneOff = getOneOffs()
-      .filter(e => new Date(e.startISO).toDateString() === todayStr)
-      .map(e => ({
-        id: e.id, title: e.title, source: "oneoff",
-        start: new Date(e.startISO), durationMin: e.durationMin
-      }));
-
-    return [...fromRules, ...fromOneOff].sort((a,b)=>a.start-b.start);
   }
-
   function getNextItem(){
     const now = new Date();
-    return getTodaysSchedule().find(item => item.start > now) || null;
+    return getTodaysSchedule().find(item => item.start > now && item.status === "pending") || null;
   }
 
   /* ---------- conflict detection (deterministic) ---------- */
   function findConflict(candidateStart, candidateDurationMin){
-    const candEnd = new Date(candidateStart.getTime() + candidateDurationMin*60000);
-    return getTodaysSchedule().find(item => {
-      const itemEnd = new Date(item.start.getTime() + item.durationMin*60000);
+    const candEnd = new Date(candidateStart.getTime() + candidateDurationMin * 60000);
+    const day = tasks.instancesForDate(ui.dateKey(candidateStart)).map(i => ({ id: i.taskId, key: i.key, title: i.title, source: i.recurring ? "recurring" : "oneoff", start: i.start, durationMin: i.durationMin, status: i.status, dateKey: i.dateKey }));
+    return day.find(item => {
+      if(item.status === "done" || item.status === "skipped") return false;
+      const itemEnd = new Date(item.start.getTime() + item.durationMin * 60000);
       return candidateStart < itemEnd && item.start < candEnd;
     }) || null;
   }
@@ -117,25 +80,16 @@
   function resolveConflict(action, conflictItem, candidate){
     if(action === "cancel_existing"){
       if(conflictItem.source === "oneoff") removeOneOff(conflictItem.id);
-      else removeRecurringByTitle(conflictItem.title); // today only isn't tracked separately; simplest reliable behaviour
+      else tasks.skip(conflictItem.id, conflictItem.dateKey || ui.dateKey(conflictItem.start)); // skip just today's occurrence, not the whole habit
     }
     if(action === "move_existing"){
-      // push the existing one-off 45 min later; recurring rules are left as-is (ask again if still conflicting)
-      if(conflictItem.source === "oneoff"){
-        const newStart = new Date(conflictItem.start.getTime() + 45*60000);
-        updateOneOff(conflictItem.id, { startISO: newStart.toISOString() });
-      }
+      const newStart = new Date(conflictItem.start.getTime() + 45 * 60000);
+      tasks.move(conflictItem.id, conflictItem.dateKey || ui.dateKey(conflictItem.start), newStart); // now works for recurring items too
     }
-    if(action === "cancel_new"){
-      return; // candidate simply isn't added
-    }
-    // keep_both or move_existing or cancel_existing all fall through to adding the candidate
-    if(action !== "cancel_new"){
-      addOneOff({ title: candidate.title, startISO: candidate.start.toISOString(), durationMin: candidate.durationMin });
-    }
+    if(action === "cancel_new") return;
+    addOneOff({ title: candidate.title, startISO: candidate.start.toISOString(), durationMin: candidate.durationMin });
   }
 
-  window.DABSy = window.DABSy || {};
   window.DABSy.schedule = {
     getRules, getOneOffs, addRecurring, removeRecurringByTitle,
     addOneOff, removeOneOff, updateOneOff,

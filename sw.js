@@ -8,7 +8,7 @@
    picked up on the next load while the app still opens offline.
    AI proxy calls and other origins are never cached.
    ============================================================ */
-const CACHE_VERSION = "dabsy-v8.0.0";
+const CACHE_VERSION = "dabsy-v8.1.0";
 const SCOPE = self.registration.scope;
 
 const SHELL_FILES = ["./",
@@ -32,6 +32,7 @@ const SHELL_FILES = ["./",
   "./emotion-engine.js",
   "./entertainment-engine.js",
   "./face-engine.js",
+  "./fur-engine.js",
   "./floating-engine.js",
   "./icon-192.png",
   "./icon-512.png",

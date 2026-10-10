@@ -168,3 +168,45 @@ svg.pv-minimal{--bow-shadow:transparent}
 :root[data-theme="light"] #face[data-form="minimal"],:root[data-theme="light"] svg.pv-minimal{--hp-a:#a9b0e4;--hp-b:#6872b8;--hp-ring:#e9edff;--gl:#4c5590}
 :root[data-theme="light"] #face[data-form="minimal"] .cr-wear{filter:drop-shadow(0 0 .7px rgba(44,52,118,.8)) drop-shadow(0 3px 5px rgba(44,52,118,.16))}
 body.lite-gfx #face[data-form="minimal"] .cr-wear{filter:none}
+
+/* ============================================================
+   v8.1 — FUR UPGRADE (furry presentation only; minimal is untouched)
+   Real strand texture (fur-engine.js) on body + ears, a fine fibre rim on
+   the eyes, and soft plush strands on the bow tie. All static: no new
+   per-frame work. Geometry, positions and colours are unchanged.
+   ============================================================ */
+.cr-strands{position:absolute;inset:0;border-radius:50% 50% 46% 46%/44% 44% 56% 56%;pointer-events:none;opacity:0;
+  background-image:var(--fur-tex,none);background-size:96px 96px;mix-blend-mode:soft-light}
+body.fur-textured .cr-strands{opacity:.95}
+/* directional light: strands catch light on top, fall into shade below */
+.cr-strands::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(180deg,rgba(210,220,255,.16),transparent 38%,rgba(10,12,50,.26));mix-blend-mode:soft-light}
+/* silhouette: the old coarse displacement is replaced by a much gentler one so the edge is soft, not a grainy halo */
+body.fur-textured .cr-fur{filter:none;
+  box-shadow:inset 0 -16px 28px rgba(8,10,40,.42),inset 0 12px 24px rgba(255,255,255,.16),0 0 0 1px rgba(170,180,255,.10),0 0 3px 1px rgba(150,165,255,.30),0 0 38px rgba(120,140,255,.18),0 16px 28px var(--cr-drop,rgba(0,0,0,.35))}
+body.fur-textured .cr-grain{opacity:.22}
+/* fibre fringe around the body edge (fine strands crossing the silhouette) */
+body.fur-textured .cr-body::before{content:"";position:absolute;inset:-1.6%;border-radius:50% 50% 46% 46%/44% 44% 56% 56%;pointer-events:none;
+  background-image:var(--fur-tex,none);background-size:70px 70px;opacity:.55;
+  -webkit-mask-image:radial-gradient(closest-side,transparent 90%,#000 97%,transparent 100%);
+  mask-image:radial-gradient(closest-side,transparent 90%,#000 97%,transparent 100%)}
+/* ears: same strands, plus their own soft rim */
+body.fur-textured .cr-ear{background-image:var(--fur-tex,none),radial-gradient(60% 60% at 40% 30%,var(--fur-hi),var(--fur-mid) 70%,var(--fur-lo));
+  background-size:64px 64px,auto;background-blend-mode:soft-light,normal;
+  box-shadow:inset 0 0 10px rgba(0,0,0,.35),0 0 3px 1px rgba(150,165,255,.28)}
+
+/* eyes: smooth glassy centre, delicate fibre perimeter only (furry look only) */
+#face[data-form="furry"] .eye-shape::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background-image:var(--fur-tex-tie,none);background-size:40px 40px;opacity:.5;mix-blend-mode:soft-light;
+  -webkit-mask-image:radial-gradient(closest-side,transparent 70%,#000 100%);
+  mask-image:radial-gradient(closest-side,transparent 70%,#000 100%)}
+#face[data-form="furry"] .eye-shape{box-shadow:0 0 18px rgba(var(--glow-rgb),.55),0 0 2px rgba(255,255,255,.9) inset,0 0 2px 1px rgba(var(--eye-rgb),.35)}
+
+/* bow tie: fuzzy plush surfaces (same shape, colour, position) */
+#face[data-form="furry"] .cr-wear #slot-neck{filter:url(#tie-fuzz)}
+#face[data-form="furry"] .cr-wear #slot-neck path[fill^="url"],
+#face[data-form="furry"] .cr-wear #slot-neck rect{stroke:rgba(255,255,255,.14);stroke-width:.9;stroke-dasharray:.6 1.1;stroke-linecap:round}
+
+body.lite-gfx .cr-strands::after,body.lite-gfx .cr-body::before{display:none}
+body.lite-gfx #face[data-form="furry"] .cr-wear #slot-neck{filter:none}
+@media (prefers-reduced-motion:reduce){body.fur-textured .cr-strands{transition:none}}

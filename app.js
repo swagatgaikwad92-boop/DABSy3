@@ -351,7 +351,19 @@
   function openCenter(){ window.DABSy.require("notifcenter").then(c => c.open()); }
 
   /* ---------------- the utterance router ---------------- */
+  // one utterance at a time: a double Enter or a repeated speech result must not send twice
+  let utteranceBusy = false;
   async function handleUserUtterance(text){
+    if(utteranceBusy) return;
+    utteranceBusy = true;
+    textInput.disabled = true;
+    try{ await processUtterance(text); }
+    finally{
+      utteranceBusy = false; textInput.disabled = false;
+      if(chatArea.classList.contains("visible") && document.activeElement !== textInput) textInput.focus({ preventScroll: true });
+    }
+  }
+  async function processUtterance(text){
     showSubtitle(text);
     memory.addSession("user", text);
     window.DABSy.pet && window.DABSy.pet.markInteraction();

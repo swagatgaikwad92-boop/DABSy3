@@ -22,9 +22,13 @@
     version: "8.2.0",
 
     ai: {
-      // e.g. "https://dabsy-ai.YOUR-SUBDOMAIN.workers.dev"
+      // Your Cloudflare Worker URL (public, NOT a secret), e.g.
+      //   "https://dabsy-brain.YOUR-SUBDOMAIN.workers.dev"
       // Empty = DABSy runs in "limited mode" (everything local still works).
-      proxyUrl: "",
+      proxyUrl: "https://dabsy-brain.swagatdemo9292.workers.dev",
+      // "message" = the dabsy-brain Worker: POST {message} -> {reply}
+      // "proxy"   = the original backend/worker.js: POST /v1/generate
+      mode: "message",
       requestTimeoutMs: 25000,
     },
 

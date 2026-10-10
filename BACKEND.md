@@ -43,3 +43,7 @@ Swap providers by editing `callModel()` / `brave()` in `worker.js`. The front en
 ## Other hosts
 
 The Worker is plain `fetch`-style code. For Vercel/Netlify/Deno Deploy, keep the same three routes, CORS rule and secrets-in-environment approach.
+
+## Using the single-message `dabsy-brain` Worker (current setup)
+
+`dabsy-config.js` has `ai.mode: "message"`. The app then POSTs `{ "message": "..." }` to `ai.proxyUrl` and reads `reply`. Research and image input are not available in this mode, and no conversation history is sent. Put only the public Worker URL in `ai.proxyUrl`. For CORS, the Worker must answer with `Access-Control-Allow-Origin: https://YOUR-USERNAME.github.io` (origin only, no path) and handle `OPTIONS` preflight with `Access-Control-Allow-Headers: Content-Type`. Add rate limiting before public release.

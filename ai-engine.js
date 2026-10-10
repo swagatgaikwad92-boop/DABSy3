@@ -59,6 +59,12 @@
   async function check(){
     const base = cfg().proxyUrl.replace(/\/+$/, "");
     if(!base){ setState("limited", "The AI service isn't set up on this deployment yet."); return statusInfo(); }
+    if(cfg().mode === "message"){
+      // dabsy-brain has no /health route; the first real reply is the proof. Don't claim "Ready" before that.
+      caps.search = false;
+      if(state === "checking") setState("ready", "Set up. I'll confirm the connection on my first reply.");
+      return statusInfo();
+    }
     if(Date.now() - lastCheck < 20000) return statusInfo();
     lastCheck = Date.now();
     setState("checking", "Connecting…");
@@ -73,7 +79,7 @@
     }catch(e){ setState("limited", navigator.onLine ? "I couldn't reach the AI service." : "You're offline."); }
     return statusInfo();
   }
-  const caps = { search: true };
+  const caps = { search: cfg().mode !== "message" };
   window.addEventListener("online", () => { lastCheck = 0; check(); });
 
   /* ---------------- generation ---------------- */
@@ -89,9 +95,36 @@
     ].filter(Boolean).join("\n");
   }
 
+  // dabsy-brain contract: POST { message } -> { reply }. It takes ONE string, so the persona
+  // and the prompt are joined into it. Nothing is stored server-side, and no history is sent.
+  async function postMessage(message){
+    const base = cfg().proxyUrl.replace(/\/+$/, "");
+    if(!base) return { ok: false, error: "no-proxy" };
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), cfg().requestTimeoutMs || 25000);
+    try{
+      const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }), signal: ctl.signal });
+      let data = null; try{ data = await res.json(); }catch(_){}
+      if(res.status === 429){ setState("ready", "Taking a short breather — busy right now."); return { ok: false, error: "rate-limited" }; }
+      if(!res.ok){ setState("checking", "The last request failed. I'll retry on your next message."); return { ok: false, error: "http-" + res.status }; }
+      if(!data || typeof data.reply !== "string" || !data.reply.trim()){ return { ok: false, error: "bad-response" }; }
+      setState("ready", "Connected");
+      return { ok: true, text: data.reply.trim() };
+    }catch(e){
+      setState("checking", navigator.onLine ? "I couldn't reach the AI service. I'll retry on your next message." : "You're offline.");
+      return { ok: false, error: navigator.onLine ? "network" : "offline" };
+    }finally{ clearTimeout(t); }
+  }
+
   async function generate(o){
     o = o || {};
     if(state === "limited" && !cfg().proxyUrl) return { ok: false, error: "no-proxy" };
+    if(cfg().mode === "message"){
+      // images can't go through the single-message backend; say so instead of silently dropping them
+      if(o.image) return { ok: false, error: "no-image" };
+      const sys = personaSystem(o.system) + (o.json ? "\nRespond with valid JSON only. No markdown." : "");
+      return postMessage(sys + "\n\n" + (o.prompt || ""));
+    }
     const r = await post("/v1/generate", { task: o.task || "chat", system: personaSystem(o.system), prompt: o.prompt, json: !!o.json, image: o.image || undefined });
     return r;
   }
@@ -109,6 +142,7 @@
     return tryJSON(r.text);
   }
   async function research(o){
+    if(cfg().mode === "message") return { ok: false, error: "no-search" };
     const r = await post("/v1/research", { query: o.query, subject: o.subject || "", level: o.level || "", maxResults: o.maxResults || 8 });
     return r;
   }
@@ -245,6 +279,8 @@
     if(err === "rate-limited") return "I'm a bit overloaded right now. Try again in a moment.";
     if(err === "offline") return "You're offline right now.";
     if(err === "no-proxy") return "My thinking service isn't set up yet, so I'm in limited mode.";
+    if(err === "no-image") return "I can't look at pictures with the current setup yet.";
+    if(err === "bad-response") return "I got a strange answer back from my thinking service. Try again.";
     return "I couldn't reach my thinking service just now.";
   }
 
@@ -268,8 +304,11 @@
       'Use "schedule_add" ONLY with an explicit clock time; hour/minute must be JSON numbers. Use "study_goal" when they want to study/revise/learn something and want help doing it. Use "task_add" for a to-do without a time. "schedule" only for schedule_add/remove, "goal" only for study_goal, "task" only for task_add.',
       "User: " + text,
     ].filter(Boolean).join("\n");
-    const obj = await askJSON({ task: "intent", prompt });
-    if(!obj){ return { type: "chat", reply: errorLine("net"), state: "CONFUSED", schedule: null }; }
+    const raw = await generate({ task: "intent", prompt, json: true });
+    if(!raw.ok){ return { type: "chat", reply: errorLine(raw.error), state: "CONFUSED", schedule: null }; }
+    const obj = tryJSON(raw.text);
+    // the model answered in plain words instead of JSON: that is still a perfectly good chat reply
+    if(!obj || typeof obj !== "object") return { type: "chat", reply: String(raw.text).trim(), state: "IDLE", schedule: null };
     const type = ["schedule_add","schedule_remove","study_goal","task_add"].includes(obj.type) ? obj.type : "chat";
     const out = { type, reply: typeof obj.reply === "string" ? obj.reply : "", state: VALID_STATES.includes(obj.state) ? obj.state : "IDLE", schedule: obj.schedule || null, goal: obj.goal || null, task: obj.task || null };
     if(type === "study_goal"){ const g = parseGoal(text); out.goal = Object.assign({}, g, Object.fromEntries(Object.entries(obj.goal || {}).filter(([, v]) => v))); }

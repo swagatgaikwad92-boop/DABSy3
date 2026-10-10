@@ -19,14 +19,16 @@
   const STEPS = [
     { title: "Tap me", text: "A single tap and I react to what's going on: what's due next, the time of day, where you touched.",
       demo: { label: "Tap for me", run: () => bus.emit("face:tap", { count: 1, region: "body" }) } },
+    { title: "Tap an eye to chat", text: "Tap either eye and the chat box opens straight away. Tap the bow tie and I do a little spin.",
+      demo: { label: "Show me", run: () => { D.app.openCommand(false); setTimeout(() => D.app.closeCommand(), 3200); } } },
     { title: "Double-tap for your apps", text: "Double-tap and bubbles float out: Study Space, Ghibli Calendar, SolveCount and Settings. No double-tap? Turn on the on-screen buttons in Settings → Accessibility.",
       demo: { label: "Show me", run: () => { D.ecosystem.open(); setTimeout(() => D.ecosystem.close(), 2600); } } },
-    { title: "Talk to me", text: "Press and hold me, or tap the Talk button, to type or speak. Try \"I want to study chemistry\" or \"remind me to submit my assignment\".",
+    { title: "Talk to me", text: "Tap an eye, or tap the Talk button, to type or speak. Try \"I want to study chemistry\" or \"remind me to submit my assignment\".",
       demo: { label: "Show me", run: () => { D.app.openCommand(false); setTimeout(() => D.app.closeCommand(), 3200); } } },
-    { title: "Tasks and reminders", text: "Tasks stay alive. If one is due I'll ask whether to start it, move it, or skip it. If it slips I offer a new slot. Ignore me and I back off. Everything lands in the bell at the top.", highlight: "#bell-btn" },
+    { title: "Tasks and reminders", text: "Press and hold me to see your tasks and reminders. Tasks stay alive. If one is due I'll ask whether to start it, move it, or skip it. If it slips I offer a new slot. Ignore me and I back off. Everything lands in the bell at the top.", highlight: "#bell-btn" },
     { title: "Studying with me", text: "Tell me what you want to study and for how long. I look for real material, you pick what you like, I plan the time around it, and I can send the plan to Study Space." },
     { title: "Picking material", text: "You'll see one card at a time. Swipe right to choose, left to skip, or use the Choose and Skip buttons. Undo is always there." },
-    { title: "The gestures that matter", text: "Tap: say hi. Double-tap: apps. Hold: talk. Stroke me: I like that. Every one has a button or key alternative." },
+    { title: "The gestures that matter", text: "Tap an eye: chat. Tap the bow tie: play. Double-tap: apps. Hold: tasks. Stroke me: I like that. Every one has a button or key alternative." },
     { title: "Where Settings lives", text: "Double-tap me, then Settings. You can replay this tour any time from Settings → Help & Tutorial.", last: true },
   ];
 

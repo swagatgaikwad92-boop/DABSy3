@@ -54,7 +54,7 @@
       const cur = D.outfits.current();
 
       /* v8: character presentation (FUR MODE) + bow tie */
-      wardrobe.append(switchRow("Fur mode", "Adds a soft blue-purple fur aura around the eyes. Off = DABSy's minimal floating eyes and bow tie. Nothing else changes.", cur.form === "furry", v => { D.outfits.setForm(v ? "furry" : "minimal"); D.face.react("perk"); paintWardrobe(); }));
+      wardrobe.append(switchRow("Fur mode", "Adds fine fur fibres around the floating eyes and bow tie. Off = the clean eyes and bow tie. The eyes, bow tie and everything else stay exactly the same.", cur.form === "furry", v => { D.outfits.setForm(v ? "furry" : "minimal"); D.face.react("perk"); paintWardrobe(); }));
       wardrobe.append(el("div", { class: "section-title" }, "Character"));
       const formGrid = el("div", { class: "wd-grid wd-grid-2" });
       [["minimal", "Minimal"], ["furry", "Furry"]].forEach(([f, name]) => {
@@ -153,7 +153,7 @@
     const rm = el("select", { class: "field", "aria-label": "Reduce motion" }, [["auto", "Follow my device"], ["on", "Always reduce"], ["off", "Never reduce"]].map(([v, l]) => el("option", { value: v }, l)));
     rm.value = memory.getSettings().reduceMotion; rm.onchange = () => memory.saveSettings({ reduceMotion: rm.value });
     const a11y = section("access", "Accessibility",
-      switchRow("Show on-screen buttons for gestures", "Adds Apps and Talk buttons, so nothing needs a double-tap or long-press. Keyboard: Enter = tap, ↓ = apps, ↑ = commands.", memory.getSettings().showShortcuts, v => memory.saveSettings({ showShortcuts: v })),
+      switchRow("Show on-screen buttons for gestures", "Adds Apps and Talk buttons, so nothing needs a double-tap or hold. Keyboard: Enter = chat, ↓ = apps, ↑ = tasks.", memory.getSettings().showShortcuts, v => memory.saveSettings({ showShortcuts: v })),
       el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Reduce motion"), el("div", { class: "s" }, "Calmer creature, no bobbing bubbles.")), rm));
 
     /* ---------- connections ---------- */
@@ -187,7 +187,7 @@
     /* ---------- help ---------- */
     const help = section("help", "Help & Tutorial",
       el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Replay Tutorial"), el("div", { class: "s" }, "A tiny tour of what I can do.")), el("button", { class: "btn sm primary", type: "button", onclick: () => { sh.close(); setTimeout(() => D.require("onboarding").then(o => o.start({ replay: true })), 300); } }, "Replay")),
-      el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Gestures"), el("div", { class: "s" }, "Tap: say hi · Double-tap: your apps · Long-press: talk or type · Stroke: pet me. Everything has a button alternative in Accessibility."))));
+      el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Gestures"), el("div", { class: "s" }, "Tap an eye: chat · Tap the bow tie: play · Double-tap: your apps · Press and hold: tasks and reminders · Stroke: pet me. Everything has a button alternative in Accessibility."))));
 
     /* ---------- about ---------- */
     const installBtn = el("button", { class: "btn sm", type: "button", hidden: true, onclick: async () => { if(await D.pwa.promptInstall()) installBtn.hidden = true; } }, "Install app");

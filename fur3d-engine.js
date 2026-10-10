@@ -1,20 +1,19 @@
 /* ============================================================
-   D.A.B.S.y — fur3d-engine.js  (v8.2)
-   Real 3D plush fur. One small WebGL canvas behind the eyes draws:
-     · the rounded body (ellipsoid)           — furry look only
-     · two tapered, volumetric ears            — furry look only
-     · the bow tie (two puffed lobes + a raised knot) — both looks
-   Fur is "shell fur": each mesh is drawn as ~16 offset shells, each shell
-   keeps only the pixels that lie inside a procedural strand, so strands are
-   tapered, vary in length/direction, and follow the surface curvature.
-   Lighting: key light (top-left), cool rim light, root occlusion, cyan spill
-   from the eyes, eye-socket shading, a soft contact shadow under the tie,
-   and a gentle parallax turn toward where DABSy is looking.
-
-   Everything else (eyes, blink, expressions, gear) stays DOM. If WebGL is
-   unavailable the CSS fur from creature.css stays in place (no class added).
-   Lite devices: fewer shells, 1× pixel ratio, no MSAA. A frame-time monitor
-   lowers quality further on slow GPUs. Paused while the tab is hidden.
+   D.A.B.S.y — fur3d-engine.js  (v8.3)
+   One small WebGL canvas BEHIND the DOM eyes draws:
+     · the bow tie (two puffed lobes + a raised knot)  — both looks, unchanged
+     · Fur On only: a halo of fine shell-fur fibres around each eye and around
+       the bow tie. The halo is built from ellipsoids that sit UNDER the eyes /
+       tie and have no solid surface — only the strands, so nothing is drawn
+       over the eyes and no head, body, ears or socket is ever created.
+   The halo follows each eye's live shape (height, tilt, gaze, expression)
+   read from the DOM every frame, so fibres stay attached when DABSy squints
+   or looks around. Fade in/out on mode change; nothing is rebuilt.
+   Shell fur = each mesh is drawn as several offset shells that keep only the
+   pixels inside a procedural strand (tapered, varied, slightly combed down).
+   Lite phones: fewer shells, 1× pixel ratio; adaptive resolution on slow
+   GPUs; paused while the tab is hidden. No WebGL -> Fur On keeps only the
+   CSS fibre rim on the eyes (identity is still intact, fibres are fewer).
    ============================================================ */
 (function(){
   "use strict";
@@ -34,7 +33,7 @@
   const state = {
     fur: { hi: [.455, .51, .847], mid: [.27, .322, .651], lo: [.133, .165, .4] },
     glow: [.43, .91, .94],
-    bodyA: 0, bodyTarget: 1,
+    haloA: 0, haloTarget: 0,
     tie: { on: false, x: 150, y: 236, s: 1, c1: [.8, .72, 1], c2: [.54, .4, .94], k: [.54, .4, .94] },
     yaw: 0, pitch: 0, pop: 0, quality: 1, ft: 16, frames: 0, acc: 0, wind: 0,
   };
@@ -235,11 +234,11 @@
       state.tie.on = true; document.body.classList.add("gl-tie");
     }catch(_){ state.tie.on = false; }
   }
-  function syncForm(){ state.bodyTarget = face.dataset.form === "furry" ? 1 : 0; }
+  function syncForm(){ state.haloTarget = face.dataset.form === "furry" ? 1 : 0; }
   function sizeCanvas(){
     const w = tilt.offsetWidth, h = tilt.offsetHeight; if(!w || !h) return false;
     const cssW = w * VW / W, cssH = h * VH / H;
-    const dpr = Math.min(window.devicePixelRatio || 1, lite() ? 1 : 2) * (face.dataset.form === "minimal" ? 1.14 : 1) * state.quality;
+    const dpr = Math.min(window.devicePixelRatio || 1, lite() ? 1 : 2) * 1.14 * state.quality;
     const pw = Math.max(64, Math.round(cssW * dpr)), ph = Math.max(64, Math.round(cssH * dpr));
     if(canvas.width !== pw || canvas.height !== ph){ canvas.width = pw; canvas.height = ph; gl.viewport(0, 0, pw, ph); }
     return true;
@@ -257,13 +256,33 @@
     gl.uniform3f(U.uDroop, state.wind * p.len * .35, p.len * .55, 0);
     set3("uRoot", p.root); set3("uMid", p.mid); set3("uTip", p.tip); set3("uInner", p.inner || p.mid); set3("uC2", p.c2 || p.mid);
     gl.frontFace((p.mir || 1) < 0 ? gl.CW : gl.CCW);
-    for(let i = 0; i <= shells; i++){
+    for(let i = p.halo ? 1 : 0; i <= shells; i++){            // halo parts have no solid surface: strands only
       gl.uniform1f(U.uT, i / shells);
       gl.drawElements(gl.TRIANGLES, mesh.n, gl.UNSIGNED_SHORT, 0);
     }
   }
   const mulc = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
   const mixc = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+
+  /* live geometry of each DOM eye (layout box + current transform), in the 300 × 330 design space */
+  const eyeNodes = [document.getElementById("eye-left"), document.getElementById("eye-right")];
+  const eyeShapes = eyeNodes.map(e => e && e.querySelector(".eye-shape"));
+  function mtx(el){
+    const t = getComputedStyle(el).transform;
+    if(!t || t === "none") return { e: 0, f: 0, rot: 0 };
+    const m = t.match(/matrix\(([^)]+)\)/); if(!m) return { e: 0, f: 0, rot: 0 };
+    const v = m[1].split(",").map(Number);
+    return { e: v[4] || 0, f: v[5] || 0, rot: Math.atan2(v[1] || 0, v[0] || 1) };
+  }
+  function readEye(i){
+    const eye = eyeNodes[i], shp = eyeShapes[i];
+    if(!eye || !shp || !tilt.offsetWidth) return null;
+    const sc = W / tilt.offsetWidth, a = mtx(eye), b = mtx(shp);
+    const w = shp.offsetWidth, h = shp.offsetHeight;
+    if(w < 4 || h < 4) return null;
+    return { x: (eye.offsetLeft + shp.offsetLeft + w / 2 + a.e + b.e) * sc, y: (eye.offsetTop + shp.offsetTop + h / 2 + a.f + b.f) * sc,
+             rx: w / 2 * sc * .94, ry: h / 2 * sc * .94, rot: a.rot + b.rot };
+  }
 
   function frame(now){
     raf = requestAnimationFrame(frame);
@@ -286,8 +305,8 @@
     const ty0 = reduced ? 0 : tx / 5 * .2, tp0 = reduced ? 0 : -ty / 3 * .13;
     state.yaw += (ty0 - state.yaw) * .14; state.pitch += (tp0 - state.pitch) * .14;
     state.wind = reduced ? 0 : Math.sin(now / 1900) * .5 + Math.sin(now / 770) * .2;
-    state.bodyA += (state.bodyTarget - state.bodyA) * .12;
-    if(Math.abs(state.bodyTarget - state.bodyA) < .01) state.bodyA = state.bodyTarget;
+    state.haloA += (state.haloTarget - state.haloA) * .14;
+    if(Math.abs(state.haloTarget - state.haloA) < .01) state.haloA = state.haloTarget;
     if(state.pop > 0) state.pop = Math.max(0, state.pop - dt / 420);
     if(!sizeCanvas()) return;
 
@@ -309,23 +328,30 @@
     const SB = Math.max(8, Math.round((lt ? 10 : 16) * q)), SE = Math.max(6, Math.round((lt ? 7 : 11) * q)), ST = Math.max(5, Math.round((lt ? 5 : 8) * q));
     const f = state.fur;
 
-    if(state.bodyA > .01){
-      gl.uniform1f(U.uAlpha, state.bodyA);
-      const root = mixc(f.lo, f.mid, .25), tip = mixc(f.hi, [.78, .82, 1], .12), bmid = mixc(f.mid, f.hi, .08);
-      gl.uniform1f(U.uEyeOn, 1);
-      const breathe = 1 + Math.sin(now / 2300) * .004;
-      drawPart({ c: [150, 196, 0], r: [112 * breathe, 114 * breathe, 104], len: 8.5, dens: .78, mode: 0, root, mid: bmid, tip }, SB);
-      gl.uniform1f(U.uEyeOn, 0);
-      const earRoot = mixc(f.lo, f.mid, .5), earTip = mixc(f.hi, [.7, .75, 1], .2), inner = [.58, .42, .85];
-      const sway = state.wind * .03;
-      drawPart({ c: [86, 92, 34], r: [19, 30, 10], rot: rotZ(-.6 + sway), warp: 1, len: 5.2, dens: 1.0, mode: 1, root: earRoot, mid: mixc(f.mid, f.hi, .35), tip: earTip, inner }, SE);
-      drawPart({ c: [214, 92, 34], r: [19, 30, 10], rot: rotZ(.6 - sway), warp: 1, len: 5.2, dens: 1.0, mode: 1, root: earRoot, mid: mixc(f.mid, f.hi, .35), tip: earTip, inner }, SE);
+    const gaze = mul3(rotY(state.yaw), rotX(state.pitch));
+    if(state.haloA > .01){
+      // eye halos: no parallax (the DOM eyes do not rotate in 3D), so the fibres stay glued to the real eye edge
+      gl.uniformMatrix3fv(U.uG, false, I3());
+      gl.uniform1f(U.uAlpha, state.haloA); gl.uniform1f(U.uEyeOn, 0); gl.uniform1f(U.uTieOn, 0);
+      const root = mixc(f.mid, f.hi, .15), mid = mixc(f.hi, [.8, .85, 1], .35), tip = mixc(mixc(f.hi, [.92, .94, 1], .7), state.glow, .12);
+      for(let i = 0; i < 2; i++){
+        const g = readEye(i); if(!g) continue;
+        drawPart({ halo: true, c: [g.x, g.y, 0], r: [g.rx, g.ry, Math.max(6, Math.min(g.rx, 12))], rot: rotZ(g.rot), len: 11, dens: .85, mode: 0, root, mid, tip }, SE + 3);
+      }
+      gl.uniformMatrix3fv(U.uG, false, gaze);
+      gl.uniform1f(U.uTieOn, tie.on ? 1 : 0);
     }
     if(tie.on){
       gl.uniform1f(U.uAlpha, 1); gl.uniform1f(U.uEyeOn, 0);
       const s = tie.s * (1 + state.pop * .14 * Math.sin(state.pop * Math.PI)), z = 108;
       const c1 = tie.c1, c2 = tie.c2, kc = tie.k;
       const lobe = mir => ({ c: [tie.x + mir * 16 * s, tie.y, z], r: [17 * s, 13.5 * s, 7 * s], mir, warp: 2, len: 1.7 * s, dens: 1.35 / Math.max(.6, s), mode: 2, root: mulc(c2, .78), mid: c1, tip: c1, c2, inner: kc });
+      if(state.haloA > .01){                                // Fur On: fibres fringing the SAME tie (drawn first, a little behind it)
+        gl.uniform1f(U.uAlpha, state.haloA);
+        const hl = mir => Object.assign(lobe(mir), { halo: true, c: [tie.x + mir * 16 * s, tie.y, z - 5], r: [16.2 * s, 12.8 * s, 6 * s], len: 6.5 * s, dens: 1.1 / Math.max(.6, s) });
+        drawPart(hl(1), ST + 2); drawPart(hl(-1), ST + 2);
+        gl.uniform1f(U.uAlpha, 1);
+      }
       drawPart(lobe(1), ST); drawPart(lobe(-1), ST);
       drawPart({ c: [tie.x, tie.y, z + 5], r: [5.8 * s, 7.6 * s, 8 * s], len: 1.5 * s, dens: 1.4 / Math.max(.6, s), mode: 2, knot: true, root: mulc(kc, .78), mid: kc, tip: mixc(kc, [1, 1, 1], .25), c2: kc, inner: kc }, ST);
     }
@@ -341,9 +367,9 @@
     // the canvas covers the box + margins
     canvas.style.cssText = `position:absolute;left:${-MX / W * 100}%;top:${-MY / H * 100}%;width:${VW / W * 100}%;height:${VH / H * 100}%;pointer-events:none`;
     readColours(); syncForm(); syncTie();
-    state.bodyA = state.bodyTarget;
+    state.haloA = state.haloTarget;
     const resync = () => { readColours(); syncForm(); setTimeout(syncTie, 30); setTimeout(syncTie, 760); };
-    if(bus){ bus.on("outfit:changed", resync); bus.on("outfit:form", resync); bus.on("tie:pop", () => { state.pop = 1; }); }
+    if(bus){ bus.on("outfit:changed", resync); bus.on("outfit:form", resync); bus.on("tie:pop", () => { state.pop = 1; }); }   // pop = a tiny puff of the tie when it is tapped
     new MutationObserver(() => { syncForm(); readColours(); }).observe(face, { attributes: true, attributeFilter: ["data-form", "data-outfit", "style"] });
     window.addEventListener("resize", () => { setTimeout(syncTie, 60); });
     window.addEventListener("orientationchange", () => { setTimeout(syncTie, 300); });

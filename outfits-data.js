@@ -201,7 +201,7 @@
      An item's own place.{minimal|furry} is merged over the slot default.   */
   const PLACEMENT = {
     minimal: { neck: {}, eyes: {}, ears: {}, head: { y: 16 } },
-    furry:   { neck: {}, eyes: {}, ears: {}, head: {} },
+    furry:   { neck: {}, eyes: {}, ears: {}, head: { y: 16 } },   // v8.3: identical to minimal
   };
 
   window.DABSy = window.DABSy || {};

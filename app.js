@@ -55,13 +55,15 @@
     clearTimeout(dockTimer);
     dockTimer = setTimeout(() => { if(document.activeElement === textInput || textInput.value.trim()) return; closeCommand(); }, 14000);
   }
+  let focusTimer = null;
   function openCommand(focus){
     if(document.body.classList.contains("sheet-open") || document.body.classList.contains("eco-open")) return;
     buildChips();
     chatArea.classList.add("visible"); document.body.classList.add("cmd-open"); armDockTimer();
-    if(focus !== false) setTimeout(() => textInput.focus({ preventScroll: true }), 260);
+    clearTimeout(focusTimer);
+    if(focus !== false) focusTimer = setTimeout(() => { if(chatArea.classList.contains("visible")) textInput.focus({ preventScroll: true }); }, 260);
   }
-  function closeCommand(){ chatArea.classList.remove("visible"); document.body.classList.remove("cmd-open"); textInput.blur(); }
+  function closeCommand(){ clearTimeout(focusTimer); chatArea.classList.remove("visible"); document.body.classList.remove("cmd-open"); textInput.blur(); }   // a pending focus must not re-open the keyboard after a double-tap
   textInput.addEventListener("input", armDockTimer);
   textInput.addEventListener("blur", armDockTimer);
   textInput.addEventListener("focus", () => clearTimeout(dockTimer));
@@ -69,16 +71,13 @@
     if(e.key === "Enter" && textInput.value.trim()){ handleUserUtterance(textInput.value.trim()); textInput.value = ""; }
     if(e.key === "Escape") closeCommand();
   });
-  bus.on("face:longpress", ({ region, via }) => {
+  bus.on("face:longpress", () => {                       // press and hold the character -> tasks / reminders
     director.dispatch("USER_LONGPRESS");
-    if(region === "eyes" && !via){                       // v8.2: hold on the eyes -> tasks / reminders
-      closeCommand();
-      window.DABSy.require("notifcenter").then(c => c.openTasks());
-      return;
-    }
-    openCommand();
+    closeCommand();
+    window.DABSy.require("notifcenter").then(c => c.openTasks());
   });
-  bus.on("face:tap", ({ region }) => {                   // v8.2: tap on the eyes -> chat, immediately
+  bus.on("face:talk", () => openCommand());              // the visible "Talk" shortcut button -> chat
+  bus.on("face:tap", ({ region }) => {                   // tap on an eye -> chat, immediately (once)
     if(chatArea.classList.contains("visible")){ if(!textInput.value) closeCommand(); return; }
     if(region === "eyes") openCommand();
   });

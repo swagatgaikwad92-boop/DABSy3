@@ -2,7 +2,23 @@
 
 A flat-file, no-build PWA. Drop the folder on GitHub Pages and it runs.
 
-## New in v8.2 (3D character + interaction fixes)
+## New in v8.3 (visual + gesture repair)
+- **Fur On no longer changes who DABSy is.** Fur Off is the canonical design: two floating glowing eyes and a small fuzzy purple bow tie, nothing else. Fur On draws the *same* eyes and bow tie (same position, scale, shape, colour, glow, blink and expressions) and only adds fine shell-fur fibres around them (`fur3d-engine.js`, WebGL, drawn behind the DOM eyes). No head, body, ears, muzzle, nose or eye sockets exist in either look. The fibres follow each eye's live shape, so they stay attached when DABSy squints or looks around. Switching modes only fades the fibres in/out — nothing reloads and no expression resets.
+- Fixed: after Fur On → Fur Off the old build could leave a ghost body behind; the body/ears/plate/cheek/bead layers are gone entirely.
+- No WebGL? Fur Off is unchanged; Fur On then shows only the CSS fibre rim on the eyes (an honest, smaller effect — real 3D fur needs WebGL).
+- **Gestures (all handled in `interaction-engine.js`, one set of listeners):**
+
+| Gesture | Alternative | Result |
+|---|---|---|
+| Tap an eye | Enter / Space, "Talk" button | Chat input opens at once (once) |
+| Tap the bow tie | | DABSy spins, may say a line; the tie puffs |
+| Double-tap (anywhere) | "Apps" button, ArrowDown | Ecosystem bubbles (apps) |
+| Press and hold | ArrowUp | Tasks / reminders |
+| Stroke | | Pet |
+
+- A double-tap closes the chat that its first tap opened and never opens the keyboard; a hold cancels any pending tap; one finger is tracked; the browser's follow-up click after a hold/double-tap is swallowed (it used to close the tasks sheet the instant you lifted your finger).
+
+## v8.2 notes (superseded by v8.3 where they mention a body, ears, a bead or hold-for-command-mode)
 - **Real 3D plush fur** (`fur3d-engine.js`, small WebGL canvas): rounded body, tapered volumetric ears and a puffed bow tie with a raised knot, drawn as ~16 fur shells with tapered, curved strands, key + rim light, root occlusion, eye-socket shading and a contact shadow under the tie. It turns slightly toward where DABSy looks. No WebGL → the previous CSS fur stays (automatic). Lite phones: fewer shells, 1× pixel ratio; a frame-time monitor lowers resolution on slow GPUs; paused while the tab is hidden.
 - **Furry is now the default look** (saved devices move to it once; Settings → Wardrobe → Fur mode switches it off). Egg-shaped cyan eyes + the small glassy bead between them follow the v7 reference sheet; Minimal keeps its pill eyes and gets the 3D bow tie.
 - **Blink**: the lid now lives inside each eye, clipped to its shape, with a curved edge that sweeps down (≈90 ms), holds, and lifts slower (≈200 ms); no more flat navy rectangles.
@@ -22,9 +38,10 @@ A soft, expressive creature you tap, double-tap and long-press. It plans study s
 
 | Gesture | Alternative | Result |
 |---|---|---|
-| Tap | Enter / Space | Contextual reaction (eyes, head, bow tie, body each react differently) |
+| Tap an eye | Enter / Space | Chat input |
+| Tap the bow tie | | Spin + a line |
 | Double-tap | "Apps" button, ↓ key | Ecosystem bubbles: Study Space, Ghibli Calendar, SolveCount, Settings (extensible via `DABSy.ecosystem.register`) |
-| Long-press | "Talk" button, ↑ key | Command mode: type or speak |
+| Press and hold | ↑ key | Tasks and reminders |
 
 Turn on the visible buttons under Settings → Accessibility → Show shortcut buttons.
 

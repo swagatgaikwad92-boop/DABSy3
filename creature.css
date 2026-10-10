@@ -124,7 +124,7 @@ body.lite-gfx .cr-grain{display:none}
    v8 — PRESENTATION: MINIMAL (default) / FURRY
    ============================================================ */
 #face{transform-origin:50% 52%;transition:transform .7s var(--ease-out)}
-#face[data-form="minimal"]{transform:scale(1.14)}        /* the eyes carry the character, so they get a little more room */
+#face{transform:scale(1.14)}        /* v8.3: identical scale in BOTH looks (the eyes carry the character) */
 
 /* fur layers: fade in/out, then leave the render tree entirely */
 .cr-ear,.cr-body,.cr-plate,.cr-cheek,.cr-shadow{transition:opacity .6s var(--ease-soft)}
@@ -136,36 +136,33 @@ body.lite-gfx .cr-grain{display:none}
 #face:not([data-form]) .cr-ear,#face:not([data-form]) .cr-body,#face:not([data-form]) .cr-plate,#face:not([data-form]) .cr-cheek,#face:not([data-form]) .cr-shadow{display:none}
 
 /* one soft ring when the presentation changes (a single short animation, nothing running afterwards) */
-#face::before{content:"";position:absolute;inset:6%;border-radius:50%;pointer-events:none;opacity:0;
-  background:radial-gradient(closest-side,transparent 58%,rgba(150,160,255,.38) 78%,transparent 100%)}
-#face.form-anim::before{animation:form-puff .85s var(--ease-out)}
-@keyframes form-puff{0%{opacity:.9;transform:scale(.62)}100%{opacity:0;transform:scale(1.28)}}
+
 
 /* wardrobe pieces glide when the presentation changes */
 .wear-item{transition:transform .6s var(--ease-out)}
 .nx{transition:transform .6s var(--ease-out)}
-#face[data-form="minimal"] .nx,svg.pv-minimal .nx{transform:translateY(-16px)}
+#face .nx,svg.pv-minimal .nx{transform:translateY(-16px)}
 
 /* blinking without a lid: with no fur to "close" onto, the eye itself squashes */
-#face[data-form="minimal"] .eye.blinking .eye-glow{opacity:.3}
-#face[data-form="minimal"] .eye-glow{inset:-70%}
-#face[data-form="minimal"]{--bow-shadow:transparent}
+#face .eye.blinking .eye-glow{opacity:.3}
+#face .eye-glow{inset:-70%}
+#face{--bow-shadow:transparent}
 svg.pv-minimal{--bow-shadow:transparent}
 
 /* ---- LIGHT theme: eyes need their own colour, a pale glow would vanish on ivory ---- */
-:root[data-theme="light"] #face[data-form="minimal"]{--eye-rgb:126,150,238;--glow-rgb:108,128,232}
-:root[data-theme="light"] #face[data-form="minimal"] .eye-shape{
+:root[data-theme="light"] #face{--eye-rgb:126,150,238;--glow-rgb:108,128,232}
+:root[data-theme="light"] #face .eye-shape{
   background:linear-gradient(180deg,#f7f9ff,#8396e6);
   background:linear-gradient(180deg,#f7f9ff 0%,rgba(var(--eye-rgb),.96) 42%,color-mix(in srgb,rgb(var(--eye-rgb)) 52%,#2b3470) 100%);
   box-shadow:0 0 0 1.5px rgba(58,70,150,.5),0 8px 20px rgba(70,90,190,.26),0 0 2px rgba(255,255,255,.9) inset;
 }
-:root[data-theme="light"] #face[data-form="minimal"] .eye-glow{mix-blend-mode:multiply;opacity:.5;
+:root[data-theme="light"] #face .eye-glow{mix-blend-mode:multiply;opacity:.5;
   background:radial-gradient(closest-side,rgba(var(--glow-rgb),.34),rgba(var(--glow-rgb),.10) 55%,transparent 74%)}
-:root[data-theme="light"] #face[data-form="minimal"] .eye-highlight{opacity:1}
+:root[data-theme="light"] #face .eye-highlight{opacity:1}
 /* gear that is white by nature gets graphite-lavender tones + a hairline so it stays readable on ivory */
-:root[data-theme="light"] #face[data-form="minimal"],:root[data-theme="light"] svg.pv-minimal{--hp-a:#a9b0e4;--hp-b:#6872b8;--hp-ring:#e9edff;--gl:#4c5590}
-:root[data-theme="light"] #face[data-form="minimal"] .cr-wear{filter:drop-shadow(0 0 .7px rgba(44,52,118,.8)) drop-shadow(0 3px 5px rgba(44,52,118,.16))}
-body.lite-gfx #face[data-form="minimal"] .cr-wear{filter:none}
+:root[data-theme="light"] #face,:root[data-theme="light"] svg.pv-minimal{--hp-a:#a9b0e4;--hp-b:#6872b8;--hp-ring:#e9edff;--gl:#4c5590}
+:root[data-theme="light"] #face .cr-wear{filter:drop-shadow(0 0 .7px rgba(44,52,118,.8)) drop-shadow(0 3px 5px rgba(44,52,118,.16))}
+body.lite-gfx #face .cr-wear{filter:none}
 
 /* ============================================================
    v8.1 — FUR UPGRADE (furry presentation only; minimal is untouched)
@@ -194,18 +191,13 @@ body.fur-textured .cr-ear{background-image:var(--fur-tex,none),radial-gradient(6
   box-shadow:inset 0 0 10px rgba(0,0,0,.35),0 0 3px 1px rgba(150,165,255,.28)}
 
 /* eyes: smooth glassy centre, delicate fibre perimeter only (furry look only) */
-#face .eye-shape::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+#face[data-form="furry"] .eye-shape::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
   background-image:var(--fur-tex-tie,none);background-size:40px 40px;opacity:.5;mix-blend-mode:soft-light;
   -webkit-mask-image:radial-gradient(closest-side,transparent 70%,#000 100%);
   mask-image:radial-gradient(closest-side,transparent 70%,#000 100%)}
 
-/* bow tie: fuzzy plush surfaces (same shape, colour, position) */
-#face[data-form="furry"] .cr-wear #slot-neck{filter:url(#tie-fuzz)}
-#face[data-form="furry"] .cr-wear #slot-neck path[fill^="url"],
-#face[data-form="furry"] .cr-wear #slot-neck rect{stroke:rgba(255,255,255,.14);stroke-width:.9;stroke-dasharray:.6 1.1;stroke-linecap:round}
 
 body.lite-gfx .cr-strands::after,body.lite-gfx .cr-body::before{display:none}
-body.lite-gfx #face[data-form="furry"] .cr-wear #slot-neck{filter:none}
 @media (prefers-reduced-motion:reduce){body.fur-textured .cr-strands{transition:none}}
 
 
@@ -219,9 +211,6 @@ body.gl-tie .cr-wear .bow-art{opacity:0}
 body.lite-gfx .cr-gl{image-rendering:auto}
 
 /* original eye colours + egg shape for the furry look (reference sheet); the minimal look keeps its pill eyes */
-#face[data-form="furry"]{--eye-rgb:170,248,243;--glow-rgb:110,233,240}
-:where(#face[data-form="furry"]) .eye-shape{border-radius:50% 50% 50% 50%/58% 58% 42% 42%}
-#face[data-form="furry"] .eye-highlight{width:38%;height:21%;top:11%;left:16%;filter:blur(2px);opacity:.9}
 
 /* eyes read as glossy, domed and set into the surface */
 #face .eye-shape{
@@ -231,11 +220,6 @@ body.lite-gfx .cr-gl{image-rendering:auto}
 }
 .eye-spec{position:absolute;right:15%;bottom:9%;width:34%;height:13%;border-radius:50%;background:rgba(255,255,255,.3);filter:blur(1.4px);transform:rotate(-26deg);pointer-events:none}
 
-/* the small glassy bead between the eyes (reference sheet) — furry look only */
-.cr-bead{position:absolute;left:47.3%;top:52.9%;width:5.4%;height:4.9%;border-radius:50%;pointer-events:none;opacity:0;transition:opacity .6s var(--ease-soft);
-  background:radial-gradient(circle at 36% 30%,rgba(255,255,255,.6),rgba(130,190,225,.34) 42%,rgba(60,100,170,.3) 100%);
-  box-shadow:0 0 6px rgba(var(--glow-rgb),.25),inset 0 -2px 3px rgba(20,40,110,.35)}
-#face[data-form="furry"] .cr-bead{opacity:.85}
 
 /* ---- BLINK: a lid that belongs to the eye, clipped to its shape, sweeping down with a curved edge ---- */
 .eye-lid{position:absolute;left:-3%;right:-3%;top:-4%;height:0;z-index:3;pointer-events:none;
@@ -247,14 +231,20 @@ body.lite-gfx .cr-gl{image-rendering:auto}
 .eye.blinking .eye-lid{height:108%;transition:height 90ms cubic-bezier(.5,0,.85,.55)}
 .eye.blinking .eye-shape{scale:1 .965}
 .eye.blinking .eye-glow{opacity:.35}
-#face[data-form="minimal"] .eye-lid{display:block;
+#face .eye-lid{display:block;
   background:radial-gradient(130% 100% at 50% 0%,#1d2250,#10143a 60%,#0a0d28);box-shadow:0 2px 7px rgba(var(--glow-rgb),.35),inset 0 -3px 5px rgba(0,0,0,.35)}
-:root[data-theme="light"] #face[data-form="minimal"] .eye-lid{background:radial-gradient(130% 100% at 50% 0%,#d6daf6,#aab3e6 60%,#8793d6);box-shadow:0 2px 6px rgba(70,90,190,.3),inset 0 -3px 5px rgba(44,52,118,.25)}
+:root[data-theme="light"] #face .eye-lid{background:radial-gradient(130% 100% at 50% 0%,#d6daf6,#aab3e6 60%,#8793d6);box-shadow:0 2px 6px rgba(70,90,190,.3),inset 0 -3px 5px rgba(44,52,118,.25)}
 
-/* ---- bow-tie double-tap feedback: a soft ring + the 3D tie puffs (engine) ---- */
-#face.tie-pop::after{content:"";position:absolute;left:50%;top:71.5%;width:34%;height:14%;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
-  border:2px solid rgba(200,180,255,.75);box-shadow:0 0 14px rgba(170,150,255,.5);animation:tie-ring .6s var(--ease-out) forwards}
-@keyframes tie-ring{0%{opacity:.95;transform:translate(-50%,-50%) scale(.5)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.35)}}
 
 /* gestures must never select text, show a tap flash or scroll the page */
 #face,#face *{-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+
+
+/* ============================================================
+   v8.3 — FUR ON ADDS FIBRES ONLY (identity is unchanged)
+   Fur Off = floating eyes + bow tie. Fur On = the very same eyes and bow tie
+   (same position, size, colour, glow, blink, expressions) plus fine fibres
+   drawn by fur3d-engine.js around them. There is no head, body, ears, plate,
+   cheeks, bead or socket in either look, so those layers never render.
+   ============================================================ */
+.cr-ear,.cr-body,.cr-plate,.cr-cheek,.cr-shadow,.cr-bead{display:none!important}

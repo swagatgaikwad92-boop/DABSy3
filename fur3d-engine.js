@@ -304,7 +304,9 @@
     const tx = parseFloat(tilt.style.getPropertyValue("--tx")) || 0, ty = parseFloat(tilt.style.getPropertyValue("--ty")) || 0;
     const ty0 = reduced ? 0 : tx / 5 * .2, tp0 = reduced ? 0 : -ty / 3 * .13;
     state.yaw += (ty0 - state.yaw) * .14; state.pitch += (tp0 - state.pitch) * .14;
-    state.wind = reduced ? 0 : Math.sin(now / 1900) * .5 + Math.sin(now / 770) * .2;
+    // v8.4: the fur is STILL. `wind` used to sway every fibre with two sine waves; it is now fixed at 0, so each
+    // strand keeps the same combed-down shape on every frame. Eyes, tie, gaze, blinks and reactions are unaffected.
+    state.wind = 0;
     state.haloA += (state.haloTarget - state.haloA) * .14;
     if(Math.abs(state.haloTarget - state.haloA) < .01) state.haloA = state.haloTarget;
     if(state.pop > 0) state.pop = Math.max(0, state.pop - dt / 420);

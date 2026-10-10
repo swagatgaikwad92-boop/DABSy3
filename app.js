@@ -69,8 +69,19 @@
     if(e.key === "Enter" && textInput.value.trim()){ handleUserUtterance(textInput.value.trim()); textInput.value = ""; }
     if(e.key === "Escape") closeCommand();
   });
-  bus.on("face:longpress", () => { director.dispatch("USER_LONGPRESS"); openCommand(); });
-  bus.on("face:tap", () => { if(chatArea.classList.contains("visible") && !textInput.value) closeCommand(); });
+  bus.on("face:longpress", ({ region, via }) => {
+    director.dispatch("USER_LONGPRESS");
+    if(region === "eyes" && !via){                       // v8.2: hold on the eyes -> tasks / reminders
+      closeCommand();
+      window.DABSy.require("notifcenter").then(c => c.openTasks());
+      return;
+    }
+    openCommand();
+  });
+  bus.on("face:tap", ({ region }) => {                   // v8.2: tap on the eyes -> chat, immediately
+    if(chatArea.classList.contains("visible")){ if(!textInput.value) closeCommand(); return; }
+    if(region === "eyes") openCommand();
+  });
   bus.on("face:doubletap", () => closeCommand());
 
   /* ---------------- microphone (permission asked just in time) ---------------- */

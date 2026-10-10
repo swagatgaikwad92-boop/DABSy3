@@ -23,14 +23,20 @@
   setExpression("neutral");
   bus.on("expression:set", ({ name }) => setExpression(name));
 
-  /* ---- blink ---- */
+  /* ---- blink ---- (v8.2: the lid sweeps down over the eye surface with ease-in, holds a beat, then lifts slower than it fell;
+         the eyes also dip a hair as the lids close. CSS transitions do the tweening, so it stays smooth at phone frame rates.) */
+  let blinking = false;
   function blinkOnce(double){
-    if(current === "sleepy") return;
+    if(current === "sleepy" || blinking) return;
+    blinking = true;
     eyes.forEach(e => e.classList.add("blinking"));
     setTimeout(() => {
       eyes.forEach(e => e.classList.remove("blinking"));
-      if(double) setTimeout(() => blinkOnce(false), 150);
-    }, 110);
+      setTimeout(() => {
+        blinking = false;
+        if(double) setTimeout(() => blinkOnce(false), 90);
+      }, 190);
+    }, 150);
   }
   (function scheduleBlink(){
     setTimeout(() => { if(idleStarted && !hidden) blinkOnce(Math.random() < .15); scheduleBlink(); }, 2400 + Math.random() * 4200);

@@ -26,7 +26,9 @@
 
   const DEFAULT_FUR = ["#7482d8", "#4552a6", "#222a66"];
   // form: "minimal" (default: floating eyes + bow tie) | "furry" (fur aura).  tie: bow-tie palette id.
-  let state = Object.assign({ outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "minimal", tie: "outfit" }, memory.read(KEY, {}));
+  let state = Object.assign({ outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "furry", tie: "outfit" }, memory.read(KEY, {}));
+  // v8.2: the plush 3D character is the default look; saved devices move to it once (Settings → Wardrobe → Fur mode still switches it off)
+  if(!state.v82){ state.form = "furry"; state.v82 = 1; try{ memory.write(KEY, state); }catch(_){} }
   if(state.form !== "furry") state.form = "minimal";
   if(!TIE_PALETTES.some(t => t.id === state.tie)) state.tie = "outfit";
   state.acc = Object.assign({ eyes: null, ears: null, head: null }, state.acc || {});
@@ -262,5 +264,5 @@
   checkAchievements();
   bus.on("tasks:completed", () => checkAchievements());
   bus.on("session:finished", () => checkAchievements());
-  bus.on("memory:wiped", () => { state = { outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "minimal", tie: "outfit" }; paintForm(false); apply(); });
+  bus.on("memory:wiped", () => { state = { outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "furry", v82: 1, tie: "outfit" }; paintForm(false); apply(); });
 })();

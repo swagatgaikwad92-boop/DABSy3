@@ -36,13 +36,13 @@
     BOWS[id] = [c1, c2, knot || c2];
     return `
     <defs><linearGradient id="g-${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
-    <g transform="translate(150 236) scale(.55) translate(-150 -262)">
+    <g class="bow-art" transform="translate(150 236) scale(.55) translate(-150 -262)">
     <ellipse cx="150" cy="284" rx="46" ry="6" style="fill:var(--bow-shadow,rgba(0,0,0,.28))"/>
     <path d="M150 262 L106 241 Q95 262 106 283 Z" fill="url(#g-${id})"/>
     <path d="M150 262 L194 241 Q205 262 194 283 Z" fill="url(#g-${id})"/>
     <path d="M111 247 Q103 262 111 277" stroke="rgba(255,255,255,.38)" fill="none" stroke-width="1.7" stroke-linecap="round"/>
     <path d="M189 247 Q197 262 189 277" stroke="rgba(0,0,0,.18)" fill="none" stroke-width="1.7" stroke-linecap="round"/>
-    <rect x="140" y="249" width="20" height="26" rx="8" fill="${knot || c2}"/>
+    <rect class="bow-knot" x="140" y="249" width="20" height="26" rx="8" fill="${knot || c2}"/>
     <rect x="144" y="252" width="6" height="14" rx="3" fill="rgba(255,255,255,.28)"/>
     </g>`;
   };

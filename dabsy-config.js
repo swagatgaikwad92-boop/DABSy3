@@ -19,7 +19,7 @@
   window.DABSy = window.DABSy || {};
 
   const CONFIG = {
-    version: "8.0.0",
+    version: "8.2.0",
 
     ai: {
       // e.g. "https://dabsy-ai.YOUR-SUBDOMAIN.workers.dev"

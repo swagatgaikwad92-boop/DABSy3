@@ -1,6 +1,14 @@
-# D.A.B.S.y v7 — plush AI study companion + ecosystem hub
+# D.A.B.S.y v8 — AI study companion + ecosystem hub
 
 A flat-file, no-build PWA. Drop the folder on GitHub Pages and it runs.
+
+## New in v8
+- **Minimal is now DABSy's default look**: two glowing eyes, a small bow tie, and any gear she wears — floating, no body, no fur.
+- **Fur mode** (Settings → Wardrobe → *Fur mode*, or the Minimal / Furry tiles): adds the v7 blue-purple fur aura. It is only a look: memory, settings, chats, animations and accessories are untouched, and eyes / bow tie / gear sit in the same place in both looks. Fur layers are removed from the page entirely in Minimal.
+- **Light theme** (Settings → Appearance → Theme: Dark / Light / Auto). Warm ivory, graphite text, lavender-blue accents. Theme and character look are independent, so all four combinations work.
+- Wardrobe: new **Cap** and **Hood**, **bow-tie colours**, per-look placement for every worn piece (`PLACEMENT` and `place:{minimal,furry}` in `outfits-data.js`).
+- Eyes are slightly larger and closer together and the bow tie is smaller, matching the v8 character sheet.
+- Persisted with the existing storage: look + bow tie in `dabsy_wardrobe_v1`, theme in `dabsy_settings`. No backend, no API key.
 
 ## What it is
 A soft, expressive creature you tap, double-tap and long-press. It plans study sessions, keeps tasks, nudges you contextually, hands work to Study Space and opens your other apps.
@@ -23,7 +31,7 @@ Open http://localhost:8080 (service workers need localhost or https).
 1. Create a repo and push the contents of this folder to its root (so `index.html` is at the top level).
 2. Settings → Pages → Deploy from branch → `main` / root.
 3. Open `https://<you>.github.io/<repo>/`. All paths are relative, so project sub-paths work.
-4. When you add files, add them to `SHELL_FILES` in `sw.js` and bump `CACHE_VERSION`.
+4. When you add files, add them to `SHELL_FILES` in `sw.js` and bump `CACHE_VERSION` (v8 ships `theme.css` and `theme-engine.js`, already listed).
 5. (Optional) deploy the AI proxy in `backend/` (see `backend/BACKEND.md`) and set `ai.proxyUrl` in `dabsy-config.js`.
 
 ## Structure
@@ -44,7 +52,9 @@ Open http://localhost:8080 (service workers need localhost or https).
 ## Known limitations
 - Study Space / SolveCount integration needs the apps on the same origin (e.g. all under `you.github.io`) and the adapters installed; otherwise the hand-off stays "waiting".
 - A PWA can't fire timers when the OS has killed it; due nudges appear when it is next opened or via system notification only while a service worker is alive.
-- Creature is CSS-layered (soft plush shading and fur grain), not a WebGL mesh; this keeps it smooth on low/mid phones.
+- Creature is CSS-layered (soft plush shading and fur grain), not a WebGL mesh; this keeps it smooth on low/mid phones. Furry mode is the v7 fur (CSS gradients + one static displacement filter); Minimal draws none of it.
+- The Hood accessory is a hood shape; in Minimal it floats around the eyes rather than wrapping a head.
+- Light theme: the manifest / install splash colour stays dark (a PWA manifest can't change at runtime); the browser bar colour does follow the theme.
 - Outfits ship a small starter set; the data format in `outfits-data.js` is built to extend.
 - AI via the proxy costs whoever owns the provider key; rate limits are in the Worker.
 - No API-key field exists in the UI by design. The only client override is a dev proxy URL (not a secret) on one device.

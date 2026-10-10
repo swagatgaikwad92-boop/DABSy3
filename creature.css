@@ -4,6 +4,12 @@
    (same viewBox) lines up exactly. Layer stack, one transform job each:
      .cr-react (one-shot reactions) > .cr-sway (breathing) > .cr-tilt (look-at)
    The fuzzy-fur displacement filter is applied ONCE to a static layer.
+
+   v8 — two presentations, same character (data-form on #face / body):
+     minimal (DEFAULT)  floating eyes + bow tie + gear. No body, ears,
+                        plate or fur are drawn (they are display:none).
+     furry              the v7 fur aura (.fur-on). Eyes, tie and gear
+                        stay exactly where they are.
    ============================================================ */
 #face{
   --fur-hi:#7482d8;--fur-mid:#4552a6;--fur-lo:#222a66;
@@ -11,7 +17,7 @@
   position:absolute;inset:0;cursor:pointer;touch-action:none;
   -webkit-touch-callout:none;outline-offset:6px;
 }
-.cr-shadow{position:absolute;left:14%;right:14%;bottom:-1%;height:7%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent);filter:blur(3px)}
+.cr-shadow{position:absolute;left:14%;right:14%;bottom:-1%;height:7%;border-radius:50%;background:radial-gradient(closest-side,var(--cr-shadow,rgba(0,0,0,.55)),transparent);filter:blur(3px)}
 .cr-react,.cr-sway,.cr-tilt{position:absolute;inset:0;transform-origin:50% 92%;will-change:transform}
 .cr-tilt{transform:translate(var(--tx,0px),var(--ty,0px)) rotate(var(--rot,0deg));transition:transform .5s var(--ease-out)}
 
@@ -30,7 +36,7 @@
   background:
     radial-gradient(72% 62% at 36% 24%,var(--fur-hi),transparent 70%),
     radial-gradient(90% 80% at 50% 40%,var(--fur-mid),var(--fur-lo) 100%);
-  box-shadow:inset 0 -16px 28px rgba(8,10,40,.42),inset 0 12px 24px rgba(255,255,255,.16),0 0 0 1px rgba(170,180,255,.16),0 0 40px rgba(120,140,255,.18),0 16px 28px rgba(0,0,0,.35);
+  box-shadow:inset 0 -16px 28px rgba(8,10,40,.42),inset 0 12px 24px rgba(255,255,255,.16),0 0 0 1px rgba(170,180,255,.16),0 0 40px rgba(120,140,255,.18),0 16px 28px var(--cr-drop,rgba(0,0,0,.35));
   filter:url(#fur-fuzz);
 }
 .cr-grain{
@@ -49,8 +55,8 @@
 .cr-wear{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
 
 /* ---- eyes ---- */
-.eye{position:absolute;top:42.1%;width:14%;height:20%;transition:transform var(--dur-fast) var(--ease-spring)}
-#eye-left{left:28.3%}#eye-right{left:57.7%}
+.eye{position:absolute;top:40.6%;width:17.3%;height:23%;transition:transform var(--dur-fast) var(--ease-spring)}
+#eye-left{left:29.7%}#eye-right{left:53%}   /* v8: eyes closer + larger (centres x=115/185 of 300), identical in both presentations */
 .eye-glow{position:absolute;inset:-60%;border-radius:50%;pointer-events:none;opacity:.7;filter:blur(10px);
   background:radial-gradient(closest-side,rgba(var(--glow-rgb),.42),rgba(var(--glow-rgb),.12) 50%,transparent 72%);
   transition:opacity var(--dur-med) var(--ease-soft),background var(--dur-med) var(--ease-soft)}
@@ -113,3 +119,52 @@
 body.lite-gfx .cr-fur{filter:none}
 body.lite-gfx .eye-glow{filter:none}
 body.lite-gfx .cr-grain{display:none}
+
+/* ============================================================
+   v8 — PRESENTATION: MINIMAL (default) / FURRY
+   ============================================================ */
+#face{transform-origin:50% 52%;transition:transform .7s var(--ease-out)}
+#face[data-form="minimal"]{transform:scale(1.14)}        /* the eyes carry the character, so they get a little more room */
+
+/* fur layers: fade in/out, then leave the render tree entirely */
+.cr-ear,.cr-body,.cr-plate,.cr-cheek,.cr-shadow{transition:opacity .6s var(--ease-soft)}
+.cr-body{transition:opacity .6s var(--ease-soft),transform .7s var(--ease-out)}
+#face:not(.fur-on) .cr-ear,#face:not(.fur-on) .cr-body,#face:not(.fur-on) .cr-plate,#face:not(.fur-on) .cr-cheek,#face:not(.fur-on) .cr-shadow{opacity:0;pointer-events:none}
+#face:not(.fur-on) .cr-body{transform:scale(.9)}
+#face.fur-off .cr-ear,#face.fur-off .cr-body,#face.fur-off .cr-plate,#face.fur-off .cr-cheek,#face.fur-off .cr-shadow{display:none}
+/* no JS yet = minimal: the fur never flashes on load */
+#face:not([data-form]) .cr-ear,#face:not([data-form]) .cr-body,#face:not([data-form]) .cr-plate,#face:not([data-form]) .cr-cheek,#face:not([data-form]) .cr-shadow{display:none}
+
+/* one soft ring when the presentation changes (a single short animation, nothing running afterwards) */
+#face::before{content:"";position:absolute;inset:6%;border-radius:50%;pointer-events:none;opacity:0;
+  background:radial-gradient(closest-side,transparent 58%,rgba(150,160,255,.38) 78%,transparent 100%)}
+#face.form-anim::before{animation:form-puff .85s var(--ease-out)}
+@keyframes form-puff{0%{opacity:.9;transform:scale(.62)}100%{opacity:0;transform:scale(1.28)}}
+
+/* wardrobe pieces glide when the presentation changes */
+.wear-item{transition:transform .6s var(--ease-out)}
+.nx{transition:transform .6s var(--ease-out)}
+#face[data-form="minimal"] .nx,svg.pv-minimal .nx{transform:translateY(-16px)}
+
+/* blinking without a lid: with no fur to "close" onto, the eye itself squashes */
+#face[data-form="minimal"] .eye-lid{display:none}
+#face[data-form="minimal"] .eye.blinking .eye-shape{transform:scaleY(.08)}
+#face[data-form="minimal"] .eye.blinking .eye-glow{opacity:.3}
+#face[data-form="minimal"] .eye-glow{inset:-70%}
+#face[data-form="minimal"]{--bow-shadow:transparent}
+svg.pv-minimal{--bow-shadow:transparent}
+
+/* ---- LIGHT theme: eyes need their own colour, a pale glow would vanish on ivory ---- */
+:root[data-theme="light"] #face[data-form="minimal"]{--eye-rgb:126,150,238;--glow-rgb:108,128,232}
+:root[data-theme="light"] #face[data-form="minimal"] .eye-shape{
+  background:linear-gradient(180deg,#f7f9ff,#8396e6);
+  background:linear-gradient(180deg,#f7f9ff 0%,rgba(var(--eye-rgb),.96) 42%,color-mix(in srgb,rgb(var(--eye-rgb)) 52%,#2b3470) 100%);
+  box-shadow:0 0 0 1.5px rgba(58,70,150,.5),0 8px 20px rgba(70,90,190,.26),0 0 2px rgba(255,255,255,.9) inset;
+}
+:root[data-theme="light"] #face[data-form="minimal"] .eye-glow{mix-blend-mode:multiply;opacity:.5;
+  background:radial-gradient(closest-side,rgba(var(--glow-rgb),.34),rgba(var(--glow-rgb),.10) 55%,transparent 74%)}
+:root[data-theme="light"] #face[data-form="minimal"] .eye-highlight{opacity:1}
+/* gear that is white by nature gets graphite-lavender tones + a hairline so it stays readable on ivory */
+:root[data-theme="light"] #face[data-form="minimal"],:root[data-theme="light"] svg.pv-minimal{--hp-a:#a9b0e4;--hp-b:#6872b8;--hp-ring:#e9edff;--gl:#4c5590}
+:root[data-theme="light"] #face[data-form="minimal"] .cr-wear{filter:drop-shadow(0 0 .7px rgba(44,52,118,.8)) drop-shadow(0 3px 5px rgba(44,52,118,.16))}
+body.lite-gfx #face[data-form="minimal"] .cr-wear{filter:none}

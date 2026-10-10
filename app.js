@@ -1,108 +1,93 @@
 /* ============================================================
-   D.A.B.S.y — app.js
-   The conductor. Wires voice <-> AI <-> face/subtitle/schedule,
-   and renders the panels that don't have their own engine file
-   (Schedule, Room, Memory, Settings).
+   D.A.B.S.y — app.js : the conductor
+   Wires command mode (type / talk), voice, intent routing, the agent
+   flow, scheduling conversations and the glue between engines.
+   v6 conversation flows (calendar conflicts, category questions,
+   Suggest/Automatic permission levels) are preserved.
    ============================================================ */
-
 (function(){
   const bus = window.DABSy.bus;
   const emotion = window.DABSy.emotion;
   const memory = window.DABSy.memory;
   const schedule = window.DABSy.schedule;
+  const tasks = window.DABSy.tasks;
   const voice = window.DABSy.voice;
   const ai = window.DABSy.ai;
+  const ui = window.DABSy.ui;
+  const director = window.DABSy.director;
   const DABSyCore = window.DABSyCore;
 
   const subtitle = document.getElementById("subtitle");
   const chatArea = document.getElementById("chat-area");
-  const inputDock = document.getElementById("input-dock");
   const micBtn = document.getElementById("mic-btn");
   const textInput = document.getElementById("text-input");
+  const chips = document.getElementById("cmd-chips");
 
-  /* ---------- subtitle helper ----------
-     No auto-dismiss timer — DABSy's spoken/answer text used to vanish on a
-     fixed timer regardless of whether you were still reading it. Now it
-     stays up until you explicitly triple-tap it away, which gives you
-     actual control over the pace instead of racing a clock. */
-  let subtitleTapCount = 0;
-  let subtitleTapTimer = null;
-  function showSubtitle(text){
-    subtitle.textContent = text;
-    subtitle.classList.add("visible");
+  /* ---------------- subtitle (stays until you triple-tap it away) ---------------- */
+  let subTaps = 0, subTimer = null;
+  function showSubtitle(text){ subtitle.textContent = text; subtitle.classList.add("visible"); }
+  function hideSubtitle(){ subtitle.classList.remove("visible"); }
+  subtitle.addEventListener("pointerdown", () => {
+    subTaps++; clearTimeout(subTimer); subTimer = setTimeout(() => { subTaps = 0; }, 600);
+    if(subTaps >= 3){ subTaps = 0; hideSubtitle(); }
+  });
+  subtitle.title = "Triple-tap to dismiss";
+
+  /* ---------------- command mode (long-press / button / ArrowUp) ---------------- */
+  let dockTimer = null;
+  function chipList(){
+    const studying = document.body.classList.contains("session-active");
+    if(studying) return [["Ask a doubt", "focus"], ["How long is left?", "How much time is left?"], ["Open my apps", "open apps"]];
+    return [["Study something", "focus-study"], ["What's next?", "What's next?"], ["My day", "show my tasks"], ["Add a task", "focus-task"]];
   }
-  function hideSubtitle(){
-    subtitle.classList.remove("visible");
+  function buildChips(){
+    chips.innerHTML = "";
+    chipList().forEach(([label, cmd]) => {
+      chips.append(ui.el("button", { type: "button", onclick: () => {
+        if(cmd === "focus") return textInput.focus();
+        if(cmd === "focus-study"){ textInput.value = "I want to study "; textInput.focus(); return; }
+        if(cmd === "focus-task"){ textInput.value = "Remind me to "; textInput.focus(); return; }
+        handleUserUtterance(cmd);
+      } }, label));
+    });
   }
-  subtitle.addEventListener("pointerdown", ()=>{
-    subtitleTapCount++;
-    clearTimeout(subtitleTapTimer);
-    subtitleTapTimer = setTimeout(()=>{ subtitleTapCount = 0; }, 600);
-    if(subtitleTapCount >= 3){
-      subtitleTapCount = 0;
-      hideSubtitle();
-    }
-  });
-
-  /* ---------- chat area reveal on tap ----------
-     Used to auto-hide after a fixed 9s regardless of what you were doing,
-     which meant it could vanish mid-type. Now the countdown only runs
-     while you're NOT actively using the text field. */
-  let dockHideTimer = null;
-  function armDockHideTimer(){
-    clearTimeout(dockHideTimer);
-    dockHideTimer = setTimeout(()=>{
-      if(document.activeElement === textInput || textInput.value.trim()) return; // still in use — don't hide
-      chatArea.classList.remove("visible");
-    }, 9000);
+  function armDockTimer(){
+    clearTimeout(dockTimer);
+    dockTimer = setTimeout(() => { if(document.activeElement === textInput || textInput.value.trim()) return; closeCommand(); }, 14000);
   }
-  function showDock(focus=false){
-    chatArea.classList.add("visible");
-    armDockHideTimer();
-    if(focus) setTimeout(()=>textInput.focus(), 320);
+  function openCommand(focus){
+    if(document.body.classList.contains("sheet-open") || document.body.classList.contains("eco-open")) return;
+    buildChips();
+    chatArea.classList.add("visible"); document.body.classList.add("cmd-open"); armDockTimer();
+    if(focus !== false) setTimeout(() => textInput.focus({ preventScroll: true }), 260);
   }
-  textInput.addEventListener("input", armDockHideTimer);
-  textInput.addEventListener("focus", ()=>clearTimeout(dockHideTimer));
-  textInput.addEventListener("blur", armDockHideTimer);
-  bus.on("face:tap", ({count})=>{ if(count===1) showDock(); });
-  bus.on("quickbubbles:focus-input", ()=>showDock(true));
+  function closeCommand(){ chatArea.classList.remove("visible"); document.body.classList.remove("cmd-open"); textInput.blur(); }
+  textInput.addEventListener("input", armDockTimer);
+  textInput.addEventListener("blur", armDockTimer);
+  textInput.addEventListener("focus", () => clearTimeout(dockTimer));
+  textInput.addEventListener("keydown", e => {
+    if(e.key === "Enter" && textInput.value.trim()){ handleUserUtterance(textInput.value.trim()); textInput.value = ""; }
+    if(e.key === "Escape") closeCommand();
+  });
+  bus.on("face:longpress", () => { director.dispatch("USER_LONGPRESS"); openCommand(); });
+  bus.on("face:tap", () => { if(chatArea.classList.contains("visible") && !textInput.value) closeCommand(); });
+  bus.on("face:doubletap", () => closeCommand());
 
-  document.getElementById("agent-close")?.addEventListener("click",()=>document.getElementById("agent-sheet")?.classList.remove("open"));
-
-  /* ---------- mic button ---------- */
-  micBtn.addEventListener("click", ()=>{
-    if(voice.isListening()){ voice.stopListening(); }
-    else { voice.startListening(); }
+  /* ---------------- microphone (permission asked just in time) ---------------- */
+  micBtn.addEventListener("click", async () => {
+    if(voice.isListening()){ voice.stopListening(); return; }
+    const r = await window.DABSy.permissions.ensure("microphone", { reason: "I need the microphone so I can hear you. I only listen while the mic button is lit." });
+    if(r.granted) voice.startListening();
+    else if(r.declined) showSubtitle("No problem, you can type to me instead.");
   });
-  bus.on("voice:listening:start", ()=>{
-    micBtn.classList.add("live");
-    emotion.setState("LISTENING");
-    showSubtitle("Listening…");
+  bus.on("voice:listening:start", () => { micBtn.classList.add("live"); emotion.setState("LISTENING"); showSubtitle("Listening…"); });
+  bus.on("voice:listening:end", () => { micBtn.classList.remove("live"); if(subtitle.textContent === "Listening…") hideSubtitle(); });
+  bus.on("voice:unsupported", () => showSubtitle("Speech recognition isn't supported here. Try typing instead."));
+  bus.on("voice:error", ({ error }) => {
+    const m = { "not-allowed": "I don't have microphone permission. Allow it in your browser's site settings.", "service-not-allowed": "Microphone access is blocked for this site.", "no-speech": "I didn't hear anything. Try again.", "audio-capture": "I couldn't find a working microphone.", network: "Speech recognition needs an internet connection." };
+    showSubtitle(m[error] || "Something went wrong with the microphone. Try again.");
   });
-  bus.on("voice:listening:end", ()=>{
-    micBtn.classList.remove("live");
-    if(subtitle.textContent === "Listening…") hideSubtitle(); // transient status, not content — clears itself
-  });
-  bus.on("voice:unsupported", ()=>showSubtitle("Speech recognition isn't supported here — try typing instead."));
-  bus.on("voice:error", ({error})=>{
-    const messages = {
-      "not-allowed": "I don't have microphone permission — check your browser's site settings and allow the mic for this page.",
-      "service-not-allowed": "Microphone access is blocked for this site — check your browser's site settings.",
-      "no-speech": "I didn't hear anything — try again.",
-      "audio-capture": "I couldn't find a working microphone on this device.",
-      "network": "Speech recognition needs an internet connection.",
-    };
-    showSubtitle(messages[error] || "Something went wrong with the microphone — try again.");
-  });
-
-  /* ---------- text input fallback ---------- */
-  textInput.addEventListener("keydown", (e)=>{
-    if(e.key === "Enter" && textInput.value.trim()){
-      handleUserUtterance(textInput.value.trim());
-      textInput.value = "";
-    }
-  });
-  bus.on("voice:heard", ({text})=>handleUserUtterance(text));
+  bus.on("voice:heard", ({ text }) => handleUserUtterance(text));
 
   /* ---------- pending schedule conflict (waits for the NEXT utterance) ----------
      pendingConflict.core is set when the conflict was found against the shared
@@ -129,156 +114,6 @@
     return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
   }
 
-  function renderAgentResult(result, resources=[]){
-    const sheet=document.getElementById("agent-sheet"), content=document.getElementById("agent-content");
-    if(!sheet||!content)return;
-    content.innerHTML="";
-    if(!result.ok){
-      content.innerHTML=`<div class="agent-empty"><strong>I can plan this, but the secure AI service isn't connected.</strong><p>Deploy the backend described in the project README, then DABSy can turn goals into adaptive plans and research resources.</p></div>`;
-    }else{
-      const h=document.createElement("h2");h.textContent=result.sessionTitle||"Study session";content.appendChild(h);
-      if(result.message){const p=document.createElement("p");p.className="hint";p.textContent=result.message;content.appendChild(p)}
-      (result.steps||[]).forEach(step=>{
-        const row=document.createElement("div");row.className="agent-step";
-        row.innerHTML=`<span>${escapeHtml(step.title||step.kind||"Step")}</span><strong>${Number(step.minutes)||0}m</strong>`;
-        content.appendChild(row);
-      });
-      if(resources.length){
-        const rh=document.createElement("h3");rh.textContent="Choose your material";content.appendChild(rh);
-        const list=document.createElement("div");list.className="agent-resources";
-        resources.forEach((r,i)=>{
-          const card=document.createElement("article");card.className="resource-card";
-          card.innerHTML=`<div><strong>${escapeHtml(r.title||"Resource")}</strong><small>${escapeHtml([r.type,r.source,r.duration].filter(Boolean).join(" · "))}</small><p>${escapeHtml(r.description||"")}</p></div>`;
-          let startX=0;
-          card.addEventListener("pointerdown",e=>{startX=e.clientX});
-          card.addEventListener("pointerup",e=>{
-            const dx=e.clientX-startX;
-            if(Math.abs(dx)>70){ card.classList.toggle(dx>0?"chosen":"rejected"); }
-          });
-          const actions=document.createElement("div");actions.className="resource-actions";
-          const reject=document.createElement("button");reject.textContent="Reject";reject.onclick=()=>{card.classList.add("rejected");};
-          const choose=document.createElement("button");choose.textContent="Choose";choose.onclick=()=>{card.classList.toggle("chosen");};
-          actions.append(reject,choose);card.appendChild(actions);list.appendChild(card);
-        });
-        content.appendChild(list);
-      }
-      const ready=document.createElement("button");ready.className="agent-primary";ready.textContent="Prepare Study Space";
-      ready.onclick=()=>{
-        const chosen=[...content.querySelectorAll(".resource-card.chosen")].map((card,i)=>resources[i]).filter(Boolean);
-        const finalResources=chosen.length?chosen:window.DABSy.agent.getSelection();
-        window.DABSy.agent.saveSelection(finalResources);
-        const session=window.DABSy.agent.buildSession(result,finalResources);
-        window.DABSy.notifications.push({title:"Study session ready",body:`${session.title} is prepared in DABSy.`});
-        say("Your study session is prepared. Study Space can pick it up through the shared ecosystem contract.","HAPPY");
-        sheet.classList.remove("open");
-      };
-      content.appendChild(ready);
-    }
-    sheet.classList.add("open");
-  }
-  async function runAgentGoal(text){
-    const minsMatch=text.match(/\b(\d{2,3})\s*(?:minutes?|mins?|m)\b/i);
-    const minutes=minsMatch?Number(minsMatch[1]):60;
-    window.DABSy.director.dispatch("AI_THINKING");
-    const result=await window.DABSy.ai.agentGoal(text,minutes);
-    let resources=[];
-    if(result.ok && result.needsResearch && result.searchQuery){
-      const research=await window.DABSy.agent.research(result.searchQuery);
-      resources=research.resources||[];
-      if(resources.length) window.DABSy.agent.saveSelection(resources);
-    }
-    renderAgentResult(result,resources);
-    return true;
-  }
-
-  async function handleUserUtterance(text){
-    showDock();
-    showSubtitle(text);
-    memory.addSession("user", text);
-    if(/\b(want to study|study .* today|study .* tonight|plan my study|help me study)\b/i.test(text)){
-      await runAgentGoal(text);
-      return;
-    }
-    window.DABSy.director.dispatch("AI_THINKING");
-
-    if(pendingCategoryQuestion){
-      const cat = DABSyCore.matchCategoryFromText(text);
-      if(cat){
-        const c = pendingCategoryQuestion; pendingCategoryQuestion = null;
-        await finalizeConnectedEvent({ title:c.title, dateKey:c.dateKey, startTime:c.startTime, endTime:c.endTime, category:cat, emoji:c.emoji });
-        return;
-      }
-      say(`I didn't catch a category there — Study, College, Homework, Personal, Creative, Meeting, Important, or Deadline?`, "CURIOUS");
-      return; // keep waiting on the same question rather than dropping the request
-    }
-
-    if(pendingCalendarConfirm){
-      const yes = /\b(yes|yeah|yep|sure|do it|go ahead|please do|okay|ok|correct)\b/i.test(text);
-      const no = /\b(no|nah|nope|don't|do not|cancel|never ?mind|stop)\b/i.test(text);
-      if(yes){
-        const c = pendingCalendarConfirm; pendingCalendarConfirm = null;
-        createConnectedEvent(c);
-        say("Done — added to your calendar." + planTipSuffix(c.dateKey), "HAPPY");
-        refreshScheduleIfOpen();
-        return;
-      }
-      if(no){
-        pendingCalendarConfirm = null;
-        say("No problem, I won't add it.", "IDLE");
-        return;
-      }
-      pendingCalendarConfirm = null; // don't trap the user in a forced yes/no loop — fall through to normal parsing
-    }
-
-    if(pendingConflict){
-      const res = await ai.resolveConflictIntent(text, pendingConflict.candidate, pendingConflict.conflict);
-      if(res.action === "unclear"){
-        say(res.reply, res.state);
-        return; // keep waiting on the same pending conflict
-      }
-      if(pendingConflict.core) resolveCoreConflict(res.action, pendingConflict.core);
-      else schedule.resolveConflict(res.action, pendingConflict.conflict, pendingConflict.candidate);
-      pendingConflict = null;
-      say(res.reply, res.state);
-      refreshScheduleIfOpen();
-      return;
-    }
-
-    if(window.DABSy.studyBlock.isActive){
-      memory.addHistory({ type:"chat", user: text, reply: "(routed to Study Block)" });
-      window.DABSy.study.startStudy(text); // shrinks the face to the corner, gives the answer room, reading pointer follows along
-      return;
-    }
-
-    const result = await ai.parseIntent(text);
-    memory.addSession("dabsy", result.reply);
-    memory.addHistory({ type:"chat", user: text, reply: result.reply });
-
-    if(result.type === "schedule_add" && result.schedule){
-      await handleScheduleAdd(result);
-      return;
-    }
-    if(result.type === "schedule_remove" && result.schedule){
-      const title = result.schedule.title || "";
-      let handled = false;
-
-      if(DABSyCore.isCalendarConnected()){
-        const evMatch = findBestCoreEventMatch(title);
-        if(evMatch){ DABSyCore.deleteCalendarEvent(evMatch.id); handled = true; }
-        if(!handled){
-          const taskMatch = findBestCoreTaskMatch(title);
-          if(taskMatch){ DABSyCore.deleteTask(taskMatch.id); handled = true; }
-        }
-      }
-      if(!handled) schedule.removeRecurringByTitle(result.schedule.title);
-
-      say(result.reply, result.state);
-      refreshScheduleIfOpen();
-      return;
-    }
-
-    say(result.reply, result.state);
-  }
 
   // best-effort title match against the shared calendar, nearest upcoming date first
   function findBestCoreEventMatch(title){
@@ -385,7 +220,7 @@
     // automatic
     createConnectedEvent({ title, dateKey, startTime, endTime, category, emoji });
     say(`Got it — added to your calendar.${planTipSuffix(dateKey)}`, "HAPPY");
-    refreshScheduleIfOpen();
+    bus.emit('schedule:changed');
   }
 
   async function handleScheduleAdd(result){
@@ -412,7 +247,11 @@
     }
 
     const start = new Date();
+    const dayOff = Number.isFinite(Number(s.date_offset_days)) ? Number(s.date_offset_days) : 0;
+    start.setDate(start.getDate() + dayOff);
     start.setHours(hour, minute, 0, 0);
+    let rolled = false;
+    if(!s.recurring && dayOff === 0 && start.getTime() < Date.now() - 60000){ start.setDate(start.getDate() + 1); rolled = true; }
     const conflict = schedule.findConflict(start, durationMin);
 
     if(conflict){
@@ -429,10 +268,11 @@
         : [0,1,2,3,4,5,6];
       schedule.addRecurring({ title: s.title || "task", hour, minute, days, durationMin });
     } else {
-      schedule.addOneOff({ title: s.title || "task", startISO: start.toISOString(), durationMin });
+      schedule.addOneOff({ title: s.title || "task", startISO: start.toISOString(), durationMin, emoji: s.emoji || undefined, category: s.category || undefined });
     }
-    say(result.reply, result.state);
-    refreshScheduleIfOpen();
+    say(result.reply || addedLine(s, start, rolled), result.state || "HAPPY");
+    offerSystemNotifications();
+    bus.emit('schedule:changed');
   }
 
   async function handleScheduleAddConnected(result, { hour, minute, durationMin }){
@@ -460,264 +300,178 @@
     await finalizeConnectedEvent({ title, dateKey, startTime, endTime, category, emoji });
   }
 
-  function say(text, state){
-    window.DABSy.director.dispatch("DABSY_REPLY", { speakText: text, finalState: state || null });
+  /* ---------------- helpers used by the preserved flows ---------------- */
+  function addedLine(s, start, rolled){
+    const t = ui.fmtTime(start);
+    if(s.recurring){
+      const d = (s.days || []);
+      const when = d.length === 7 ? "every day" : d.length === 5 && !d.includes(0) && !d.includes(6) ? "on weekdays" : "on " + d.map(i => ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"][i]).join(", ");
+      return `Done. ${s.title || "That"} ${when} at ${t}.`;
+    }
+    return `Added ${s.title || "it"} for ${ui.dayLabel(start).toLowerCase()} at ${t}${rolled ? " (that time had passed today)" : ""}.`;
+  }
+  // First time there is something time-based to remind about, ask (once, politely) for system notifications.
+  let offered = false;
+  function offerSystemNotifications(){
+    if(offered || window.DABSy.notify.settings().system || !("Notification" in window) || Notification.permission === "denied") return;
+    offered = true;
+    setTimeout(() => window.DABSy.notify.enableSystem("I can nudge you when this is due, even if DABSy is in the background. I'll keep it gentle and never spam."), 1600);
   }
 
-  bus.on("dabsy:say", ({text})=>{
+  /* ---------------- local commands (no AI needed) ---------------- */
+  function nextLine(){
+    const n = tasks.nextInstance();
+    if(!n) return "Nothing coming up. Want to plan some study?";
+    return `Next up: ${n.title}, ${ui.dayLabel(n.start).toLowerCase()} at ${ui.fmtTime(n.start)}.`;
+  }
+  async function localCommand(text){
+    const t = text.toLowerCase().trim();
+    if(window.DABSy.easter && window.DABSy.easter.handleText(text)) return true;
+    if(/^(what'?s|what is) next|what do i have|what'?s on|what next/.test(t)){ say(nextLine(), "IDLE"); return true; }
+    if(/\b(open|show|go to)\b.*\b(settings|preferences)\b/.test(t) || t === "settings"){ window.DABSy.require("settings").then(s => s.open()); return true; }
+    if(/\b(open|show)\b.*\b(apps|bubbles|ecosystem|study space|calendar|solvecount)\b/.test(t) || t === "open apps"){ window.DABSy.ecosystem.open(); return true; }
+    if(/\b(notifications?|inbox|alerts)\b/.test(t) && /\b(open|show|check|my)\b/.test(t)){ openCenter(); return true; }
+    if(/\b(my day|my tasks?|todo|to-do|to do list|show.*tasks|agenda)\b/.test(t) && !/\b(add|remind)\b/.test(t)){ window.DABSy.require("notifcenter").then(c => c.openTasks()); return true; }
+    if(/\b(tutorial|tour|how do i use)\b/.test(t)){ window.DABSy.require("onboarding").then(o => o.start({ replay: true })); return true; }
+    if(/\b(wardrobe|outfits?|change (your )?clothes|dress)\b/.test(t)){ window.DABSy.require("settings").then(s => s.open("wardrobe")); return true; }
+    if(/\b(how much time|time left|how long (is )?left)\b/.test(t) && document.body.classList.contains("session-active")){ window.DABSy.require("session").then(s => s.say("remaining")); return true; }
+    if(/\bwhat can you do\b|\bhelp\b/.test(t) && t.length < 24){ say("Tell me what you want to study and I'll find material and plan it. I also handle tasks, reminders, and your study apps. Double-tap me for the apps.", "HAPPY"); return true; }
+    return false;
+  }
+  function openCenter(){ window.DABSy.require("notifcenter").then(c => c.open()); }
+
+  /* ---------------- the utterance router ---------------- */
+  async function handleUserUtterance(text){
     showSubtitle(text);
-    voice.speak(text);
-  });
+    memory.addSession("user", text);
+    window.DABSy.pet && window.DABSy.pet.markInteraction();
+    director.dispatch("AI_THINKING");
+    armDockTimer();
 
-  bus.on("face:overtapped", ()=>{
-    window.DABSy.director.dispatch("USER_OVERTAPPED");
-  });
-  bus.on("face:longpress", ()=>{
-    window.DABSy.director.dispatch("USER_LONGPRESS");
-    showDock(true);
-  });
+    // (egg detection is passive: it only watches, it never changes the reply)
+    bus.emit("user:said", { text });
 
-  /* ---------- Schedule panel ---------- */
-  function renderSchedule(){
-    const el = document.getElementById("schedule-body");
-    const items = schedule.getTodaysSchedule().map(it => Object.assign({}, it, { _kind:"private" }));
-
-    let coreItems = [];
-    if(DABSyCore.isCalendarConnected()){
-      const todayKey = DABSyCore.todayKeyOffset(0);
-      coreItems = DABSyCore.getEventsForDate(todayKey)
-        .filter(e => e.startTime)
-        .map(e => {
-          const [h,m] = toHM(e.startTime);
-          const durationMin = e.endTime ? (DABSyCore.toMinutes(e.endTime) - DABSyCore.toMinutes(e.startTime)) : 30;
-          return { id: e.id, title: e.title, _kind:"calendar", start: dateTimeFromKey(todayKey, h, m), durationMin };
-        });
+    if(pendingCategoryQuestion){
+      const cat = DABSyCore.matchCategoryFromText(text);
+      if(cat){
+        const c = pendingCategoryQuestion; pendingCategoryQuestion = null;
+        await finalizeConnectedEvent({ title: c.title, dateKey: c.dateKey, startTime: c.startTime, endTime: c.endTime, category: cat, emoji: c.emoji });
+        return;
+      }
+      say("I didn't catch a category. Study, College, Homework, Personal, Creative, Meeting, Important, or Deadline?", "CURIOUS");
+      return;
+    }
+    if(pendingCalendarConfirm){
+      const yes = /\b(yes|yeah|yep|sure|do it|go ahead|please do|okay|ok|correct)\b/i.test(text);
+      const no = /\b(no|nah|nope|don't|do not|cancel|never ?mind|stop)\b/i.test(text);
+      if(yes){ const c = pendingCalendarConfirm; pendingCalendarConfirm = null; createConnectedEvent(c); say("Done, added to your calendar." + planTipSuffix(c.dateKey), "HAPPY"); return; }
+      if(no){ pendingCalendarConfirm = null; say("No problem, I won't add it.", "IDLE"); return; }
+      pendingCalendarConfirm = null;
+    }
+    if(pendingConflict){
+      const res = await ai.resolveConflictIntent(text, pendingConflict.candidate, pendingConflict.conflict);
+      if(res.action === "unclear"){ say(res.reply, res.state); return; }
+      if(pendingConflict.core) resolveCoreConflict(res.action, pendingConflict.core);
+      else schedule.resolveConflict(res.action, pendingConflict.conflict, pendingConflict.candidate);
+      pendingConflict = null;
+      say(res.reply, res.state);
+      return;
     }
 
-    const all = [...items, ...coreItems].sort((a,b)=>a.start-b.start);
-    el.innerHTML = "";
-    if(all.length === 0){
-      const empty = document.createElement("div");
-      empty.className = "hint";
-      empty.textContent = "Nothing scheduled yet today.";
-      el.appendChild(empty);
+    // a running study session answers questions in context
+    if(document.body.classList.contains("session-active") && window.DABSy.session){
+      memory.addHistory({ type: "chat", user: text, reply: "(in session)" });
+      const handled = await window.DABSy.session.handleUtterance(text);
+      if(handled) return;
     }
-    const now = new Date();
-    all.forEach(item=>{
-      const row = document.createElement("div");
-      row.className = "task-row";
-      const time = item.start.toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" });
-      const past = item.start < now;
-      const icon = item._kind === "calendar" ? " 🌿" : (item.source === "recurring" ? " 🔁" : "");
-      row.innerHTML = `<span style="opacity:${past?0.45:1}">${time} · ${escapeHtml(item.title)}${icon}</span>`;
-      const del = document.createElement("button");
-      del.textContent = "✕";
-      del.onclick = ()=>{
-        if(item._kind === "calendar") DABSyCore.deleteCalendarEvent(item.id);
-        else if(item.source === "oneoff") schedule.removeOneOff(item.id);
-        else schedule.removeRecurringByTitle(item.title);
-        renderSchedule();
-      };
-      row.appendChild(del);
-      el.appendChild(row);
-    });
-  }
-
-  /* ---------- DABSy Core — live refresh + Connections UI ---------- */
-  DABSyCore.subscribe((type)=>{
-    if(type.indexOf("calendar.") === 0) refreshScheduleIfOpen();
-  });
-
-  function populateConnectionsUI(){
-    const conn = DABSyCore.getConnections().calendar;
-    document.getElementById("conn-calendar-enabled").checked = !!conn.enabled;
-    document.getElementById("conn-calendar-level").value = conn.level || "read";
-  }
-  document.getElementById("conn-calendar-enabled").addEventListener("change", (e)=>{
-    DABSyCore.setConnection("calendar", { enabled: e.target.checked });
-    refreshScheduleIfOpen();
-  });
-  document.getElementById("conn-calendar-level").addEventListener("change", (e)=>{
-    DABSyCore.setConnection("calendar", { level: e.target.value });
-  });
-  function refreshScheduleIfOpen(){
-    if(document.querySelector('.world-panel[data-panel="schedule"]').classList.contains("active")) renderSchedule();
-    if(document.querySelector('.world-panel[data-panel="room"]').classList.contains("active")) renderRoom();
-  }
-  bus.on("schedule:changed", refreshScheduleIfOpen);
-
-  document.getElementById("manual-task-add").addEventListener("click", ()=>{
-    const titleEl = document.getElementById("manual-task-title");
-    const timeEl = document.getElementById("manual-task-time");
-    if(!titleEl.value.trim() || !timeEl.value) return;
-    const [h,m] = timeEl.value.split(":").map(Number);
-    const start = new Date(); start.setHours(h,m,0,0);
-    const conflict = schedule.findConflict(start, 30);
-    if(conflict){
-      say(`Heads up — that overlaps with "${conflict.title}". Adding it anyway; you can remove either from the list.`, "IDLE");
+    if(window.DABSy.studyBlock.isActive){
+      memory.addHistory({ type: "chat", user: text, reply: "(routed to Study Block)" });
+      if(ai.status() === "limited"){ say(ai.limitedReply(), "CONFUSED"); return; }
+      window.DABSy.study.startStudy(text);
+      return;
     }
-    schedule.addOneOff({ title: titleEl.value.trim(), startISO: start.toISOString(), durationMin: 30 });
-    titleEl.value = ""; timeEl.value = "";
-    renderSchedule();
-  });
 
-  /* ---------- Settings panel ---------- */
-  const aiEndpointInput = document.getElementById("ai-endpoint");
-  const aiStatusText = document.getElementById("ai-status-text");
-  const voiceSelect = document.getElementById("voice-select");
-  const soundToggle = document.getElementById("sound-toggle");
-  const speechLangSelect = document.getElementById("speech-lang");
-  const liveTalkBtn = document.getElementById("live-talk-btn");
-  const liveTalkStop = document.getElementById("live-talk-stop");
-  const liveTalkStatus = document.getElementById("live-talk-status");
-  const liveTalkPanel = document.getElementById("live-talk");
-  const saveSettingsBtn = document.getElementById("save-settings");
+    if(await localCommand(text)) { director.dispatch("DABSY_REPLY", { speakText: null }); return; }
 
-  function populateSettings(){
-    const s = memory.getSettings();
-    aiEndpointInput.value = s.aiEndpoint || "";
-    soundToggle.checked = s.sound !== false;
-    if(speechLangSelect) speechLangSelect.value = s.speechLang || "auto";
-    if(aiStatusText) aiStatusText.textContent = s.aiEndpoint ? "Secure endpoint configured" : "No AI backend configured in this deployment";
-    const voices = voice.getVoices();
-    voiceSelect.innerHTML = "";
-    voices.forEach(v=>{
-      const opt = document.createElement("option");
-      opt.value = v.voiceURI;
-      opt.textContent = `${v.name} (${v.lang})`;
-      if(v.voiceURI === s.voiceURI) opt.selected = true;
-      voiceSelect.appendChild(opt);
-    });
-  }
-  bus.on("voice:voices-ready", populateSettings);
-  populateSettings();
-  populateConnectionsUI();
+    const result = await ai.parseIntent(text);
+    if(result.reply) memory.addSession("dabsy", result.reply);
+    memory.addHistory({ type: "chat", user: text, reply: result.reply || result.type });
 
-  saveSettingsBtn.addEventListener("click", ()=>{
-    memory.saveSettings({
-      aiEndpoint: aiEndpointInput.value.trim(),
-      voiceURI: voiceSelect.value,
-      speechLang: speechLangSelect?.value || "auto",
-      sound: soundToggle.checked,
-    });
-    window.DABSy.director.dispatch("DABSY_REPLY", { speakText: "Settings saved." });
-  });
-
-
-  function setLiveTalkUI(active){
-    if(liveTalkPanel){ liveTalkPanel.classList.toggle("open",active); liveTalkPanel.setAttribute("aria-hidden",String(!active)); }
-    if(liveTalkBtn) liveTalkBtn.textContent = active ? "🎙️ Live talk is on" : "🎙️ Start live talk";
-  }
-  liveTalkBtn?.addEventListener("click",()=>{
-    if(voice.isLiveTalk()) voice.stopLiveTalk();
-    else voice.startLiveTalk();
-  });
-  liveTalkStop?.addEventListener("click",()=>voice.stopLiveTalk());
-  bus.on("voice:live:start",()=>{
-    setLiveTalkUI(true);
-    if(liveTalkStatus) liveTalkStatus.textContent="Listening… talk naturally. DABSy will answer and listen again.";
-    showSubtitle("Live talk is on. I'm listening…");
-  });
-  bus.on("voice:live:end",()=>{
-    setLiveTalkUI(false);
-    if(liveTalkStatus) liveTalkStatus.textContent="DABSy is ready to listen.";
-    if(subtitle.textContent === "Live talk is on. I'm listening…") hideSubtitle();
-  });
-  bus.on("voice:listening:start",()=>{ if(voice.isLiveTalk() && liveTalkStatus) liveTalkStatus.textContent="Listening…"; });
-  bus.on("voice:heard",()=>{ if(voice.isLiveTalk() && liveTalkStatus) liveTalkStatus.textContent="Thinking…"; });
-
-  const notificationBtn = document.getElementById("request-notifications-btn");
-  notificationBtn?.addEventListener("click", async ()=>{
-    const result = await window.DABSy.notifications.requestPermission();
-    const msg = result==="granted" ? "Notifications are ready when DABSy needs them." :
-      result==="denied" ? "Notifications are blocked for this site. You can change that in browser site settings." :
-      "This browser doesn't expose native notifications here.";
-    say(msg, result==="granted" ? "HAPPY" : "CURIOUS");
-  });
-  document.getElementById("replay-tutorial-btn")?.addEventListener("click",()=>window.DABSy.onboarding.open(true));
-  bus.on("ecosystem:unavailable",({id})=>say(`${id.replace(/-/g," ")} isn't connected on this deployment yet. I won't pretend it is.`, "CURIOUS"));
-
-  function renderNotifications(){
-    const el=document.getElementById("notifications-body"); if(!el)return;
-    const list=window.DABSy.notifications.getAll().slice().reverse();
-    el.innerHTML="";
-    if(!list.length){el.innerHTML='<div class="hint">Nothing here yet. I will keep this quiet unless something useful happens.</div>';return}
-    list.forEach(n=>{
-      const row=document.createElement("div"); row.className="notification-row";
-      row.innerHTML=`<div><strong>${escapeHtml(n.title||"DABSy")}</strong><p>${escapeHtml(n.body||"")}</p><small>${new Date(n.ts).toLocaleString()}</small></div>`;
-      const b=document.createElement("button"); b.textContent=n.read?"✓":"Mark read"; b.onclick=()=>{window.DABSy.notifications.markRead(n.id);renderNotifications()}; row.appendChild(b); el.appendChild(row);
-    });
-  }
-  bus.on("notifications:changed",()=>{if(document.querySelector('.world-panel[data-panel="notifications"].active'))renderNotifications()});
-
-  /* ---------- Install button (only appears once Chrome says it's eligible) ---------- */
-  const installBtn = document.getElementById("install-app-btn");
-  bus.on("pwa:installable", ()=>{ installBtn.style.display = "block"; });
-  installBtn.addEventListener("click", async ()=>{
-    const installed = await window.DABSy.pwa.promptInstall();
-    if(installed) installBtn.style.display = "none";
-  });
-
-  bus.on("world:opened", ({tab})=>{
-    if(tab === "schedule") renderSchedule();
-    if(tab === "settings"){ populateSettings(); populateConnectionsUI(); }
-    if(tab === "memory") renderMemoryPanel();
-    if(tab === "room") renderRoom();
-    if(tab === "notifications") renderNotifications();
-  });
-
-  /* ---------- Memory panel ---------- */
-  function renderMemoryPanel(){
-    const el=document.getElementById("memory-body"); if(!el)return;
-    const prefs=memory.getPreferences();
-    const history=memory.getHistory().slice(-15).reverse();
-    el.innerHTML="";
-    const add=document.createElement("div"); add.className="memory-add";
-    add.innerHTML='<input id="memory-new" placeholder="Tell DABSy something to remember…" autocomplete="off"><button class="util-btn" id="memory-add-btn">Remember</button>';
-    el.appendChild(add);
-    const addBtn=add.querySelector('#memory-add-btn');
-    addBtn.onclick=()=>{const input=add.querySelector('#memory-new'); const t=input.value.trim(); if(!t)return; memory.addPreference(t); input.value=''; renderMemoryPanel();};
-
-    const title=document.createElement('div'); title.className='hint'; title.textContent='Things DABSy has been told to remember'; el.appendChild(title);
-    if(!prefs.length){const empty=document.createElement('div');empty.className='mem-empty';empty.textContent='Nothing remembered yet. Add something above, or tell DABSy “remember that…”';el.appendChild(empty);}
-    prefs.forEach((pref,i)=>{const row=document.createElement('div');row.className='mem-row';row.innerHTML=`<span>${escapeHtml(pref.text)}</span>`;const del=document.createElement('button');del.textContent='Forget';del.onclick=()=>{memory.removePreference(i);renderMemoryPanel();};row.appendChild(del);el.appendChild(row);});
-
-    const rulesTitle=document.createElement('div');rulesTitle.className='hint section-label';rulesTitle.textContent='Recurring tasks';el.appendChild(rulesTitle);
-    const rules=schedule.getRules();
-    if(!rules.length){const empty=document.createElement('div');empty.className='mem-empty';empty.textContent='No recurring tasks yet.';el.appendChild(empty);}
-    rules.forEach(r=>{const row=document.createElement('div');row.className='mem-row';row.innerHTML=`<span>${escapeHtml(r.title)} · ${String(r.hour).padStart(2,'0')}:${String(r.minute).padStart(2,'0')}</span>`;const del=document.createElement('button');del.textContent='Stop';del.onclick=()=>{schedule.removeRecurringByTitle(r.title);renderMemoryPanel();};row.appendChild(del);el.appendChild(row);});
-
-    const histTitle=document.createElement('div');histTitle.className='hint section-label';histTitle.textContent='Recent history';el.appendChild(histTitle);
-    if(!history.length){const empty=document.createElement('div');empty.className='mem-empty';empty.textContent='Your recent conversations and study activity will appear here.';el.appendChild(empty);}
-    history.forEach(h=>{const row=document.createElement('div');row.className='mem-row';const label=h.type==='study-session'?`Studied for ${h.minutes} min`:h.type==='chat'?`“${h.user}”`:h.type;row.innerHTML=`<span>${escapeHtml(label)}</span>`;el.appendChild(row);});
-    const clear=document.createElement('button');clear.className='util-btn';clear.textContent='Clear conversation history';clear.onclick=()=>{memory.clearHistory();renderMemoryPanel();};el.appendChild(clear);
+    if(result.type === "study_goal"){
+      try{
+        const agent = await window.DABSy.require("agent");
+        director.dispatch("DABSY_REPLY", { speakText: null });
+        agent.start(result.goal || ai.parseGoal(text));
+      }catch(e){ say("I couldn't load the study planner. Try again in a moment.", "CONFUSED"); }
+      return;
+    }
+    if(result.type === "task_add" && result.task){
+      const t = tasks.add({ title: result.task.title || text, durationMin: result.task.durationMin || 30, source: "chat" });
+      say(result.reply || `Added "${t.title}" to your list. Want me to find a time for it?`, "HAPPY");
+      ui.toast({ text: `"${t.title}" has no time yet.`, actions: [{ label: "Find a slot", primary: true, onClick: () => window.DABSy.notify.rescheduleFlow(t.id) }], timeout: 9000 });
+      offerSystemNotifications();
+      return;
+    }
+    if(result.type === "schedule_add" && result.schedule){ await handleScheduleAdd(result); return; }
+    if(result.type === "schedule_remove" && result.schedule){
+      const title = result.schedule.title || "";
+      let handled = false;
+      if(DABSyCore.isCalendarConnected()){
+        const ev = findBestCoreEventMatch(title);
+        if(ev){ DABSyCore.deleteCalendarEvent(ev.id); handled = true; }
+        if(!handled){ const tk = findBestCoreTaskMatch(title); if(tk){ DABSyCore.deleteTask(tk.id); handled = true; } }
+      }
+      const mine = tasks.list().filter(t => t.title.toLowerCase().includes(title.toLowerCase()) && title);
+      if(mine.length){ mine.forEach(t => tasks.remove(t.id)); handled = true; }
+      say(handled ? (result.reply || `Okay, I removed "${title}".`) : `I couldn't find anything called "${title}".`, handled ? result.state : "CONFUSED");
+      return;
+    }
+    if(result.limited){ director.dispatch("CONFUSED_BEAT", { speakText: result.reply }); return; }
+    say(result.reply, result.state);
   }
 
-  /* ---------- Room panel ---------- */
-  function renderRoom(){
-    const el=document.getElementById('room-grid'); if(!el)return;
-    const stats=memory.getPetStats()||{};
-    const tasks=memory.getTasks()||[];
-    const history=memory.getHistory()||[];
-    const items=[
-      ['Affection',Math.round((Number(stats.affection)||0.4)*100)+'%'],
-      ['Tasks completed',`${tasks.filter(t=>t.done).length}/${tasks.length}`],
-      ['Study sessions',history.filter(h=>h.type==='study-session').length],
-      ['Visit streak',`${Number(stats.streak)||0} days`],
-      ["Today's scheduled items",schedule.getTodaysSchedule().length]
-    ];
-    el.innerHTML='';
-    items.forEach(([label,value])=>{const row=document.createElement('div');row.className='task-row room-stat';row.innerHTML=`<span>${label}</span><strong>${value}</strong>`;el.appendChild(row);});
-    const actions=document.createElement('div');actions.className='room-actions';
-    const pet=document.createElement('button');pet.className='util-btn';pet.textContent='🐾 Pet DABSy';pet.onclick=()=>{memory.savePetStats({...stats,affection:Math.min(1,(Number(stats.affection)||.4)+.03)});window.DABSy.director.dispatch('USER_PETTED');renderRoom();};
-    const reset=document.createElement('button');reset.className='util-btn';reset.textContent='Reset room stats';reset.onclick=()=>{memory.savePetStats({lastSeen:Date.now(),affection:.4,streak:0});renderRoom();};
-    actions.append(pet,reset);el.appendChild(actions);
+  function say(text, state){
+    director.dispatch("DABSY_REPLY", { speakText: text, finalState: state === "CONFUSED" ? "IDLE" : (state || null) });
+    if(state === "CONFUSED") director.dispatch("CONFUSED_BEAT", { speakText: null });
   }
 
-  function escapeHtml(s){
-    return String(s).replace(/[&<>"']/g, c=>({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
-  }
+  bus.on("dabsy:say", ({ text }) => {
+    showSubtitle(text);
+    memory.addSession("dabsy", text);
+    window.DABSy.voice.speak(text);
+  });
 
-  window.DABSy = window.DABSy || {};
-  window.DABSy.app = { say, showSubtitle, showDock, renderSchedule };
+  /* ---------------- bell + notification centre ---------------- */
+  const bell = document.getElementById("bell-btn");
+  document.getElementById("bell-icon").innerHTML = ui.icon("bell", 22);
+  const dot = document.getElementById("bell-dot");
+  function refreshBell(){
+    const n = window.DABSy.notify.unread();
+    dot.hidden = n === 0;
+    bell.setAttribute("aria-label", n ? `Notifications, ${n} new` : "Notifications");
+  }
+  bell.addEventListener("click", openCenter);
+  bus.on("notify:inbox", refreshBell);
+  bus.on("notify:open-center", openCenter);
+  refreshBell();
+
+  /* ---------------- accessibility shortcut buttons ---------------- */
+  document.getElementById("sc-apps").innerHTML = ui.icon("sparkle", 18) + "<span>Apps</span>";
+  document.getElementById("sc-talk").innerHTML = ui.icon("mic", 18) + "<span>Talk</span>";
+  function applySettings(){
+    document.body.classList.toggle("show-shortcuts", !!memory.getSettings().showShortcuts);
+  }
+  applySettings();
+  bus.on("settings:changed", applySettings);
+
+  /* ---------------- start-a-task hook (from notifications / task list) ---------------- */
+  bus.on("task:start-requested", async ({ taskId, key }) => {
+    const t = tasks.get(taskId); if(!t) return;
+    if(t.sessionId){ try{ (await window.DABSy.require("session")).open(t.sessionId, { autostart: true }); return; }catch(e){} }
+    try{ (await window.DABSy.require("session")).startQuick(t); }catch(e){ ui.toast({ text: "Started " + t.title }); }
+  });
+
+  /* ---------------- install button + AI status are surfaced in Settings ---------------- */
+
+  window.DABSy.app = { say, showSubtitle, hideSubtitle, openCommand, closeCommand, handleUserUtterance, openCenter, nextLine };
 })();

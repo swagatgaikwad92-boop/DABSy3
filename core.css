@@ -1,234 +1,136 @@
 /* ============================================================
-   D.A.B.S.y — core.css
-   Design tokens, reset, base layout
+   D.A.B.S.y — core.css : tokens, reset, stage, command dock
    ============================================================ */
-
 :root{
-  --bg: #05060a;
-  --bg-2: #0a0d14;
-  --ink: #eef4ff;
-  --ink-dim: rgba(238,244,255,0.62);
-  --ink-faint: rgba(238,244,255,0.34);
-
-  --accent: #8fd8ff;       /* eye light */
-  --accent-2: #b79bff;     /* secondary glow, curious/thinking */
-  --accent-warm: #ffd39a;  /* happy/proud */
-  --accent-danger: #ff9a9a;
-
-  --glass: rgba(255,255,255,0.06);
-  --glass-strong: rgba(255,255,255,0.10);
-  --glass-border: rgba(255,255,255,0.14);
-
-  --radius-eye: 34px;
-  --radius-panel: 26px;
-  --radius-btn: 16px;
-
-  --ease-spring: cubic-bezier(.22, 1.2, .36, 1);
-  --ease-soft: cubic-bezier(.4, 0, .2, 1);
-  --ease-out: cubic-bezier(.16, 1, .3, 1);
-
-  --dur-fast: 160ms;
-  --dur-med: 420ms;
-  --dur-slow: 900ms;
-
-  color-scheme: dark;
+  --bg:#070914; --bg-2:#0d1020; --panel-solid:#171b3d;
+  --ink:#eef2ff; --ink-dim:rgba(238,242,255,.68); --ink-faint:rgba(238,242,255,.40);
+  --accent:#9ddcff; --accent-2:#b9a4ff; --accent-warm:#ffd8a6; --danger:#ff9aa8; --ok:#9ef0c4;
+  --glass:rgba(255,255,255,.07); --glass-strong:rgba(255,255,255,.12); --glass-border:rgba(255,255,255,.16);
+  --radius-panel:26px; --radius-btn:16px;
+  --ease-spring:cubic-bezier(.22,1.2,.36,1); --ease-soft:cubic-bezier(.4,0,.2,1); --ease-out:cubic-bezier(.16,1,.3,1);
+  --dur-fast:160ms; --dur-med:380ms; --dur-slow:900ms;
+  --cr:clamp(210px,min(80vw,44vh),330px);
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+  color-scheme:dark;
+  /* theme tokens (dark values = v7 look). Light values live in theme.css */
+  --surface-popup:linear-gradient(160deg,rgba(40,46,92,.82),rgba(16,19,44,.88));
+  --surface-toast:linear-gradient(160deg,rgba(40,46,92,.82),rgba(16,19,44,.9));
+  --surface-sheet:linear-gradient(180deg,rgba(30,35,74,.92),rgba(13,16,36,.96));
+  --surface-tour:linear-gradient(160deg,rgba(44,50,100,.92),rgba(16,19,44,.95));
+  --surface-dock:linear-gradient(160deg,rgba(36,42,86,.82),rgba(14,17,38,.9));
+  --surface-dock-break:linear-gradient(160deg,rgba(30,70,70,.8),rgba(12,28,34,.9));
+  --backdrop:rgba(3,4,12,.6); --backdrop-soft:rgba(3,4,12,.5);
+  --subtitle-bg:rgba(10,12,28,.45);
+  --shadow-pop:0 30px 80px rgba(0,0,0,.55); --shadow-sheet:0 -20px 60px rgba(0,0,0,.5); --shadow-toast:0 14px 40px rgba(0,0,0,.45);
+  --grad-accent:linear-gradient(135deg,#b9a4ff,#7fb6ff); --on-accent:#0b0d1c;
+  --opt-bg:#14172e; --mic-bg:rgba(157,220,255,.16); --mic-bg-live:rgba(157,220,255,.34); --docked-bg:rgba(255,255,255,.14);
+  --eco-bubble:radial-gradient(circle at 32% 24%,rgba(255,255,255,.34),rgba(255,255,255,.08) 55%),rgba(40,46,100,.5);
+  --ring-bg:rgba(255,255,255,.12); --new-bg:rgba(157,220,255,.08); --new-border:rgba(157,220,255,.5);
+  --wd-stage:#090b18; --pv-eye:#d9ecff;
+  --atm-1:rgba(120,140,255,.16); --atm-2:rgba(185,164,255,.10); --atm-3:rgba(80,200,255,.07);
 }
-
-*, *::before, *::after{ box-sizing: border-box; }
-
-html, body{
-  height: 100%;
-  margin: 0;
-  overscroll-behavior: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
 body{
-  background: var(--bg);
-  color: var(--ink);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  font-size: 16px;
-  overflow: hidden;
-  position: fixed;
-  inset: 0;
-  user-select: none;
-  -webkit-user-select: none;
+  background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:16px;overflow:hidden;position:fixed;inset:0;
+  user-select:none;-webkit-user-select:none;
 }
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:12px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.hint{font-size:.78rem;color:var(--ink-faint);line-height:1.45}
+::-webkit-scrollbar{width:0;height:0}
 
-button{
-  font: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-textarea, input, select{
-  font: inherit;
-  color: inherit;
-}
-
-#stage{
-  position: fixed;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  perspective: 1200px;
-}
-
+#stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
 #atmosphere{
-  position: absolute;
-  inset: -10%;
+  position:absolute;inset:-10%;pointer-events:none;transition:opacity var(--dur-slow) var(--ease-soft);
   background:
-    radial-gradient(60% 45% at 50% 42%, rgba(143,216,255,0.05), transparent 70%),
-    radial-gradient(80% 60% at 50% 100%, rgba(5,6,10,1), transparent);
-  pointer-events: none;
-  transition: opacity var(--dur-slow) var(--ease-soft);
+    radial-gradient(55% 40% at 50% 44%,var(--atm-1),transparent 70%),
+    radial-gradient(70% 50% at 20% 0%,var(--atm-2),transparent 70%),
+    radial-gradient(80% 50% at 50% 105%,var(--atm-3),transparent 70%);
+}
+#creature-wrap{
+  position:absolute;left:50%;top:46%;width:var(--cr);height:calc(var(--cr)*1.1);
+  transform:translate(-50%,-50%);
+  transition:transform .7s var(--ease-out);
 }
 
-/* subtitle strip */
+/* subtitle */
 #subtitle{
-  position: absolute;
-  left: 50%;
-  bottom: 14%;
-  transform: translateX(-50%) translateY(6px);
-  max-width: min(560px, 86vw);
-  text-align: center;
-  font-size: 0.98rem;
-  line-height: 1.45;
-  color: var(--ink-dim);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-med) var(--ease-soft), transform var(--dur-med) var(--ease-soft);
+  position:absolute;left:50%;bottom:calc(19% + var(--sab));transform:translateX(-50%) translateY(6px);
+  width:min(560px,88vw);max-height:26vh;overflow-y:auto;text-align:center;
+  font-size:1rem;line-height:1.5;color:var(--ink);
+  padding:10px 16px;border-radius:18px;
+  background:var(--subtitle-bg);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--glass-border);
+  opacity:0;pointer-events:none;transition:opacity var(--dur-med) var(--ease-soft),transform var(--dur-med) var(--ease-soft);
 }
-#subtitle.visible{ opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; cursor: pointer; }
+#subtitle.visible{opacity:1;transform:translateX(-50%);pointer-events:auto;cursor:pointer}
 
-/* ---------- chat area: chatbox + the free-floating study blob, side by side ---------- */
+/* top bar */
+#bell-btn{position:absolute;top:calc(14px + var(--sat));right:16px;z-index:20;width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+#bell-dot{position:absolute;top:8px;right:9px;width:10px;height:10px;border-radius:50%;background:var(--accent-warm);box-shadow:0 0 8px var(--accent-warm)}
+
+/* shortcut buttons (accessible alternative to gestures) */
+#shortcuts{position:absolute;left:0;right:0;bottom:calc(5% + var(--sab));display:none;justify-content:center;gap:12px;z-index:12}
+body.show-shortcuts #shortcuts{display:flex}
+body.show-shortcuts #chat-area.visible ~ #shortcuts{display:none}
+
+/* command mode */
 #chat-area{
-  position: absolute;
-  left: 50%;
-  bottom: 6%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--dur-med) var(--ease-spring);
+  position:absolute;left:50%;bottom:calc(5% + var(--sab));transform:translateX(-50%);
+  width:min(560px,94vw);display:flex;flex-direction:column;align-items:center;gap:10px;z-index:14;
+  opacity:0;pointer-events:none;transition:opacity var(--dur-med) var(--ease-spring);
 }
-#chat-area.visible{ opacity: 1; pointer-events: auto; }
-
+#chat-area.visible{opacity:1;pointer-events:auto}
+#cmd-chips{display:flex;flex-wrap:wrap;justify-content:center;gap:8px}
+#cmd-chips button{
+  padding:8px 14px;border-radius:999px;font-size:.88rem;background:var(--glass);border:1px solid var(--glass-border);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);color:var(--ink-dim);
+}
+#cmd-chips button:active{transform:scale(.95)}
 #input-dock{
-  --merge-x: 90%;
-  --merge-y: 50%;
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--glass);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
-  padding: 8px 10px;
-  border-radius: 999px;
-  transform: translateY(14px) scale(0.96);
-  transition: transform var(--dur-med) var(--ease-spring), background 550ms var(--ease-soft), border-color 550ms var(--ease-soft);
-  overflow: hidden;
+  --merge-x:90%;--merge-y:50%;position:relative;display:flex;align-items:center;gap:10px;width:100%;
+  background:var(--glass);border:1px solid var(--glass-border);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  padding:8px 12px;border-radius:999px;overflow:hidden;
+  transition:background 550ms var(--ease-soft),border-color 550ms var(--ease-soft);
 }
-#chat-area.visible #input-dock{ transform: translateY(0) scale(1); }
+#mic-btn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--mic-bg);color:var(--accent);flex-shrink:0}
+#mic-btn:active{transform:scale(.9)}
+#mic-btn.live{background:var(--mic-bg-live);animation:mic-pulse 1.4s ease-in-out infinite}
+#text-input{flex:1;min-width:0;background:none;border:none;outline:none;color:var(--ink);user-select:text;-webkit-user-select:text;font-size:16px}
+#text-input::placeholder{color:var(--ink-faint)}
+#input-dock.study-active{background:linear-gradient(135deg,rgba(255,154,86,.30),rgba(255,90,50,.22));border-color:rgba(255,154,86,.55);box-shadow:0 0 26px rgba(255,122,61,.25)}
 
-#mic-btn{
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(143,216,255,0.14);
-  color: var(--accent);
-  flex-shrink: 0;
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast);
-}
-#mic-btn:active{ transform: scale(0.9); }
-#mic-btn.live{ background: rgba(143,216,255,0.32); animation: mic-pulse 1.4s ease-in-out infinite; }
-
-#text-input{
-  background: none;
-  border: none;
-  outline: none;
-  width: min(42vw, 230px);
-  color: var(--ink);
-}
-#text-input::placeholder{ color: var(--ink-faint); }
-
-/* the chatbox once Study Block has merged in — steady state after the diffusion animation finishes */
-#input-dock.study-active{
-  background: linear-gradient(135deg, rgba(255,154,86,0.30), rgba(255,90,50,0.22));
-  border-color: rgba(255,154,86,0.55);
-  box-shadow: 0 0 26px rgba(255,122,61,0.25);
-}
-
-/* ---------- the free-floating Study Block blob (outside the chatbox) ---------- */
 #study-blob{
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 1.2rem;
-  background: radial-gradient(circle at 35% 30%, rgba(255,200,150,0.9), rgba(255,122,61,0.55) 70%);
-  border: 1px solid rgba(255,154,86,0.5);
-  box-shadow: 0 0 16px rgba(255,122,61,0.35);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  transition: transform 520ms var(--ease-spring), opacity 420ms var(--ease-soft);
+  position:absolute;right:-4px;top:-54px;width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;
+  background:radial-gradient(circle at 35% 30%,rgba(255,200,150,.9),rgba(255,122,61,.55) 70%);border:1px solid rgba(255,154,86,.5);
+  box-shadow:0 0 16px rgba(255,122,61,.35);cursor:grab;touch-action:none;transition:transform 520ms var(--ease-spring),opacity 420ms var(--ease-soft);
 }
-#study-blob.dragging{ transition: none; cursor: grabbing; }
-#study-blob.consumed{ opacity: 0; transform: scale(0.2); pointer-events: none; }
-
-/* ---------- the docked icon inside the chatbox, once merged ---------- */
+#study-blob.dragging{transition:none;cursor:grabbing}
+#study-blob.consumed{opacity:0;transform:scale(.2);pointer-events:none}
 #study-blob-docked{
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.9rem;
-  background: rgba(255,255,255,0.14);
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  opacity: 0;
-  transform: scale(0);
-  transition: transform 420ms var(--ease-spring), opacity 320ms var(--ease-soft);
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:.9rem;
+  background:var(--docked-bg);cursor:grab;touch-action:none;opacity:0;transform:scale(0);width:0;
+  transition:transform 420ms var(--ease-spring),opacity 320ms var(--ease-soft);
 }
-#study-blob-docked.dragging{ transition: none; cursor: grabbing; }
-#study-blob-docked.visible{ opacity: 1; transform: scale(1); }
-
-/* ---------- liquid diffusion: orange spreads from the merge/split point ---------- */
-#input-dock.diffusing-in::before,
-#input-dock.diffusing-out::before{
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: radial-gradient(circle at var(--merge-x) var(--merge-y), rgba(255,140,70,0.85), rgba(255,90,50,0.35) 55%, transparent 78%);
-  pointer-events: none;
+#study-blob-docked.dragging{transition:none}
+#study-blob-docked.visible{opacity:1;transform:scale(1);width:28px}
+#input-dock.diffusing-in::before,#input-dock.diffusing-out::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  background:radial-gradient(circle at var(--merge-x) var(--merge-y),rgba(255,140,70,.85),rgba(255,90,50,.35) 55%,transparent 78%);
 }
-#input-dock.diffusing-in::before{ animation: diffuse-in 650ms var(--ease-out) forwards; }
-#input-dock.diffusing-out::before{ animation: diffuse-out 650ms var(--ease-soft) forwards; }
+#input-dock.diffusing-in::before{animation:diffuse-in 650ms var(--ease-out) forwards}
+#input-dock.diffusing-out::before{animation:diffuse-out 650ms var(--ease-soft) forwards}
+@keyframes diffuse-in{0%{opacity:0;clip-path:circle(0% at var(--merge-x) var(--merge-y))}100%{opacity:1;clip-path:circle(140% at var(--merge-x) var(--merge-y))}}
+@keyframes diffuse-out{0%{opacity:1;clip-path:circle(140% at var(--merge-x) var(--merge-y))}100%{opacity:0;clip-path:circle(0% at var(--merge-x) var(--merge-y))}}
+@keyframes mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(157,220,255,.35)}50%{box-shadow:0 0 0 8px rgba(157,220,255,0)}}
 
-@keyframes diffuse-in{
-  0%{ opacity: 0; clip-path: circle(0% at var(--merge-x) var(--merge-y)); }
-  100%{ opacity: 1; clip-path: circle(140% at var(--merge-x) var(--merge-y)); }
-}
-@keyframes diffuse-out{
-  0%{ opacity: 1; clip-path: circle(140% at var(--merge-x) var(--merge-y)); }
-  100%{ opacity: 0; clip-path: circle(0% at var(--merge-x) var(--merge-y)); }
-}
+body.sheet-open #creature-wrap{transform:translate(-50%,-50%) scale(.82) translateY(-12vh)}
+body.sheet-open #chat-area,body.sheet-open #subtitle{opacity:0;pointer-events:none}
 
-@media (prefers-reduced-motion: reduce){
-  #study-blob, #study-blob-docked, #input-dock{ transition-duration: 80ms !important; }
-  #input-dock.diffusing-in::before, #input-dock.diffusing-out::before{ animation-duration: 1ms !important; }
-}
-
-.hint{ font-size: 0.78rem; color: var(--ink-faint); line-height: 1.4; }
-
-::-webkit-scrollbar{ width: 0; height: 0; }
+body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:60ms!important}
+body.cmd-open #subtitle{bottom:calc(235px + var(--sab))}
+body.cmd-open #creature-wrap{transform:translate(-50%,-50%) scale(.9) translateY(-5vh)}

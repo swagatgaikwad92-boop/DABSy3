@@ -51,6 +51,10 @@
   bus.on("study:start", ()=>{ studying = true; setUserState("STUDYING"); });
   bus.on("study:end", ()=>{ studying = false; setUserState("IDLE"); });
 
+  // the built-in study session (study-session.js) is the quietest state of all
+  bus.on("session:started", ()=>{ studying = true; setUserState("READING"); });
+  bus.on("session:ended", ()=>{ studying = false; setUserState("IDLE"); });
+
   bus.on("voice:speaking:start", ()=>{
     dabsyState = "SPEAKING";
     if(studying) setUserState("STUDYING");

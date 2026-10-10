@@ -120,6 +120,7 @@
     personalizeAI: true,     // include my learned study preferences in AI requests
     showShortcuts: false,    // on-screen buttons for the gestures (accessibility)
     reduceMotion: "auto",    // auto | on | off
+    theme: "dark",           // dark | light | auto  (interface theme, v8)
   };
   function getSettings(){ return { ...SETTINGS_DEFAULTS, ...readJSON(KEYS.settings, {}) }; }
   function saveSettings(patch){

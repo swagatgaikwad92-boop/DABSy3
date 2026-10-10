@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>D.A.B.S.y</title>
 <meta name="theme-color" content="#070914" />
+<meta name="color-scheme" content="dark light" />
+<script>/* v8: apply the saved theme before first paint (no dark/light flash) */
+(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#f2eee5");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
+</script>
 <meta name="description" content="D.A.B.S.y — your plush AI study companion and hub for your study apps." />
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
@@ -19,6 +23,7 @@
 <link rel="stylesheet" href="./ui.css" />
 <link rel="stylesheet" href="./ecosystem.css" />
 <link rel="stylesheet" href="./projection.css" />
+<link rel="stylesheet" href="./theme.css" />
 </head>
 <body>
 
@@ -112,6 +117,7 @@
   <script src="./emotion-engine.js"></script>
   <script src="./memory-engine.js"></script>
   <script src="./ui-kit.js"></script>
+  <script src="./theme-engine.js"></script>
   <script src="./permissions-engine.js"></script>
   <script src="./task-engine.js"></script>
   <script src="./schedule-engine.js"></script>

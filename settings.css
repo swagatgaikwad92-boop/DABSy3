@@ -3,7 +3,7 @@
 .set-sec{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .wd-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .wd-tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 6px 10px;border-radius:18px;background:var(--glass);border:1px solid var(--glass-border);text-align:center;position:relative}
-.wd-tile svg{width:100%;height:auto;max-height:92px}
+.wd-tile svg{width:100%;height:auto;max-height:92px;background:var(--wd-stage);border-radius:14px}
 .wd-tile.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
 .wd-tile.locked svg,.wd-tile.locked .wd-q{opacity:.35;filter:grayscale(.8)}
 .wd-name{font-size:.78rem;font-weight:600;line-height:1.15}
@@ -15,3 +15,15 @@
 .g-result{text-align:center;color:var(--ink-dim);min-height:2.6em}
 .g-big{min-height:110px;font-size:1.3rem;border-radius:28px}
 .g-big.go{background:linear-gradient(135deg,#9ef0c4,#7fb6ff);color:#0b0d1c}
+
+/* ---- v8: theme selector, presentation tiles, bow-tie swatches ---- */
+.row.col{flex-direction:column;align-items:stretch}
+.seg{display:flex;gap:4px;padding:4px;border-radius:999px;background:var(--glass);border:1px solid var(--glass-border)}
+.seg-b{flex:1;min-height:38px;padding:6px 10px;border-radius:999px;font-weight:600;font-size:.9rem;color:var(--ink-dim);transition:background var(--dur-fast),color var(--dur-fast)}
+.seg-b.on{background:var(--grad-accent);color:var(--on-accent)}
+.wd-grid-2{grid-template-columns:repeat(2,1fr)}
+.wd-grid-2 .wd-tile svg{max-height:128px}
+.tie-row{display:flex;flex-wrap:wrap;gap:10px;padding:2px 4px}
+.tie-sw{width:38px;height:38px;border-radius:50%;background:var(--sw);border:2px solid var(--glass-border);position:relative;flex-shrink:0}
+.tie-sw.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
+.tie-sw:active{transform:scale(.92)}

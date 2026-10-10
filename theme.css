@@ -1,16 +1,60 @@
-/* DABSy day/night atmosphere. */
-:root[data-theme="day"]{
-  --bg:#eef3f6; --bg-2:#e3e9ee; --ink:#16202a; --ink-dim:rgba(22,32,42,.62); --ink-faint:rgba(22,32,42,.42);
-  --glass:rgba(255,255,255,.50); --glass-strong:rgba(255,255,255,.72); --glass-border:rgba(35,50,65,.14);
-  --accent:#3a9ed6; --accent-2:#7f6bc7; --accent-warm:#c47b2c;
+/* ============================================================
+   D.A.B.S.y — theme.css  (v8)
+   Premium LIGHT theme. It is only a set of token overrides plus a few
+   fixes for things that cannot be expressed as tokens — no screen has its
+   own copy of its stylesheet. Dark remains the :root default in core.css.
+
+   Palette: warm ivory surfaces, graphite text, lavender / cool-blue
+   accents, hairline borders, soft low-contrast shadows. Text pairs are
+   chosen for ≥ 4.5:1 on the ivory background.
+   The character's presentation (Minimal / Furry) is a separate setting;
+   see creature.css for the light-theme eye + gear adaptation.
+   ============================================================ */
+:root[data-theme="light"]{
   color-scheme:light;
+  --bg:#f2eee5; --bg-2:#ebe6db; --panel-solid:#f8f5ee;
+  --ink:#2c303f; --ink-dim:rgba(44,48,63,.82); --ink-faint:rgba(44,48,63,.68);
+  --accent:#4f62c4; --accent-2:#7d68cf; --accent-warm:#a9640f; --danger:#b3324b; --ok:#2b7a58;
+  --glass:rgba(255,252,246,.62); --glass-strong:rgba(255,252,246,.9); --glass-border:rgba(60,64,100,.16);
+
+  --surface-popup:linear-gradient(160deg,rgba(253,251,246,.97),rgba(244,240,231,.97));
+  --surface-toast:linear-gradient(160deg,rgba(253,251,246,.97),rgba(245,241,232,.97));
+  --surface-sheet:linear-gradient(180deg,rgba(251,249,243,.98),rgba(243,239,230,.99));
+  --surface-tour:linear-gradient(160deg,rgba(253,251,246,.98),rgba(244,240,231,.98));
+  --surface-dock:linear-gradient(160deg,rgba(252,250,244,.97),rgba(242,238,229,.97));
+  --surface-dock-break:linear-gradient(160deg,rgba(231,243,237,.97),rgba(217,234,228,.97));
+  --backdrop:rgba(52,50,72,.34); --backdrop-soft:rgba(52,50,72,.26);
+  --subtitle-bg:rgba(251,249,243,.8);
+  --shadow-pop:0 24px 60px rgba(70,64,100,.22); --shadow-sheet:0 -14px 44px rgba(70,64,100,.16); --shadow-toast:0 10px 30px rgba(70,64,100,.16);
+  --grad-accent:linear-gradient(135deg,#b9acf6,#94b8f0); --on-accent:#1b1f38;
+  --opt-bg:#f7f4ec; --mic-bg:rgba(79,98,196,.12); --mic-bg-live:rgba(79,98,196,.24); --docked-bg:rgba(44,48,63,.10);
+  --eco-bubble:radial-gradient(circle at 32% 24%,rgba(255,255,255,.92),rgba(255,255,255,.42) 60%),rgba(212,208,238,.72);
+  --bubble-shadow:rgba(70,64,100,.22);
+  --ring-bg:rgba(44,48,63,.12); --new-bg:rgba(79,98,196,.08); --new-border:rgba(79,98,196,.4);
+  --card-shadow:rgba(70,64,100,.18);
+  --wd-stage:#e6e1d5; --pv-eye:#7f95e6;
+  --atm-1:rgba(150,152,228,.20); --atm-2:rgba(200,182,242,.16); --atm-3:rgba(255,226,190,.22);
+  --cr-drop:rgba(60,56,110,.22); --cr-shadow:rgba(60,56,110,.28);
 }
-:root[data-theme="day"] #atmosphere{
-  background:radial-gradient(60% 45% at 50% 40%,rgba(90,170,220,.16),transparent 70%),radial-gradient(80% 60% at 50% 100%,rgba(205,218,226,.85),transparent);
-}
-:root[data-theme="day"] #face{
-  background:radial-gradient(100% 80% at 50% 15%,rgba(255,255,255,.72),transparent 58%),linear-gradient(155deg,#c8d1da,#737f8c);
-  box-shadow:inset 0 2px 0 rgba(255,255,255,.6),inset 0 -22px 45px rgba(35,48,60,.22),0 34px 80px rgba(44,60,72,.24),0 0 55px rgba(60,150,205,.10);
-}
-:root[data-theme="day"] #face::before{background:linear-gradient(180deg,#9aa7b3,#56616c);box-shadow:inset 0 2px 0 rgba(255,255,255,.28),0 24px 55px rgba(44,60,72,.20)}
-:root[data-theme="day"] .eye-lid{background:var(--bg)}
+
+/* things tokens can't reach */
+:root[data-theme="light"] .switch i{background:rgba(44,48,63,.16)}
+:root[data-theme="light"] .switch input:checked + i{background:var(--grad-accent)}
+:root[data-theme="light"] .switch i::after{box-shadow:0 1px 3px rgba(44,48,63,.3)}
+:root[data-theme="light"] .rel i{background:rgba(44,48,63,.16)}
+:root[data-theme="light"] #cmd-chips button{background:var(--glass-strong)}
+:root[data-theme="light"] .glass{backdrop-filter:blur(14px) saturate(110%);-webkit-backdrop-filter:blur(14px) saturate(110%)}
+:root[data-theme="light"] .btn{box-shadow:0 1px 0 rgba(255,255,255,.7) inset,0 1px 2px rgba(70,64,100,.08)}
+:root[data-theme="light"] .btn.primary{box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 4px 14px rgba(110,100,200,.25)}
+:root[data-theme="light"] .btn.danger{color:var(--danger)}
+:root[data-theme="light"] .popup-card,:root[data-theme="light"] .sheet,:root[data-theme="light"] .toast,:root[data-theme="light"] .tour-card{backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+:root[data-theme="light"] .eco-bubble{color:var(--ink)}
+:root[data-theme="light"] #subtitle{box-shadow:0 6px 24px rgba(70,64,100,.10)}
+:root[data-theme="light"] .mini-face{box-shadow:0 1px 4px rgba(44,48,63,.25)}
+
+/* soft cross-fade when the theme changes (added for ~0.5 s only, never left on) */
+html.theme-anim,html.theme-anim body,html.theme-anim *,html.theme-anim *::before,html.theme-anim *::after{
+  transition:background-color .38s ease,color .38s ease,border-color .38s ease,box-shadow .38s ease,fill .38s ease,stroke .38s ease!important}
+
+/* the apps-screen hint sits on the dimmed backdrop: give it its own pill so it stays readable */
+:root[data-theme="light"] #eco-hint{left:50%;right:auto;transform:translateX(-50%);width:max-content;max-width:88vw;padding:8px 16px;border-radius:999px;background:var(--glass-strong);color:var(--ink);border:1px solid var(--glass-border)}

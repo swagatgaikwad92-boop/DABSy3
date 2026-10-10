@@ -2,7 +2,7 @@
 .sheet.center{max-height:78vh}
 .nc-list{display:flex;flex-direction:column;gap:10px}
 .nc-item{display:flex;gap:12px;align-items:flex-start;padding:12px;border-radius:20px;background:var(--glass);border:1px solid var(--glass-border)}
-.nc-item.new{border-color:rgba(157,220,255,.5);background:rgba(157,220,255,.08)}
+.nc-item.new{border-color:var(--new-border);background:var(--new-bg)}
 .nc-item.acted{opacity:.6}
 .nc-main{flex:1;min-width:0}
 .nc-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline}

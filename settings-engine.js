@@ -15,6 +15,14 @@
     input.addEventListener("change", () => onChange(input.checked, input));
     return el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, title), sub ? el("div", { class: "s" }, sub) : null), extra || null, el("label", { class: "switch" }, input, el("i")));
   }
+  // compact segmented control (radio group) used for Theme
+  function segmented(label, options, value, onChange){
+    const wrap = el("div", { class: "seg", role: "radiogroup", "aria-label": label });
+    const paint = v => [...wrap.children].forEach(b => { const on = b.dataset.v === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); });
+    options.forEach(([v, text]) => wrap.append(el("button", { type: "button", role: "radio", class: "seg-b", "data-v": v, onclick: () => { paint(v); onChange(v); } }, text)));
+    paint(value);
+    return wrap;
+  }
   function section(id, title, ...kids){
     return el("section", { id: "set-" + id, class: "set-sec" }, el("div", { class: "section-title" }, title), ...kids);
   }
@@ -44,6 +52,30 @@
     function paintWardrobe(){
       wardrobe.innerHTML = "";
       const cur = D.outfits.current();
+
+      /* v8: character presentation (FUR MODE) + bow tie */
+      wardrobe.append(switchRow("Fur mode", "Adds a soft blue-purple fur aura around the eyes. Off = DABSy's minimal floating eyes and bow tie. Nothing else changes.", cur.form === "furry", v => { D.outfits.setForm(v ? "furry" : "minimal"); D.face.react("perk"); paintWardrobe(); }));
+      wardrobe.append(el("div", { class: "section-title" }, "Character"));
+      const formGrid = el("div", { class: "wd-grid wd-grid-2" });
+      [["minimal", "Minimal"], ["furry", "Furry"]].forEach(([f, name]) => {
+        const on = cur.form === f;
+        const tile = el("button", { class: "wd-tile" + (on ? " on" : ""), type: "button", "aria-pressed": String(on), "aria-label": name + " mode",
+          onclick: () => { if(D.outfits.setForm(f)) D.face.react("perk"); paintWardrobe(); } });
+        tile.innerHTML = D.outfits.previewForm(f) + `<span class="wd-name">${name}</span>`;
+        formGrid.append(tile);
+      });
+      wardrobe.append(formGrid);
+      wardrobe.append(el("div", { class: "section-title" }, "Bow tie colour"));
+      const tieRow = el("div", { class: "tie-row", role: "radiogroup", "aria-label": "Bow tie colour" });
+      D.outfits.tiePalettes().forEach(p => {
+        const on = cur.tie === p.id;
+        const sw = el("button", { class: "tie-sw" + (on ? " on" : ""), type: "button", role: "radio", "aria-checked": String(on), "aria-label": p.name, title: p.name,
+          onclick: () => { D.outfits.setTie(p.id); D.face.react("perk"); paintWardrobe(); } });
+        sw.style.setProperty("--sw", p.c ? `linear-gradient(135deg,${p.c[0]},${p.c[1]})` : "conic-gradient(#cdb9ff,#7db3ff,#8fffe6,#ffd27a,#ff8aa0,#cdb9ff)");
+        tieRow.append(sw);
+      });
+      wardrobe.append(tieRow);
+      wardrobe.append(el("div", { class: "section-title" }, "Outfits"));
       const grid = el("div", { class: "wd-grid" });
       D.outfits.list().forEach(o => {
         const hidden = !o.unlocked && (o.unlock && o.unlock.type === "egg");
@@ -67,6 +99,11 @@
       wardrobe.append(accGrid, el("p", { class: "hint" }, "Some things unlock by using DABSy. A few are hidden."));
     }
     paintWardrobe();
+
+    /* ---------- appearance (interface theme; independent of Fur mode) ---------- */
+    const appearance = section("appearance", "Appearance",
+      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Theme"), el("div", { class: "s" }, "Dark is the default. Light is a soft ivory theme. Auto follows your phone. This is separate from Fur mode, so any combination works.")),
+        segmented("Theme", [["dark", "Dark"], ["light", "Light"], ["auto", "Auto"]], D.theme.get(), v => D.theme.set(v))));
 
     /* ---------- notifications ---------- */
     const ns = D.notify.settings();
@@ -157,11 +194,12 @@
     if(D.pwa.canInstall()) installBtn.hidden = false;
     offs.push(bus.on("pwa:installable", () => { installBtn.hidden = false; }));
     const about = section("about", "About",
-      el("div", { class: "row", onclick: devTap }, el("div", { class: "grow" }, el("div", { class: "t" }, "D.A.B.S.y " + VERSION), el("div", { class: "s" }, "A plush study companion and hub for your study apps.")), installBtn),
+      el("div", { class: "row", onclick: devTap }, el("div", { class: "grow" }, el("div", { class: "t" }, "D.A.B.S.y " + VERSION), el("div", { class: "s" }, "A study companion and hub for your study apps.")), installBtn),
       el("button", { class: "btn sm ghost", type: "button", onclick: () => { sh.close(); D.require("games").then(g => g.open()); } }, "🎮 Play a little"));
 
     body.append(
       section("ai", "DABSy AI", aiRow, el("div", { class: "popup-actions", style: "justify-content:flex-start" }, aiBtn), aiNote),
+      appearance,
       section("wardrobe", "Wardrobe", wardrobe),
       notifSection, studySection, voiceSection, a11y,
       section("connections", "Connections", conn),

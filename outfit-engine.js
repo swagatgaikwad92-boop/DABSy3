@@ -186,7 +186,7 @@
     state.unlocked.push(id);
     save();
     if(!quiet){
-      ui.toast({ title: "New in the wardrobe", text: item.name + " is yours. Find it in Settings → Wardrobe.", timeout: 8000 });
+      ui.toast({ sticker: "star", title: "New in the wardrobe", text: item.name + " is yours. Find it in Settings → Wardrobe.", timeout: 8000 });
       window.DABSy.director.dispatch("SUCCESS_MOMENT", { speakText: null });
     }
     bus.emit("outfit:unlocked", { id });

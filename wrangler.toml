@@ -15,3 +15,14 @@ ALLOWED_ORIGINS = "https://YOUR-USERNAME.github.io"
 # Secrets are NOT stored here. Set them with:
 #   npx wrangler secret put ANTHROPIC_API_KEY      (or GEMINI_API_KEY)
 #   npx wrangler secret put BRAVE_API_KEY          (enables real web research)
+
+# ---- Web Push (reliable reminders when the app is closed) ----
+# 1. npx wrangler kv namespace create PUSH      -> paste the id below
+# 2. node gen-vapid.mjs                          -> paste the public key below, put the private JWK in a secret
+# 3. npx wrangler secret put VAPID_PRIVATE_JWK
+# [[kv_namespaces]]
+# binding = "PUSH"
+# id = "<your-push-kv-id>"
+# [triggers]
+# crons = ["* * * * *"]
+# VAPID_PUBLIC_KEY and VAPID_SUBJECT go in [vars] above, e.g. VAPID_SUBJECT = "mailto:you@example.com"

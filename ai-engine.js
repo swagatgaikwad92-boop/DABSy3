@@ -91,6 +91,8 @@
       "Today is " + new Date().toDateString() + ", " + new Date().toLocaleTimeString() + ".",
       prefs ? "Things the student asked you to remember: " + prefs + "." : "",
       learned ? "Study habits observed: " + learned : "",
+      (function(){ const L = memory.getSettings().replyLang; const n = { en: "English", hi: "Hindi (Devanagari)", mr: "Marathi (Devanagari)" }[L];
+        return n ? "Always reply in " + n + " unless the student clearly writes in another language; keep equations and technical terms readable." : "Reply in the language the student wrote in (English, Hindi, Marathi or a natural mix)."; })(),
       extra || "",
     ].filter(Boolean).join("\n");
   }
@@ -345,7 +347,7 @@
   async function askDABSy(prompt, opts){
     opts = opts || {};
     const r = await generate({ task: opts.task || "explain", system: opts.context, prompt: [
-      'Reply with ONLY JSON: {"reply":"<answer; for explanations use short numbered steps like 1) 2) 3)>","state":"FOCUSED"}', "User: " + prompt ].join("\n"), image: opts.imageBase64, json: true });
+      'Reply with ONLY JSON: {"reply":"<answer, formatted to fit the question: concise for simple facts, natural prose for concepts, numbered steps ONLY for maths or real procedures; write in the language the user used>","state":"FOCUSED"}', "User: " + prompt ].join("\n"), image: opts.imageBase64, json: true });
     if(!r.ok) return { text: errorLine(r.error), state: "CONFUSED", ok: false, error: r.error };
     const obj = tryJSON(r.text);
     return { text: (obj && obj.reply) || r.text, state: obj && VALID_STATES.includes(obj.state) ? obj.state : "FOCUSED", ok: true };

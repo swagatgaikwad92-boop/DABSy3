@@ -24,7 +24,7 @@
     function render(){
       list.innerHTML = "";
       const items = notify.inbox().slice().reverse();
-      if(!items.length) list.append(ui.el("div", { class: "empty" }, ui.el("div", {}, "All quiet. Nice."), ui.el("p", { class: "hint" }, "I only speak up when something needs you. If I get annoying, tell me in Settings → Notifications.")));
+      if(!items.length) list.append(ui.el("div", { class: "empty" }, window.DABSy.stickers.el("cloud", 44), ui.el("div", {}, "All quiet. Nice."), ui.el("p", { class: "hint" }, "I only speak up when something needs you. If I get annoying, tell me in Settings → Notifications.")));
       items.forEach(n => {
         const isNew = n.status === "new";
         const row = ui.el("article", { class: "nc-item" + (isNew ? " new" : "") + (n.status === "acted" ? " acted" : ""), "aria-label": n.title + ". " + n.body },

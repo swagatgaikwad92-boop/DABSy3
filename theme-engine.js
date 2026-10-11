@@ -14,7 +14,7 @@
   const D = window.DABSy, bus = D.bus, memory = D.memory;
   const root = document.documentElement;
   const mq = window.matchMedia ? window.matchMedia("(prefers-color-scheme: light)") : null;
-  const META = { dark: "#070914", light: "#f2eee5" };
+  const META = { dark: "#0f1318", light: "#fbf6e6" };
   let applied = null;
 
   const choice = () => { const t = memory.getSettings().theme; return t === "light" || t === "auto" ? t : "dark"; };

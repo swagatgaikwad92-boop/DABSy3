@@ -100,8 +100,8 @@
     pointer.style.opacity = "0";
 
     const result = await ai.askDABSy(
-      `Teach this step by step, in short numbered steps, for a Class 11 science student: ${topic}`,
-      { context: "Study Mode: produce a clear step-by-step explanation, one idea per step, each step a short sentence or two." }
+      `Explain for a Class 11 science student: ${topic}`,
+      { context: "Study Mode. Match the format to the question: a short direct answer for simple facts, natural paragraphs for concepts, equations with worked steps only for maths/numericals, bullets for revision. Do not number or split an answer unless it genuinely is a procedure. Reply in the language the student wrote in (English, Hindi, Marathi or a mix); keep equations and technical terms readable." }
     );
 
     const chunks = splitSteps(result.text);

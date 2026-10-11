@@ -25,7 +25,12 @@
 
   /* ---------------- subtitle (stays until you triple-tap it away) ---------------- */
   let subTaps = 0, subTimer = null;
-  function showSubtitle(text){ subtitle.textContent = text; subtitle.classList.add("visible"); }
+  function showSubtitle(text){
+    subtitle.textContent = text; subtitle.classList.add("visible");
+    // tell screen readers which language this line is in (Hindi/Marathi are read badly with lang="en")
+    const L = memory.getSettings().replyLang;
+    subtitle.lang = /[\u0900-\u097F]/.test(text) ? (L === "mr" ? "mr" : "hi") : "en";
+  }
   function hideSubtitle(){ subtitle.classList.remove("visible"); }
   subtitle.addEventListener("pointerdown", () => {
     subTaps++; clearTimeout(subTimer); subTimer = setTimeout(() => { subTaps = 0; }, 600);
@@ -61,7 +66,7 @@
     buildChips();
     chatArea.classList.add("visible"); document.body.classList.add("cmd-open"); armDockTimer();
     clearTimeout(focusTimer);
-    if(focus !== false) focusTimer = setTimeout(() => { if(chatArea.classList.contains("visible")) textInput.focus({ preventScroll: true }); }, 260);
+    if(focus !== false) focusTimer = setTimeout(() => { if(chatArea.classList.contains("visible")) textInput.focus({ preventScroll: true }); }, 340);   // after the double-tap window, so a double-tap never flashes the keyboard
   }
   function closeCommand(){ clearTimeout(focusTimer); chatArea.classList.remove("visible"); document.body.classList.remove("cmd-open"); textInput.blur(); }   // a pending focus must not re-open the keyboard after a double-tap
   textInput.addEventListener("input", armDockTimer);
@@ -76,9 +81,15 @@
     closeCommand();
     window.DABSy.require("notifcenter").then(c => c.openTasks());
   });
+  /* bow tie = "today at a glance". A short wait lets the secret tie rhythm (several quick taps) finish without popping this open. */
+  let tieT = 0, lastBrief = 0;
+  const showBrief = () => { if(Date.now() - lastBrief < 2000 || !window.DABSy.briefing) return; lastBrief = Date.now(); window.DABSy.briefing.show(); };
+  bus.on("face:tap", ({ region }) => { if(region === "tie"){ clearTimeout(tieT); tieT = setTimeout(showBrief, 700); } });
+  bus.on("face:pressdown", ({ region }) => { if(region === "tie" && tieT) clearTimeout(tieT); });
+  document.getElementById("sc-brief").addEventListener("click", showBrief);
   bus.on("face:talk", () => openCommand());              // the visible "Talk" shortcut button -> chat
   bus.on("face:tap", ({ region }) => {                   // tap on an eye -> chat, immediately (once)
-    if(chatArea.classList.contains("visible")){ if(!textInput.value) closeCommand(); return; }
+    if(chatArea.classList.contains("visible")){ if(region === "eyes" && !textInput.value) closeCommand(); return; }   // petting the body/tie must not dismiss chat
     if(region === "eyes") openCommand();
   });
   bus.on("face:doubletap", () => closeCommand());
@@ -356,10 +367,10 @@
   async function handleUserUtterance(text){
     if(utteranceBusy) return;
     utteranceBusy = true;
-    textInput.disabled = true;
+    textInput.readOnly = true;        // not "disabled": that drops focus and closes the phone keyboard after every send
     try{ await processUtterance(text); }
     finally{
-      utteranceBusy = false; textInput.disabled = false;
+      utteranceBusy = false; textInput.readOnly = false;
       if(chatArea.classList.contains("visible") && document.activeElement !== textInput) textInput.focus({ preventScroll: true });
     }
   }
@@ -479,6 +490,7 @@
 
   /* ---------------- accessibility shortcut buttons ---------------- */
   document.getElementById("sc-apps").innerHTML = ui.icon("sparkle", 18) + "<span>Apps</span>";
+  document.getElementById("sc-brief").innerHTML = ui.icon("sparkle", 18) + "<span>Today</span>";
   document.getElementById("sc-talk").innerHTML = ui.icon("mic", 18) + "<span>Talk</span>";
   function applySettings(){
     document.body.classList.toggle("show-shortcuts", !!memory.getSettings().showShortcuts);

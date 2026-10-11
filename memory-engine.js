@@ -120,6 +120,9 @@
     personalizeAI: true,     // include my learned study preferences in AI requests
     showShortcuts: false,    // on-screen buttons for the gestures (accessibility)
     reduceMotion: "auto",    // auto | on | off
+    dailyBriefing: true,     // a short once-a-day card when there is something to say
+    pushOn: false,           // Web Push reminders while the app is closed (needs push.url)
+    replyLang: "auto",       // auto | en | hi | mr  (language DABSy answers and listens in)
     theme: "dark",           // dark | light | auto  (interface theme, v8)
   };
   function getSettings(){ return { ...SETTINGS_DEFAULTS, ...readJSON(KEYS.settings, {}) }; }

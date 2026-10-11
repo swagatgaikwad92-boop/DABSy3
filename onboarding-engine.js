@@ -59,6 +59,7 @@
     root.innerHTML = "";
     const dots = el("div", { class: "tour-dots", "aria-hidden": "true" }, STEPS.map((_, i) => el("i", { class: i === idx ? "on" : "" })));
     const card = el("div", { class: "tour-card" },
+      window.DABSy.stickers ? window.DABSy.stickers.el(window.DABSy.stickers.names[idx % window.DABSy.stickers.names.length], 44) : null,
       el("div", { class: "tour-step" }, `${idx + 1} of ${STEPS.length}`),
       el("h2", {}, s.title), el("p", {}, s.text),
       s.demo ? el("button", { class: "btn sm", type: "button", onclick: s.demo.run }, s.demo.label) : null,

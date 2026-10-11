@@ -255,7 +255,7 @@
     const live = () => [...layer.children].filter(c => !c.classList.contains("out"));
     while(live().length >= 2){ const f = live()[0]; if(f.__close) f.__close("replaced"); else break; }
     const node = el("div", { class: "toast", role: "status" },
-      miniFace(),
+      (opts.sticker && window.DABSy.stickers) ? window.DABSy.stickers.el(opts.sticker, 40) : miniFace(),
       el("div", { class: "toast-text" },
         opts.title ? el("strong", { text: opts.title }) : null,
         opts.text ? el("span", { text: opts.text }) : null,

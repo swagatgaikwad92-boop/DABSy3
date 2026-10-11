@@ -55,7 +55,9 @@
         setTimeout(() => D.require("onboarding").then(o => o.maybeOffer()).catch(() => {}), 2600);
       }
       if(D.memory.read("sessions_v1", []).some(x => x.status === "active" && x.run)) D.require("session").then(m => m.resumeActive()).catch(() => {});
+      const hadLink = !!location.search;     // deepLinks() clears it; a notification/shortcut open should not also get a briefing
       deepLinks();
+      if(!fresh && st && st.tutorialCompleted && !hadLink) setTimeout(() => D.briefing && D.briefing.maybeShow().catch(() => {}), 3200);
 
       // warm heavier modules when the device is idle; fewer on low-end hardware
       const lite = document.body.classList.contains("lite-gfx");

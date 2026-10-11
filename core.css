@@ -134,3 +134,37 @@ body.sheet-open #chat-area,body.sheet-open #subtitle{opacity:0;pointer-events:no
 body.reduce-motion *,body.reduce-motion *::before,body.reduce-motion *::after{animation-duration:1ms!important;animation-iteration-count:1!important;transition-duration:60ms!important}
 body.cmd-open #subtitle{bottom:calc(235px + var(--sab))}
 body.cmd-open #creature-wrap{transform:translate(-50%,-50%) scale(.9) translateY(-5vh)}
+
+/* ---- keyboard-aware layout (viewport-engine.js) ---- */
+:root{ --kb:0px; --vvh:100dvh; }
+#chat-area{ bottom:calc(5% + var(--sab) + var(--kb)); transition:opacity var(--dur-med) var(--ease-spring), bottom .18s var(--ease-soft); }
+body.kb-open #chat-area{ bottom:calc(8px + var(--kb)); }          /* sit directly on top of the keyboard (kb already includes safe area) */
+body.kb-open #creature-wrap{ transform:translate(-50%,-50%) scale(.7) translateY(-18vh); }
+body.kb-open #subtitle{ opacity:0; pointer-events:none; }
+.sheet{ max-height:calc(var(--vvh) * .84); }
+.sheet-layer{ padding-bottom:var(--kb); box-sizing:border-box; }
+.sheet{ overflow-y:auto; overscroll-behavior:contain; }
+@media (max-height:480px) and (orientation:landscape){
+  body.kb-open #creature-wrap{ opacity:.0; }
+  #cmd-chips{ display:none; }
+}
+.briefing{display:flex;gap:var(--sp-3,12px);align-items:flex-start;text-align:left;margin:8px 0 4px}
+.briefing-list{margin:0;padding:0;list-style:none;display:grid;gap:8px;font-size:.95rem;color:var(--ink-dim)}
+
+/* ---- live talk ---- */
+#live-btn{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:var(--ink-dim);flex-shrink:0}
+#live-talk{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(14px + var(--sab) + var(--kb));width:min(94%,440px);z-index:40;
+  padding:18px 18px 14px;border-radius:var(--r-lg,26px);background:var(--surface-dock);border:1px solid var(--glass-border);box-shadow:var(--shadow-pop);text-align:center}
+#live-talk[hidden]{display:none}
+.lt-ring{width:56px;height:56px;margin:0 auto 8px;border-radius:50%;background:var(--grad-accent);opacity:.85}
+#live-talk[data-state="listening"] .lt-ring{animation:lt-pulse 1.4s ease-in-out infinite}
+#live-talk[data-state="thinking"] .lt-ring{animation:lt-spin 1.2s linear infinite;border:4px solid var(--accent);background:transparent;border-top-color:transparent}
+#live-talk[data-state="speaking"] .lt-ring{animation:lt-pulse .7s ease-in-out infinite}
+@keyframes lt-pulse{50%{transform:scale(1.18);opacity:1}}
+@keyframes lt-spin{to{transform:rotate(360deg)}}
+.lt-state{font-weight:600;color:var(--ink)}
+.lt-said{min-height:1.3em;margin:4px 0 10px;color:var(--ink-dim);font-size:.9rem;overflow-wrap:anywhere}
+.lt-actions{display:flex;gap:10px;justify-content:center}
+.lt-actions [hidden]{display:none}
+.lt-note{margin:10px 0 0;font-size:.74rem;color:var(--ink-faint)}
+body.live-talk #chat-area,body.live-talk #shortcuts,body.live-talk #subtitle{opacity:0;pointer-events:none}

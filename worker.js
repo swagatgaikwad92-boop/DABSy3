@@ -1,3 +1,4 @@
+import { handlePush, runDue } from "./push.js";
 /* ============================================================
    DABSy AI proxy — Cloudflare Worker
    browser (DABSy PWA)  ->  this Worker  ->  AI provider + search API
@@ -136,6 +137,8 @@ export default {
     if (url.pathname === "/health" && req.method === "GET")
       return json({ ok: true, ai: !!(env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY), search: !!env.BRAVE_API_KEY }, 200, c.headers);
 
+    if (url.pathname.startsWith("/v1/push/")) return handlePush(req, env, c, url, json);   // own limits; does not use the AI quota
+
     if (req.method !== "POST") return json({ ok: false, error: "not-found" }, 404, c.headers);
     const ip = req.headers.get("CF-Connecting-IP") || "unknown";
     const rl = await rateLimit(env, ip);
@@ -160,4 +163,5 @@ export default {
     }
     return json({ ok: false, error: "not-found" }, 404, c.headers);
   },
+  async scheduled(event, env, ctx) { ctx.waitUntil(runDue(env)); },
 };

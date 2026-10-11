@@ -121,6 +121,11 @@
         if(v){ const ok = await D.notify.enableSystem(); input.checked = ok; D.permissions.describe("notifications").then(d => { permChip.textContent = d.text; permChip.className = "chip " + (d.state === "granted" ? "ok" : d.state === "denied" ? "bad" : ""); }); }
         else D.notify.saveSettings({ system: false });
       }, permChip),
+      D.push && D.push.supported() ? switchRow("Reminders when DABSy is closed", "Sends your upcoming reminder times to your DABSy server so your phone can alert you even when the app is shut. Turn off to stop sharing them.", D.push.enabled() && Notification.permission === "granted", async (v, input) => {
+        if(v){ const r = await D.push.enable(); input.checked = !!r.ok; if(!r.ok) D.notify.ping({ title: "Couldn't turn that on", body: "Reason: " + r.error + ". Check the push setup in BACKEND.md.", actions: [] }); }
+        else D.push.disable();
+      }) : null,
+      switchRow("Daily briefing", "A short card once a day, only when there is something to say. Never during quiet hours.", memory.getSettings().dailyBriefing !== false, v => memory.saveSettings({ dailyBriefing: v })),
       el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Quiet hours"), el("div", { class: "s" }, "No nudges in this window.")), qFrom, qTo),
       el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Most nudges per day")), limit),
       el("button", { class: "btn sm ghost", type: "button", onclick: () => D.notify.push({ kind: "info", title: "Test nudge", body: "This is what a nudge looks like.", actions: [{ id: "keep", label: "Nice" }] }) }, "Send a test nudge"));
@@ -152,7 +157,10 @@
     /* ---------- accessibility ---------- */
     const rm = el("select", { class: "field", "aria-label": "Reduce motion" }, [["auto", "Follow my device"], ["on", "Always reduce"], ["off", "Never reduce"]].map(([v, l]) => el("option", { value: v }, l)));
     rm.value = memory.getSettings().reduceMotion; rm.onchange = () => memory.saveSettings({ reduceMotion: rm.value });
+    const lg = el("select", { class: "field", "aria-label": "Language" }, [["auto", "Match what I write"], ["en", "English"], ["hi", "हिन्दी (Hindi)"], ["mr", "मराठी (Marathi)"]].map(([v, l]) => el("option", { value: v }, l)));
+    lg.value = memory.getSettings().replyLang; lg.onchange = () => memory.saveSettings({ replyLang: lg.value });
     const a11y = section("access", "Accessibility",
+      el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Language"), el("div", { class: "s" }, "Used for replies, listening and speaking. Voice quality depends on the voices installed on your device.")), lg),
       switchRow("Show on-screen buttons for gestures", "Adds Apps and Talk buttons, so nothing needs a double-tap or hold. Keyboard: Enter = chat, ↓ = apps, ↑ = tasks.", memory.getSettings().showShortcuts, v => memory.saveSettings({ showShortcuts: v })),
       el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Reduce motion"), el("div", { class: "s" }, "Calmer creature, no bobbing bubbles.")), rm));
 

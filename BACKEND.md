@@ -47,3 +47,25 @@ The Worker is plain `fetch`-style code. For Vercel/Netlify/Deno Deploy, keep the
 ## Using the single-message `dabsy-brain` Worker (current setup)
 
 `dabsy-config.js` has `ai.mode: "message"`. The app then POSTs `{ "message": "..." }` to `ai.proxyUrl` and reads `reply`. Research and image input are not available in this mode, and no conversation history is sent. Put only the public Worker URL in `ai.proxyUrl`. For CORS, the Worker must answer with `Access-Control-Allow-Origin: https://YOUR-USERNAME.github.io` (origin only, no path) and handle `OPTIONS` preflight with `Access-Control-Allow-Headers: Content-Type`. Add rate limiting before public release.
+
+## Web Push: reminders when DABSy is closed (optional)
+
+Without this, reminders fire only while DABSy is open (a phone pauses closed web pages). With it, your Worker sends a silent push at the reminder time, DABSy's service worker wakes, fetches the text and shows the notification.
+
+**What it stores:** for each device, its push address and the next ~48 h of reminder titles and times, in Cloudflare KV, for up to 60 days. Turning the switch off deletes them.
+
+**Browser support:** Android Chrome/Edge/Firefox. iPhone/iPad only when DABSy is installed to the Home Screen (iOS 16.4+). Delivery is fast but not guaranteed; battery savers and Do Not Disturb can delay it.
+
+1. `cd backend && npx wrangler kv namespace create PUSH` and put the id in `wrangler.toml` (uncomment the `PUSH` block and `[triggers]`).
+2. `node gen-vapid.mjs`. Put `VAPID_PUBLIC_KEY` and `VAPID_SUBJECT = "mailto:you@example.com"` under `[vars]`. Store the private key: `npx wrangler secret put VAPID_PRIVATE_JWK` (paste the JSON line).
+3. `npx wrangler deploy`. Check `GET <worker>/v1/push/key` returns `{"ok":true,...}`.
+4. Set `push.url` in `dabsy-config.js` to this Worker's URL. (It can be a different Worker from your AI one.) Add that URL to nothing else; `ALLOWED_ORIGINS` must include your Pages origin.
+5. In DABSy: Settings → Notifications → "Reminders when DABSy is closed".
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /v1/push/key` | public VAPID key |
+| `POST /v1/push/subscribe` | register a device |
+| `POST /v1/push/schedule` | replace the device's upcoming reminders |
+| `POST /v1/push/pending` | service worker fetches the text after a push |
+| `POST /v1/push/unsubscribe` | delete everything for the device |

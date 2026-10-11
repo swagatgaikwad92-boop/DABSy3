@@ -1,0 +1,89 @@
+/* ============================================================
+   D.A.B.S.y — soda.css : BANANA MILK × AOI SODA design tokens
+   Token-only layer loaded after theme.css. Light = Banana Milk (creamy,
+   airy). Dark = Soft Graphite with soda-blue and banana highlights
+   (designed, not inverted). Restraint: yellow = warmth/highlight, blue =
+   action/clarity, milk white = breathing room. Contrast pairs ≥ 4.5:1.
+   ============================================================ */
+:root{
+  /* palette */
+  --banana:#ffe48a; --banana-deep:#8a6400; --soda:#8fd8f5; --soda-deep:#1f6d9a;
+  --milk:#fbf7ea; --graphite:#23262d; --silver:#d9dee6;
+  --peach:#ffcfb0; --lavender:#cfc6f5; --mint:#bfe9d6;
+  /* spacing / radius / type / motion tokens */
+  --sp-1:4px; --sp-2:8px; --sp-3:12px; --sp-4:16px; --sp-5:24px; --sp-6:32px;
+  --r-sm:12px; --r-md:18px; --r-lg:26px; --r-pill:999px;
+  --fs-sm:.85rem; --fs-md:1rem; --fs-lg:1.2rem; --fs-xl:1.6rem;
+  --font-ui:ui-rounded,"SF Pro Rounded","Hiragino Maru Gothic ProN","Nunito","Noto Sans Devanagari","Nirmala UI","Mukta",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --tap-min:44px;
+  --radius-panel:var(--r-lg); --radius-btn:var(--r-md);
+}
+body{ font-family:var(--font-ui); }
+button,input,select,textarea{ font-family:inherit; }
+.btn,select,#cmd-chips button,.popup-actions button,.toast-actions button{ min-height:var(--tap-min); }   /* not every button: round icon buttons keep their shape */
+.icon-btn.sm{ width:var(--tap-min); height:var(--tap-min); }
+#text-input{ min-height:var(--tap-min); }
+
+/* LIGHT — Banana Milk */
+:root[data-theme="light"]{
+  --bg:#fbf6e6; --bg-2:#f5eed8; --panel-solid:#fffaf0;
+  --ink:#2b2d33; --ink-dim:rgba(43,45,51,.82); --ink-faint:rgba(43,45,51,.68);
+  --accent:#1f6d9a; --accent-2:#6a5fb8; --accent-warm:#8a6400; --danger:#b3324b; --ok:#23775a;
+  --glass:rgba(255,253,244,.66); --glass-strong:rgba(255,253,244,.92); --glass-border:rgba(80,70,30,.14);
+  --surface-popup:linear-gradient(160deg,rgba(255,252,242,.97),rgba(250,243,222,.97));
+  --surface-toast:linear-gradient(160deg,rgba(255,252,242,.97),rgba(250,244,226,.97));
+  --surface-sheet:linear-gradient(180deg,rgba(255,252,243,.98),rgba(249,242,222,.99));
+  --surface-tour:linear-gradient(160deg,rgba(255,252,242,.98),rgba(250,243,222,.98));
+  --surface-dock:linear-gradient(160deg,rgba(255,253,246,.97),rgba(249,243,225,.97));
+  --backdrop:rgba(60,52,24,.30); --backdrop-soft:rgba(60,52,24,.22);
+  --subtitle-bg:rgba(255,252,242,.82);
+  --shadow-pop:0 24px 60px rgba(120,96,20,.20); --shadow-sheet:0 -14px 44px rgba(120,96,20,.14); --shadow-toast:0 10px 30px rgba(120,96,20,.14);
+  --grad-accent:linear-gradient(135deg,#ffe48a,#9edcf6); --on-accent:#23262d;
+  --opt-bg:#fffaf0; --mic-bg:rgba(31,109,154,.12); --mic-bg-live:rgba(31,109,154,.26); --docked-bg:rgba(43,45,51,.10);
+  --eco-bubble:radial-gradient(circle at 32% 24%,rgba(255,255,255,.95),rgba(255,255,255,.45) 60%),rgba(255,228,138,.55);
+  --bubble-shadow:rgba(120,96,20,.20); --card-shadow:rgba(120,96,20,.16);
+  --new-bg:rgba(31,109,154,.08); --new-border:rgba(31,109,154,.42);
+  --wd-stage:#f3ecd6; --pv-eye:#5fb6e0;
+  --atm-1:rgba(143,216,245,.28); --atm-2:rgba(255,228,138,.30); --atm-3:rgba(255,207,176,.22);
+}
+/* DARK — Soft Graphite */
+:root[data-theme="dark"]{
+  --bg:#0f1318; --bg-2:#151a21; --panel-solid:#1b2129;
+  --ink:#f6f2e4; --ink-dim:rgba(246,242,228,.74); --ink-faint:rgba(246,242,228,.52);
+  --accent:#8fd8f5; --accent-2:#cfc6f5; --accent-warm:#ffe48a; --danger:#ff9aa8; --ok:#a6ecc9;
+  --glass:rgba(255,255,255,.07); --glass-strong:rgba(255,255,255,.12); --glass-border:rgba(255,248,220,.16);
+  --surface-popup:linear-gradient(160deg,rgba(36,42,52,.86),rgba(18,22,29,.90));
+  --surface-toast:linear-gradient(160deg,rgba(36,42,52,.86),rgba(18,22,29,.92));
+  --surface-sheet:linear-gradient(180deg,rgba(30,36,45,.93),rgba(15,19,25,.97));
+  --surface-tour:linear-gradient(160deg,rgba(38,44,56,.93),rgba(17,21,28,.96));
+  --surface-dock:linear-gradient(160deg,rgba(34,40,50,.84),rgba(15,19,25,.90));
+  --backdrop:rgba(4,6,10,.62); --backdrop-soft:rgba(4,6,10,.5);
+  --subtitle-bg:rgba(15,19,24,.5);
+  --grad-accent:linear-gradient(135deg,#ffe48a,#8fd8f5); --on-accent:#14171c;
+  --opt-bg:#181e26; --mic-bg:rgba(143,216,245,.16); --mic-bg-live:rgba(143,216,245,.34);
+  --eco-bubble:radial-gradient(circle at 32% 24%,rgba(255,255,255,.32),rgba(255,255,255,.07) 55%),rgba(60,70,84,.5);
+  --new-bg:rgba(143,216,245,.08); --new-border:rgba(143,216,245,.5);
+  --wd-stage:#0b0f14; --pv-eye:#d9f2ff;
+  --atm-1:rgba(143,216,245,.13); --atm-2:rgba(255,228,138,.08); --atm-3:rgba(207,198,245,.08);
+}
+/* sticker utility for onboarding / empty states / achievements */
+.sticker{ display:inline-flex; align-items:center; justify-content:center; padding:var(--sp-1) var(--sp-3);
+  border-radius:var(--r-pill); background:var(--banana); color:#3a2c00; font-size:var(--fs-sm);
+  transform:rotate(-3deg); box-shadow:0 2px 0 rgba(120,96,20,.25); }
+:root[data-theme="dark"] .sticker{ box-shadow:0 2px 0 rgba(0,0,0,.4); }
+
+/* ---- accessibility ---- */
+:focus-visible{ outline:2px solid var(--accent); outline-offset:3px; box-shadow:0 0 0 5px color-mix(in srgb, var(--bg) 85%, transparent); }
+#input-dock:focus-within{ outline:2px solid var(--accent); outline-offset:2px; }          /* the input itself has no outline */
+.eco-bubble small{ font-size:.72rem; }
+.nc-time{ font-size:.78rem; }
+@media (prefers-contrast:more){
+  :root[data-theme="light"]{ --ink-dim:rgba(43,45,51,.95); --ink-faint:rgba(43,45,51,.85); --glass-border:rgba(43,45,51,.55); }
+  :root[data-theme="dark"]{ --ink-dim:rgba(246,242,228,.92); --ink-faint:rgba(246,242,228,.8); --glass-border:rgba(246,242,228,.5); }
+}
+@media (prefers-reduced-transparency:reduce){
+  :root[data-theme="light"]{ --glass:#fffaf0; --glass-strong:#fffaf0; --subtitle-bg:#fffaf0; }
+  :root[data-theme="dark"]{ --glass:#1b2129; --glass-strong:#222a34; --subtitle-bg:#151a21; }
+  *{ backdrop-filter:none!important; -webkit-backdrop-filter:none!important; }
+}
+@media (forced-colors:active){ :focus-visible{ outline:2px solid Highlight; } }

@@ -21,6 +21,12 @@
   const CONFIG = {
     version: "8.2.0",
 
+    push: {
+      // Web Push for reminders when the app is closed. Deploy backend/ (see BACKEND.md, "Web Push"), then put its
+      // Worker URL here. Empty = reminders only fire while DABSy is open.
+      url: "",
+    },
+
     ai: {
       // Your Cloudflare Worker URL (public, NOT a secret), e.g.
       //   "https://dabsy-brain.YOUR-SUBDOMAIN.workers.dev"

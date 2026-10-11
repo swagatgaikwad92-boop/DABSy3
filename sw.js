@@ -8,7 +8,7 @@
    picked up on the next load while the app still opens offline.
    AI proxy calls and other origins are never cached.
    ============================================================ */
-const CACHE_VERSION = "dabsy-v8.3.2";
+const CACHE_VERSION = "dabsy-v9.0.1";
 const SCOPE = self.registration.scope;
 
 const SHELL_FILES = ["./",
@@ -68,6 +68,12 @@ const SHELL_FILES = ["./",
   "./task-engine.js",
   "./theme-engine.js",
   "./theme.css",
+  "./viewport-engine.js",
+  "./soda.css",
+  "./stickers.js",
+  "./push-engine.js",
+  "./briefing-engine.js",
+  "./live-talk.js",
   "./tour.css",
   "./ui-kit.js",
   "./ui.css",
@@ -87,7 +93,7 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k))))
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION && k !== "dabsy-meta").map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
@@ -142,5 +148,28 @@ self.addEventListener("notificationclose", (event) => {
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     all.forEach((c) => c.postMessage({ type: "dabsy-notif-close", id: data.id }));
+  })());
+});
+
+/* ---- Web Push: the server sends an empty push; we fetch the text and show it ---- */
+self.addEventListener("push", (event) => {
+  event.waitUntil((async () => {
+    let shown = 0;
+    try {
+      const meta = await caches.open("dabsy-meta");
+      const hit = await meta.match("push-url");
+      const base = hit ? (await hit.text()) : "";
+      const sub = await self.registration.pushManager.getSubscription();
+      if (base && sub) {
+        const r = await fetch(base.replace(/\/$/, "") + "/v1/push/pending", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscription: { endpoint: sub.endpoint } }) });
+        const d = await r.json();
+        for (const n of (d.items || [])) {
+          await self.registration.showNotification(n.title || "D.A.B.S.y", { body: n.body || "", tag: "push-" + n.id, icon: "./icon-192.png", badge: "./icon-192.png", data: { id: "" } });
+          shown++;
+        }
+      }
+    } catch (e) {}
+    // browsers require a visible notification for every push
+    if (!shown) await self.registration.showNotification("D.A.B.S.y", { body: "Something is coming up.", tag: "push-generic", icon: "./icon-192.png", data: { id: "" } });
   })());
 });

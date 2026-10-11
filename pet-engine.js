@@ -29,9 +29,14 @@
           : "Welcome back.",
       });
     }, 1900);
-    stats.streak = 0;
-  } else {
-    stats.streak = (stats.streak||0) + 1;
+  }
+  // streak = consecutive calendar DAYS you opened DABSy (it used to count launches, and reset to 0 after any 6 h gap)
+  {
+    const today = window.DABSy.ui.dateKey(), y = new Date(); y.setDate(y.getDate() - 1);
+    if(stats.lastDay !== today){
+      stats.streak = stats.lastDay === window.DABSy.ui.dateKey(y) ? (stats.streak || 0) + 1 : 1;
+      stats.lastDay = today;
+    }
   }
   stats.lastSeen = Date.now();
   memory.savePetStats(stats);
@@ -61,6 +66,7 @@
 
   /* ---------- neglect creeps boredom/sleepiness up ---------- */
   setInterval(()=>{
+    if(document.hidden) return;                       // no mood drift or saving while the app is in the background
     const idleMinutes = (Date.now() - lastInteractionAt) / 60000;
     if(idleMinutes > 6){
       emotion.nudge("boredom", 0.05);
@@ -80,6 +86,7 @@
     return c.contains("eco-open") || c.contains("sheet-open") || c.contains("session-active") || c.contains("study-active");
   }
   function maybeIdleBeat(){
+    if(document.hidden || document.body.classList.contains("live-talk")) return;   // hidden app / hands-free talk: stay still
     if(emotion.getState() !== "IDLE") return;
     if(anyMenuOpen()) return;
     const idleMinutes = (Date.now() - lastInteractionAt) / 60000;
@@ -87,6 +94,10 @@
     if(Math.random() < 0.55) director.dispatch("IDLE_BEAT"); // low priority — Director drops it if busy, and context suppresses it while studying/reading
   }
   setInterval(maybeIdleBeat, 45000 + Math.random()*30000);
+
+  /* ---------- meaningful moments (each goes through the Director, which handles priority and conflicts) ---------- */
+  bus.on("session:started", () => { markInteraction(); director.dispatch("SUCCESS_MOMENT", { speakText: null }); });   // a quiet, proud blink-and-hop; no speech while you focus
+  bus.on("session:finished", ({ doneMin }) => { if(doneMin >= 10) director.dispatch("STUDY_SESSION_GOOD"); });
 
   /* ---------- long study session notice ---------- */
   let studyStartedAt = null;

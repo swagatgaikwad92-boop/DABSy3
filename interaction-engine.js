@@ -117,7 +117,7 @@
   // follows the release would then land on that overlay's backdrop and close it again. Swallow it, centrally.
   let swallowClickUntil = 0;
   window.addEventListener("click", e => {
-    if(Date.now() < swallowClickUntil && !(e.target && e.target.closest && e.target.closest("#shortcuts"))){ e.stopImmediatePropagation(); e.preventDefault(); }
+    if(Date.now() < swallowClickUntil && !(e.target && e.target.closest && e.target.closest("#shortcuts,#chat-area,#bell-btn"))){ e.stopImmediatePropagation(); e.preventDefault(); }
   }, true);
   face.addEventListener("pointerup", e => end(e, false));
   face.addEventListener("pointercancel", e => end(e, true));

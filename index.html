@@ -4,10 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>D.A.B.S.y</title>
-<meta name="theme-color" content="#070914" />
+<meta name="theme-color" content="#0f1318" />
 <meta name="color-scheme" content="dark light" />
 <script>/* v8: apply the saved theme before first paint (no dark/light flash) */
-(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#f2eee5");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
+(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
 </script>
 <meta name="description" content="D.A.B.S.y — your plush AI study companion and hub for your study apps." />
 <link rel="manifest" href="./manifest.json" />
@@ -24,6 +24,7 @@
 <link rel="stylesheet" href="./ecosystem.css" />
 <link rel="stylesheet" href="./projection.css" />
 <link rel="stylesheet" href="./theme.css" />
+<link rel="stylesheet" href="./soda.css" />
 </head>
 <body>
 
@@ -87,6 +88,7 @@
     <!-- visible alternatives to the gestures (Settings → Accessibility turns these on) -->
     <div id="shortcuts" aria-label="DABSy shortcuts">
       <button id="sc-apps" class="btn glass" type="button" aria-label="Open my apps (same as double-tap)"></button>
+      <button id="sc-brief" class="btn glass" type="button" aria-label="Today at a glance (same as tapping the bow tie)"></button>
       <button id="sc-talk" class="btn glass" type="button" aria-label="Talk or type to me (same as tapping an eye)"></button>
     </div>
 
@@ -134,7 +136,10 @@
   <script src="./voice-engine.js"></script>
   <script src="./ai-engine.js"></script>
   <script src="./notify-engine.js"></script>
-  <script src="./pet-engine.js"></script>
+  <script src="./push-engine.js"></script>
+<script src="./briefing-engine.js"></script>
+<script src="./live-talk.js"></script>
+<script src="./pet-engine.js"></script>
   <script src="./projection-engine.js"></script>
   <script src="./study-blob-engine.js"></script>
   <script src="./study-engine.js"></script>
@@ -142,7 +147,9 @@
   <script src="./reactions.js"></script>
   <script src="./pwa-engine.js"></script>
   <script src="./fur3d-engine.js"></script>
-  <script src="./app.js"></script>
+  <script src="./stickers.js"></script>
+<script src="./viewport-engine.js"></script>
+<script src="./app.js"></script>
   <script src="./boot.js"></script>
 </body>
 </html>

@@ -19,7 +19,7 @@
   window.DABSy = window.DABSy || {};
 
   const CONFIG = {
-    version: "8.2.0",
+    version: "9.1.0",
 
     push: {
       // Web Push for reminders when the app is closed. Deploy backend/ (see BACKEND.md, "Web Push"), then put its
@@ -38,9 +38,20 @@
       requestTimeoutMs: 25000,
     },
 
+    // Real resource discovery. Deploy backend/worker.js (free Cloudflare plan, no API key needed for
+    // YouTube/PDF discovery) and paste its URL here. Empty = DABSy still searches from the browser
+    // (Piped for videos, Wikipedia for articles, Internet Archive for PDFs), but without server-side checks.
+    search: {
+      url: "",
+      timeoutMs: 12000,
+      // Public Piped API instances for browser-direct video search. They are community-run and can go down;
+      // DABSy tries them in order and says honestly when none answer.
+      piped: ["https://pipedapi.kavin.rocks", "https://pipedapi.adminforge.de", "https://api.piped.private.coffee"],
+    },
+
     ecosystem: {
       apps: [
-        { id: "study",      name: "Study Space",     url: "../StudySpace/",      icon: "book",    handoff: "studyspace" },
+        { id: "study",      name: "Study Space",     url: "../StudySpace/",      icon: "book",    handoff: "studyspace" }  /* absolute URL also fine, e.g. "https://you.github.io/study-space/" — different origins are supported */,
         { id: "calendar",   name: "Ghibli Calendar", url: "../Ghibli-Calander/", icon: "leaf",    handoff: "core-calendar" },
         { id: "solvecount", name: "SolveCount",      url: "../SolveCount/",      icon: "count",   handoff: "summary" },
         { id: "settings",   name: "Settings",        builtin: true,              icon: "sliders" },
@@ -59,6 +70,10 @@
   try {
     const dev = localStorage.getItem("dabsy_dev_proxy");
     if (dev && /^https:\/\//i.test(dev)) CONFIG.ai.proxyUrl = dev;
+    const devSearch = localStorage.getItem("dabsy_dev_search");
+    if (devSearch && /^https?:\/\//i.test(devSearch)) CONFIG.search.url = devSearch;
+    const devStudy = localStorage.getItem("dabsy_dev_studyspace");
+    if (devStudy && /^https?:\/\//i.test(devStudy)) CONFIG.ecosystem.apps.find(a => a.id === "study").url = devStudy;
   } catch (e) {}
 
   /* ---------------- lazy module registry ---------------- */

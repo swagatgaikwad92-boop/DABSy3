@@ -1,23 +1,14 @@
-# DABSy v9.0 — changes since v8.4
+# DABSy v9.1.0 - real resource discovery + working Study Space hand-off
 
-**New files**
-- `viewport-engine.js` — keyboard-aware layout (chat bar and sheets lift above the on-screen keyboard)
-- `soda.css` — Banana Milk × Aoi Soda design tokens (light + dark), type, spacing, accessibility rules
-- `stickers.js` — six original inline-SVG stickers
-- `briefing-engine.js` — optional once-a-day briefing + study log
-- `live-talk.js` — hands-free listen → think → speak loop
-- `push-engine.js`, `backend/push.js`, `backend/gen-vapid.mjs` — optional Web Push for closed-app reminders (see backend/BACKEND.md)
+**Root causes fixed**
+- Research always returned "no-search" in `message` AI mode, so DABSy fell back to four fixed search-link cards. Replaced by a provider pipeline (search Worker, Piped, Wikipedia, Internet Archive) with inspection, relevance/fit ranking and honest empty states.
+- Study Space never implemented the receiving side and v1 only worked same-origin. Replaced by protocol v2 (URL-hash hand-off + postMessage/BroadcastChannel acks).
+- "Understand Newton's laws in 25 minutes" was not recognised as a study goal; parsing now covers understand/explain/grasp, "25-minute", and topic->subject hints.
 
-**Changed**
-- Study Mode: adaptive answer format instead of forced numbered steps; replies in the user's language
-- Language setting (Settings → Accessibility): auto / English / Hindi / Marathi for replies, listening and speaking
-- Touch: no keyboard flash on double-tap; petting no longer closes chat; keyboard stays up after sending
-- Bow tie opens "today at a glance"; visible "Today" shortcut
-- Pet: day-based streak; idle behaviour pauses when hidden or in live talk; quiet reaction on session start/finish
-- Easter eggs: removed accidental shake trigger; added soda-fizz celebration and a sticker book
-- Accessibility: focus rings, language tags, contrast/transparency media queries, 44 px targets
-- Service worker cache version: dabsy-v9.0.1
+**Changed**: `research-service.js`, `study-space-bridge.js`, `planner-engine.js` (plans sized to real video lengths), `resource-cards.js` (variable-length recommendation list), `agent-engine.js`, `study-session.js` (send/open buttons, failure + alternatives), `ai-engine.js`, `dabsy-config.js`, `backend/worker.js` + new `backend/search.js`, `cards.css`, `sw.js` (cache v9.1.0).
+**Not changed**: character, animations, chat, tasks, reminders, wardrobe, ecosystem links.
 
-**Setup**
-- AI proxy: `ai.proxyUrl` in `dabsy-config.js` (already set to your dabsy-brain worker)
-- Web Push is off until you deploy `backend/` and set `push.url`
+# Study Space (dabsy-v2 hand-off)
+- New receiver `DS_init` in `app.js`: video -> existing YouTube player, PDF -> existing PDF viewer (fetched direct, or via optional proxy), plan sticky note, acks, de-duplication, error dialogs with "Open original".
+- Fixed a pre-existing freeze: showing 4+ toasts at once caused an infinite loop in the toast code.
+- `index.html`: optional `resource-proxy` meta. `sw.js`: cache version bumped.

@@ -142,5 +142,54 @@
     });
   }
 
-  window.DABSy.cards = { pick };
+
+  /* ---------- recommend(): a ranked list of however many real results were found ----------
+     Resolves { chosen, startNow:{resource}|null } or null if closed.
+     Rows: include toggle, type/duration/source, why-this, Preview (real link), Open in Study Space.
+     "Start study plan" and "Open in Study Space" run synchronously inside the tap so the popup is allowed. */
+  function recommend(found, opts){
+    opts = opts || {};
+    const D = window.DABSy, planner = D.planner;
+    return new Promise(resolve => {
+      const resources = found.resources.slice();
+      const sug = planner.suggest(resources, opts.minutes || 30);
+      const on = new Set(sug.ids);
+      let finished = false;
+      const sh = ui.sheet({ title: opts.title || "Recommended for you", onClose: () => { if(!finished){ finished = true; resolve(null); } } });
+      const body = sh.body; body.classList.add("rc-body", "rc-list");
+      const finish = v => { if(finished) return; finished = true; resolve(v); sh.close(); };
+      const chosenNow = () => resources.filter(r => on.has(r.id)).map(r => Object.assign({}, r, { slotMin: sug.slots[r.id] || (r.type === "video" && r.durationMin ? Math.ceil(r.durationMin * 1.15) : 8) }));
+      const minutesOf = () => chosenNow().reduce((a, r) => a + r.slotMin, 0);
+
+      function render(){
+        body.innerHTML = "";
+        if(opts.intro) body.append(ui.el("p", { class: "hint rc-intro" }, opts.intro));
+        body.append(ui.el("div", { class: "rc-count", "aria-live": "polite" }, `${resources.length} ${resources.length === 1 ? "result" : "results"} · ${on.size} in your ${opts.minutes || 30}-minute plan (${minutesOf()} min of material)`));
+        resources.forEach(r => {
+          const included = on.has(r.id), dur = r.durationMin ? r.durationMin + " min" : (r.type === "pdf" ? "document" : "reading");
+          const cb = ui.el("input", { type: "checkbox", "aria-label": "Include " + r.title }); cb.checked = included;
+          cb.addEventListener("change", () => { cb.checked ? on.add(r.id) : on.delete(r.id); render(); });
+          const row = ui.el("article", { class: "rc-row" + (included ? " on" : ""), "aria-label": `${LABEL[r.type] || "Resource"}: ${r.title}` },
+            ui.el("label", { class: "rc-incl" }, cb, ui.el("span", { class: "rc-incl-t" }, included ? (sug.slots[r.id] ? "Plan · " + sug.slots[r.id] + " min" : "In plan") : "Add")),
+            ui.el("div", { class: "rc-main" },
+              ui.el("div", { class: "rc-meta" }, ui.el("span", { class: "rc-type", html: ui.icon(ICON[r.type] || "doc", 15) + `<span>${LABEL[r.type] || "Resource"}</span>` }), ui.el("span", { class: "rc-dur" }, dur), r.verified ? ui.el("span", { class: "tag" }, "Checked") : null),
+              ui.el("h3", {}, r.title),
+              ui.el("div", { class: "rc-source" }, r.source),
+              r.why ? ui.el("p", { class: "rc-why" }, r.why) : null,
+              ui.el("div", { class: "rc-acts" },
+                ui.el("a", { class: "btn sm", href: r.url, target: "_blank", rel: "noopener noreferrer" }, "Preview"),
+                r.sendable ? ui.el("button", { class: "btn sm", type: "button", onclick: () => { const one = Object.assign({}, r, { slotMin: sug.slots[r.id] || (r.type === "video" && r.durationMin ? Math.ceil(r.durationMin * 1.15) : 10) }); const cur = chosenNow(); finish({ chosen: cur.some(x => x.id === r.id) ? cur : cur.concat([one]), single: one }); } }, "Open in Study Space") : null)));
+          body.append(row);
+        });
+        if(opts.note) body.append(ui.el("p", { class: "hint" }, opts.note));
+        const n = on.size;
+        body.append(ui.el("div", { class: "popup-actions" },
+          ui.el("button", { class: "btn", type: "button", onclick: () => finish({ chosen: [] }) }, "Plan without material"),
+          ui.el("button", { class: "btn primary", type: "button", disabled: !n, onclick: () => finish({ chosen: chosenNow(), start: true }) }, n ? `Start study plan (${n})` : "Pick something")));
+      }
+      render();
+    });
+  }
+
+  window.DABSy.cards = { pick, recommend };
 })();

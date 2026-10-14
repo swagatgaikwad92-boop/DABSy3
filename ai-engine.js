@@ -157,8 +157,16 @@
   ];
   const DAYNAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 
+  // A student often names a topic, not a subject ("Newton's laws"). These map well-known topic words to the subject they belong to.
+  const TOPIC_HINTS = [
+    [/\b(newton|kinematics?|momentum|friction|projectile|torque|inertia|work[, ]energy|gravitation|optics|refraction|thermodynamics|circuits?|ohm'?s|magnetism|waves?|electrostatics)\b/i, "physics"],
+    [/\b(mole concept|stoichiometry|periodic table|acids?|bases?|organic|redox|chemical bonding|equilibrium|electrochemistry|alkanes?|hybridi[sz]ation)\b/i, "chemistry"],
+    [/\b(mitosis|meiosis|photosynthesis|respiration|dna|genetics|evolution|enzymes?|ecosystems?|cell division|human heart)\b/i, "biology"],
+    [/\b(derivatives?|integrals?|quadratic|trigonometry|matrices|matrix|probability|limits|geometry|pythagoras|logarithms?|polynomials?)\b/i, "maths"],
+  ];
   function subjectOf(text){
     for(const [name, emoji, re] of SUBJECTS) if(re.test(text)) return { name, emoji };
+    for(const [re, name] of TOPIC_HINTS){ if(re.test(text)){ const hit = SUBJECTS.find(x => x[0] === name); return { name, emoji: hit ? hit[1] : "📚" }; } }
     return null;
   }
   function parseTimeOfDay(t){
@@ -175,9 +183,9 @@
     return null;
   }
   function parseDuration(t){
-    let m = t.match(/(\d+(?:\.\d+)?)\s*(hours?|hrs?|h)\b/i);
+    let m = t.match(/(\d+(?:\.\d+)?)\s*-?\s*(hours?|hrs?|h)\b/i);
     if(m) return Math.round(parseFloat(m[1]) * 60);
-    m = t.match(/(\d+)\s*(minutes?|mins?|m)\b/i);
+    m = t.match(/(\d+)\s*-?\s*(minutes?|mins?|m)\b/i);
     if(m) return Number(m[1]);
     if(/\b(an|one) hour\b/i.test(t)) return 60;
     if(/\bhalf an hour\b/i.test(t)) return 30;
@@ -210,8 +218,13 @@
     const level = (t.match(/\b(class|grade|std\.?|standard)\s*(\d{1,2})\b/i) || [])[0] || (t.match(/\b(11th|12th|10th|9th|first year|second year)\b/i) || [])[0] || "";
     const minutes = parseDuration(t);
     let topic = "";
-    const tm = t.match(/\b(?:chapter|topic|on|about)\s+([A-Za-z0-9 ,'’\-&]+?)(?:\s+(?:today|tonight|tomorrow|for|in|at)\b|[.?!]|$)/i);
+    const STOP = "(?=\\s+(?:in|within|for|by|today|tonight|tomorrow|using|with|at|before|so)\\b|[.?!,;]|$)";
+    const verbRe = new RegExp("\\b(?:understand|understanding|learn(?:\\s+about)?|study|revise|revision of|explain|master|grasp|cover|go through|review|teach me|help me with|help me understand|brush up on)\\s+(?:the\\s+|my\\s+|me\\s+)?(.+?)" + STOP, "i");
+    const tm = t.match(verbRe) || t.match(new RegExp("\\b(?:chapter|topic|on|about)\\s+([A-Za-z0-9 ,'’\\-&]+?)" + STOP, "i"));
     if(tm) topic = tm[1].trim();
+    topic = topic.replace(/\b(class|grade|std\.?|standard)\s*\d{1,2}\b/ig, "").replace(/\s+/g, " ").trim();
+    // "chemistry" alone is the subject, not a topic
+    if(subj){ const subRe = (SUBJECTS.find(x => x[0] === subj.name) || [])[2]; if(subRe && !topic.replace(subRe, "").replace(/[^a-z]/ig, "")) topic = ""; }
     return {
       subject: subj ? subj.name : "", emoji: subj ? subj.emoji : "📚",
       level: level.replace(/\s+/g, " "), topic, minutes: minutes || null,
@@ -219,7 +232,7 @@
     };
   }
 
-  const STUDY_VERB = /\b(study|studying|revise|revision|learn|prepare for|preparing for|practice|practise|go through|brush up|cover)\b/i;
+  const STUDY_VERB = /\b(study|studying|revise|revision|learn|understand|grasp|master|explain|teach me|prepare for|preparing for|practice|practise|go through|brush up|cover)\b/i;
   const ASKS_FOR_HELP = /\b(want to|wanna|help me|let'?s|plan|need to study|i'?d like to|can we|should i|how should i|what should i)\b/i;
 
   function titleFrom(t){
@@ -245,7 +258,7 @@
       const title = titleFrom(t.replace(removeRe, " ").replace(/\b(my|the|that|reminder|task|event)\b/ig, " "));
       if(title) return { type: "schedule_remove", reply: `Okay, I'll take "${title}" off.`, state: "IDLE", schedule: { title } };
     }
-    if(STUDY_VERB.test(t) && (!time || ASKS_FOR_HELP.test(t)) && (subj || ASKS_FOR_HELP.test(t))){
+    if(STUDY_VERB.test(t) && (!time || ASKS_FOR_HELP.test(t)) && (subj || ASKS_FOR_HELP.test(t) || parseGoal(t).topic)){
       const goal = parseGoal(t);
       return { type: "study_goal", reply: "", state: "FOCUSED", goal };
     }

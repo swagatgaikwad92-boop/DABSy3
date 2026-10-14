@@ -35,3 +35,15 @@
 .rc-tip{ text-align: center; margin: 0; }
 body.reduce-motion .rcard{ transition: none; }
 .tag{display:inline-flex;padding:3px 10px;border-radius:999px;font-size:.78rem;background:var(--glass-strong);color:var(--ink-dim)}
+
+/* v9.1 recommendation list */
+.rc-list .rc-row{display:flex;gap:12px;padding:12px;margin:0 0 10px;border-radius:16px;background:var(--surface-2,rgba(255,255,255,.55));border:1px solid var(--line,rgba(0,0,0,.08))}
+.rc-list .rc-row.on{border-color:var(--accent,#d9a441);box-shadow:0 0 0 1px var(--accent,#d9a441) inset}
+.rc-list .rc-incl{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:56px;font-size:12px;cursor:pointer}
+.rc-list .rc-incl input{width:24px;height:24px;accent-color:var(--accent,#d9a441)}
+.rc-list .rc-main{flex:1;min-width:0}
+.rc-list h3{font-size:15px;line-height:1.3;margin:4px 0 2px;overflow-wrap:anywhere}
+.rc-list .rc-why{font-size:13px;margin:6px 0;opacity:.85}
+.rc-list .rc-acts{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.rc-list .rc-acts .btn{min-height:44px}
+.rc-list .rc-source{font-size:12px;opacity:.7}

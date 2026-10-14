@@ -15,7 +15,7 @@
   const learning = window.DABSy.learning;
   const ui = window.DABSy.ui;
   const LEARN = new Set(["video", "article", "notes", "pdf", "course", "link"]);
-  const round5 = n => Math.max(5, Math.round(n / 5) * 5);
+  const round5 = n => Math.max(5, Math.ceil(n / 5) * 5);
 
   // minutes you can really give right now: until the next scheduled thing, minus a buffer
   function availableMinutes(now){
@@ -27,6 +27,45 @@
     return { minutes: Math.min(120, m), constrained: !!n && m < 90, note: n ? `until ${n.title} at ${ui.fmtTime(n.start)}` : "" };
   }
 
+
+  // Which of the found resources really fit the time? Returns { ids, slots:{id:minutes}, learnBudget }.
+  // Videos take their real length (+15% for pausing); reading is time-boxed; nothing is stretched to fill a slot.
+  function suggest(resources, totalMin){
+    const total = Math.max(15, Math.round(totalMin || 30));
+    const recall = total >= 30 ? 5 : 3;
+    let left = total - recall;
+    const slots = {}, ids = [];
+    const pool = (resources || []).filter(r => r.origin !== "link").slice().sort((a, b) => (b.relevance || 0) - (a.relevance || 0));
+    const slotOf = (r, cap) => r.type === "video" && r.durationMin ? Math.min(cap, Math.ceil(r.durationMin * 1.15)) : (r.type === "pdf" || r.type === "article" || r.type === "notes") ? Math.min(cap, 10) : Math.min(cap, 10);
+    const add = r => { const m = slotOf(r, left); if(m < 4) return false; slots[r.id] = m; ids.push(r.id); left -= m; return true; };
+    const primary = pool.find(r => r.type === "video" && !r.partial && r.durationMin && Math.ceil(r.durationMin * 1.15) <= left) || pool.find(r => r.type === "video") || pool[0];
+    if(primary) add(primary);
+    for(const r of pool){
+      if(ids.length >= 3 || left < 6) break;
+      if(ids.includes(r.id)) continue;
+      if(primary && r.type === primary.type && r.type === "video" && ids.length >= 2) continue;
+      if(r.type === "video" && r.durationMin && Math.ceil(r.durationMin * 1.15) > left) continue;
+      add(r);
+    }
+    return { ids, slots, learnBudget: total - recall, recall, spare: Math.max(0, left) };
+  }
+
+  function buildFromSlots(goal, chosen, total){
+    const recall = total >= 30 ? 5 : 3;
+    const out = [];
+    chosen.forEach(r => {
+      const partial = r.partial || (r.type === "video" && r.durationMin && r.slotMin < Math.ceil(r.durationMin * 1.15));
+      out.push({ id: ui.uid("b"), kind: LEARN.has(r.type) ? "learn" : "practice", title: r.title, minutes: r.slotMin, resourceId: r.id,
+        note: partial ? `Watch the first ${Math.max(3, r.slotMin - 2)} of ${r.durationMin} min, then write what you learned.` : (r.type === "video" ? "Pause to write a line or two of notes." : "Read actively and note the key points.") });
+    });
+    const used = out.reduce((a, b) => a + b.minutes, 0);
+    let spare = total - recall - used;
+    if(spare >= 5) out.push({ id: ui.uid("b"), kind: "notes", title: "Write it up in your own words", minutes: spare, note: "Close the tab and summarise from memory." });
+    else if(spare !== 0 && out.length) out[out.length - 1].minutes += spare;
+    out.push({ id: ui.uid("b"), kind: "recall", title: "Recall check", minutes: recall, note: "I'll ask you a couple of questions. No peeking." });
+    return out;
+  }
+
   function build(o){
     const goal = o.goal || {};
     const chosen = (o.resources || []).slice();
@@ -36,6 +75,11 @@
     let total = goal.minutes || (o.totalMin) || Math.min(avail.minutes, 60);
     total = Math.max(15, Math.min(180, Math.round(total / 5) * 5));
 
+    if(total <= 45 && chosen.length && chosen.every(r => r.slotMin)){
+      const blocks = buildFromSlots(goal, chosen, total);
+      const sum = blocks.reduce((a, b) => a + b.minutes, 0);
+      return { totalMin: sum, blocks, rationale: `${sum} minutes: ${chosen.length} resource${chosen.length === 1 ? "" : "s"} sized to their real length, then a ${blocks[blocks.length - 1].minutes}-minute recall check.` };
+    }
     const slips = tasks.list().filter(t => (t.subject || "").toLowerCase() === subject.toLowerCase() && subject).reduce((n, t) => n + tasks.recentSlips(t, 7), 0);
     let focus = learning.blockLength(subject);
     if(slips >= 2) focus = Math.max(15, focus - 5);
@@ -118,5 +162,5 @@
     return keep;
   }
 
-  window.DABSy.planner = { build, availableMinutes, trim };
+  window.DABSy.planner = { build, availableMinutes, trim, suggest };
 })();

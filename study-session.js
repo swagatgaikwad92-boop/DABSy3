@@ -110,7 +110,9 @@
     else if(b.kind === "break") text = "Break's over. Next: " + next.title;
     else if(next.kind === "recall") text = "Last part: a quick recall check.";
     else text = cheer ? "Good. On to the next one." : "Next block.";
-    ui.toast({ title: KIND[next.kind] + " · " + next.minutes + " min", text, timeout: 5000 });
+    const nr = next.resourceId && active() && active().resources.find(x => x.id === next.resourceId);
+    const sendAct = nr && (nr.type === "video" || nr.type === "pdf") ? [{ label: "Open in Study Space", primary: true, onClick: () => sendResourceToStudySpace(active().id, nr.id) }] : undefined;
+    ui.toast({ title: KIND[next.kind] + " · " + next.minutes + " min", text, timeout: sendAct ? 12000 : 5000, actions: sendAct });
     if(document.visibilityState !== "visible") window.DABSy.notify.ping({ title: KIND[next.kind] + " · " + next.minutes + " min", body: text });
     ui.vibrate(30);
   }
@@ -198,7 +200,11 @@
     // material link for this block
     let link = dock.querySelector(".sd-link"); if(link) link.remove();
     const r = b.resourceId && s.resources.find(x => x.id === b.resourceId);
-    if(r){ dock.querySelector(".sd-info").append(ui.el("a", { class: "sd-link", href: r.url, target: "_blank", rel: "noopener noreferrer" }, "Open material ", ui.el("span", { html: ui.icon("external", 13) }))); }
+    let sb = dock.querySelector(".sd-ss"); if(sb) sb.remove();
+    if(r){
+      if(r.type === "video" || r.type === "pdf") dock.querySelector(".sd-info").append(ui.el("button", { class: "sd-link sd-ss", type: "button", onclick: () => sendResourceToStudySpace(s.id, r.id) }, "Open in Study Space"));
+      dock.querySelector(".sd-info").append(ui.el("a", { class: "sd-link", href: r.url, target: "_blank", rel: "noopener noreferrer" }, "Open original ", ui.el("span", { html: ui.icon("external", 13) })));
+    }
   }
 
   /* ---------------- overview (before / during) ---------------- */
@@ -214,13 +220,14 @@
       ol.append(ui.el("li", { class: "plan-b k-" + b.kind + (cur ? " cur" : "") + (done ? " done" : "") },
         ui.el("span", { class: "pb-min" }, b.minutes + "′"),
         ui.el("div", { class: "pb-main" }, ui.el("div", { class: "t" }, b.title), ui.el("div", { class: "s" }, KIND[b.kind] + (b.note ? " · " + b.note : "")),
-          r ? ui.el("a", { href: r.url, target: "_blank", rel: "noopener noreferrer", class: "pb-link" }, r.source + " ↗") : null)));
+          r ? ui.el("a", { href: r.url, target: "_blank", rel: "noopener noreferrer", class: "pb-link" }, r.source + " ↗") : null,
+          r && (r.type === "video" || r.type === "pdf") ? ui.el("button", { class: "btn sm", type: "button", onclick: () => { sendResourceToStudySpace(s.id, r.id); } }, "Open in Study Space") : null)));
     });
     body.append(ol);
     const st = bridge ? bridge.status(s.id) : "none";
     const ssRow = ui.el("div", { class: "row" }, ui.el("span", { html: ui.icon("book", 22) }),
-      ui.el("div", { class: "grow" }, ui.el("div", { class: "t" }, "Study Space"), ui.el("div", { class: "s", id: "ss-status" }, ssText(st))),
-      ui.el("button", { class: "btn sm", type: "button", onclick: async () => { await sendToStudySpace(s.id); sh.body.querySelector("#ss-status").textContent = ssText(bridge.status(s.id)); } }, st === "none" ? "Send" : "Resend"));
+      ui.el("div", { class: "grow" }, ui.el("div", { class: "t" }, "Study Space"), ui.el("div", { class: "s", id: "ss-status" }, ssText(st, s.id))),
+      ui.el("button", { class: "btn sm", type: "button", onclick: async () => { await sendToStudySpace(s.id); sh.body.querySelector("#ss-status").textContent = ssText(bridge.status(s.id), s.id); } }, st === "none" ? "Send" : "Resend"));
     body.append(ssRow);
     const acts = ui.el("div", { class: "popup-actions" });
     if(s.status === "prepared"){
@@ -233,13 +240,60 @@
     body.append(acts);
     return sh;
   }
-  const ssText = st => st === "opened" ? "Opened in Study Space" : st === "waiting" ? "Delivered. Waiting for Study Space to open it" : "Not sent yet";
+  const ssText = (st, id) => bridge.describe(id);
 
-  async function sendToStudySpace(id){
-    const s = get(id); if(!s) return false;
-    const r = bridge.publish(s);
-    ui.toast({ text: r.ok ? "Sent to Study Space's inbox. It will show as opened once Study Space picks it up." : "I couldn't write to the shared inbox on this device.", timeout: 6000 });
-    return r.ok;
+  // All send paths call bridge.* synchronously (before any await) so the browser allows the Study Space window.
+  function sendResourceToStudySpace(id, resourceId){
+    const s = get(id); if(!s) return { ok: false };
+    const r = s.resources.find(x => x.id === resourceId); if(!r) return { ok: false };
+    const res = bridge.sendResource(s, r);
+    if(!res.ok && res.error === "not-supported"){ ui.toast({ text: res.detail, timeout: 5000 }); try{ window.open(r.url, "_blank", "noopener,noreferrer"); }catch(e){} }
+    return res;
+  }
+  function sendNextToStudySpace(id){
+    const s = get(id); if(!s) return { ok: false };
+    const r = bridge.firstSendable(s);
+    if(!r){ ui.toast({ text: "None of the chosen material is a video or PDF that Study Space can open. Use the links in the plan.", timeout: 6000 }); return { ok: false, error: "no-resource" }; }
+    return sendResourceToStudySpace(id, r.id);
+  }
+  async function sendToStudySpace(id){ const r = sendNextToStudySpace(id); return !!r.ok; }
+
+  /* ---- reacting to what Study Space reports ---- */
+  const announced = {};
+  const failedIds = {};
+  bus.on("bridge:state", r => {
+    const s = get(r.sessionId); if(!s) return;
+    const el = document.getElementById("ss-status"); if(el && (activeId === s.id || true)) el.textContent = bridge.describe(s.id);
+    const key = r.requestId + ":" + r.state; if(announced[key]) return; announced[key] = 1;
+    const title = r.title ? "“" + r.title.slice(0, 40) + "”" : "The resource";
+    if(r.state === "opened") ui.toast({ text: title + " is open in Study Space.", timeout: 3500 });
+    else if(r.state === "sent" && r.via === "broadcast") ui.toast({ text: "Sent to your open Study Space tab. Switch to it to study.", timeout: 5000 });
+    else if(r.state === "blocked") ui.toast({ text: "Your browser blocked the Study Space window.", timeout: 12000, actions: [{ label: "Open Study Space", primary: true, onClick: () => bridge.manualOpen(r.requestId) }] });
+    else if(r.state === "unconfirmed") ui.toast({ text: r.detail, timeout: 10000, actions: [{ label: "Open original", onClick: () => window.open(r.url, "_blank", "noopener,noreferrer") }, { label: "Resend", primary: true, onClick: () => sendResourceToStudySpace(s.id, r.resourceId) }] });
+    else if(r.state === "failed"){
+      failedIds[s.id] = (failedIds[s.id] || []).concat(r.resourceId);
+      const alt = s.resources.find(x => (x.type === "video" || x.type === "pdf") && !failedIds[s.id].includes(x.id));
+      const actions = [{ label: "Open original", onClick: () => window.open(r.url, "_blank", "noopener,noreferrer") }];
+      if(alt) actions.push({ label: "Try " + (alt.type === "video" ? "another video" : "another PDF"), primary: true, onClick: () => sendResourceToStudySpace(s.id, alt.id) });
+      else actions.push({ label: "Find another", primary: true, onClick: () => findAlternative(s) });
+      ui.toast({ title: "Couldn't open it", text: r.detail || "Study Space couldn't open that resource.", timeout: 15000, actions });
+    }
+  });
+
+  async function findAlternative(s){
+    try{
+      await window.DABSy.require("research"); await window.DABSy.require("cards");
+      window.DABSy.app.showSubtitle("Looking for another resource…");
+      const used = new Set(s.resources.map(r => r.url));
+      const found = await window.DABSy.research.find(s.goal);
+      const fresh = Object.assign({}, found, { resources: found.resources.filter(r => !used.has(r.url) && r.origin === "search") });
+      if(!fresh.resources.length){ ui.toast({ text: "I couldn't find another resource that fits.", timeout: 6000 }); return; }
+      const picked = await window.DABSy.cards.recommend(fresh, { minutes: s.goal.minutes || s.plan.totalMin, title: "Another option", intro: "These weren't in your plan yet." });
+      if(!picked || !picked.chosen.length) return;
+      const r = picked.single || picked.chosen[0];
+      s.resources.push(r); save();
+      sendResourceToStudySpace(s.id, r.id);
+    }catch(e){ ui.toast({ text: "I couldn't search again right now.", timeout: 5000 }); }
   }
   function publishProgress(s, status){ /* Study Space owns its own progress; DABSy only reads it */ }
 
@@ -347,8 +401,8 @@
   }
   const listAll = () => list.slice().reverse();
 
-  bus.on("bridge:ack", () => { const o = document.getElementById("ss-status"); if(o && activeId){ o.textContent = ssText(bridge.status(activeId)); } });
+  bus.on("bridge:ack", () => { const o = document.getElementById("ss-status"); if(o && activeId){ o.textContent = ssText(bridge.status(activeId), activeId); } });
   bus.on("memory:wiped", () => { list = []; if(activeId){ activeId = null; clearInterval(timer); unlockScreen(); document.body.classList.remove("session-active"); unmountDock(); } });
 
-  window.DABSy.session = { create, open, start, pause, resume, skipBlock, finishBlock, finish, startQuick, resumeActive, handleUtterance, sendToStudySpace, say, get, listAll, overview, isActive: () => !!activeId };
+  window.DABSy.session = { create, open, start, pause, resume, skipBlock, finishBlock, finish, startQuick, resumeActive, handleUtterance, sendToStudySpace, sendResourceToStudySpace, sendNextToStudySpace, findAlternative, say, get, listAll, overview, isActive: () => !!activeId };
 })();

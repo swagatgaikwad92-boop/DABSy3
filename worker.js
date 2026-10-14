@@ -1,4 +1,5 @@
 import { handlePush, runDue } from "./push.js";
+import { ytSearch, ytEmbeddable, pdfSearch, verifyPdf, fetchPdf } from "./search.js";
 /* ============================================================
    DABSy AI proxy — Cloudflare Worker
    browser (DABSy PWA)  ->  this Worker  ->  AI provider + search API
@@ -9,7 +10,8 @@ import { handlePush, runDue } from "./push.js";
    Endpoints (JSON, POST unless noted)
      GET  /health        -> { ok, ai:boolean, search:boolean }
      POST /v1/generate   { task, system, prompt, json?, image? } -> { ok, text }
-     POST /v1/research   { query, subject?, level?, maxResults? }
+     POST /v1/research   { query, subject?, level?, maxResults?, maxMinutes?, wantPdf? }   (keyless: YouTube + PDFs, verified)
+     GET  /v1/pdf?url=…  streams a PDF (https only, ≤25 MB, SSRF-guarded) so Study Space can read it despite CORS
                          -> { ok, results:[{title,url,source,description,type,durationMin,relevance}] }
 
    Secrets / vars (see wrangler.toml and BACKEND.md)
@@ -98,31 +100,40 @@ async function brave(env, path, q, count) {
 async function research(env, body) {
   const q = String(body.query || "").slice(0, 200).trim();
   if (!q) return { ok: false, error: "bad-request" };
-  if (!env.BRAVE_API_KEY) return { ok: false, error: "no-search" };
-  const max = Math.min(10, Math.max(3, Number(body.maxResults) || 8));
-  const [web, vid] = await Promise.all([brave(env, "web/search", q, 10).catch(() => null), brave(env, "videos/search", q, 6).catch(() => null)]);
+  const max = Math.min(12, Math.max(3, Number(body.maxResults) || 8));
+  const maxMin = Number(body.maxMinutes) || 60;
+  // keyless discovery (YouTube + optional PDFs); Brave adds general web results only when its key is set
+  const jobs = [ytSearch(q + " explained", 14).catch(() => null), body.wantPdf ? pdfSearch(q, 8).catch(() => null) : Promise.resolve([]),
+    env.BRAVE_API_KEY ? brave(env, "web/search", q, 8).catch(() => null) : Promise.resolve(null)];
+  const [yt, pdfs, web] = await Promise.all(jobs);
+  if (yt === null && pdfs === null && web === null) return { ok: false, error: "search-unavailable" };
   const items = [];
+  (yt || []).forEach((v) => { if (!v.durationMin || v.durationMin <= maxMin) items.push(Object.assign({ kind: "video", snippet: v.description }, v)); });
   ((web && web.web && web.web.results) || []).forEach((r) => items.push({ title: r.title, url: r.url, snippet: (r.description || "").replace(/<[^>]+>/g, ""), source: r.meta_url?.hostname || "", durationMin: null, kind: "web" }));
-  ((vid && vid.results) || []).forEach((r) => items.push({ title: r.title, url: r.url, snippet: (r.description || "").replace(/<[^>]+>/g, ""), source: r.meta_url?.hostname || "", durationMin: mins(r.video?.duration), kind: "video" }));
-  const clean = items.filter((i) => /^https?:\/\//.test(i.url || "")).slice(0, 16);
+  (pdfs || []).forEach((p) => items.push(Object.assign({ kind: "pdf", snippet: p.description }, p)));
+  // verify what we're about to recommend (parallel, capped)
+  const checked = await Promise.all(items.slice(0, 22).map(async (it) => {
+    if (it.kind === "video") { const ok = await ytEmbeddable(it.videoId); if (ok === false) return null; it.embeddable = ok === true; }
+    else if (it.kind === "pdf") { const v = await verifyPdf(it.url); if (!v) return null; it.pdfVerified = true; it.sizeBytes = v.bytes; }
+    return it;
+  }));
+  const clean = checked.filter((i) => i && /^https?:\/\//.test(i.url || "")).slice(0, 16);
   if (!clean.length) return { ok: true, results: [] };
-
-  // The model may only RANK and DESCRIBE what search returned. URLs never come from the model.
   let ranked = null;
   if (env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY) {
     try {
-      const list = clean.map((r, i) => `${i}. ${r.title} | ${r.source} | ${r.snippet.slice(0, 160)}`).join("\n");
-      const text = await callModel(env, {
-        system: "You rank study resources. You never invent items.", json: true,
-        prompt: `Student wants: ${q}${body.level ? " (" + body.level + ")" : ""}.\nCandidates:\n${list}\nReturn JSON {"items":[{"i":<index>,"relevance":0..1,"type":"video|article|practice|notes|pdf|course","description":"<=140 chars, factual from the snippet only"}]} with only the best ${max}, best first. Drop spam, ads, paywalled or off-topic items.`,
-      });
+      const list = clean.map((r, i) => `${i}. ${r.title} | ${r.source} | ${(r.snippet || "").slice(0, 160)}`).join("\n");
+      const text = await callModel(env, { system: "You rank study resources. You never invent items.", json: true,
+        prompt: `Student wants: ${q}${body.level ? " (" + body.level + ")" : ""}.\nCandidates:\n${list}\nReturn JSON {"items":[{"i":<index>,"relevance":0..1,"type":"video|article|practice|notes|pdf|course","description":"<=140 chars, factual from the snippet only"}]} with only the best ${max}, best first. Drop spam, ads, paywalled or off-topic items.` });
       const o = JSON.parse(text.replace(/^```json|```$/g, "").trim());
       ranked = Array.isArray(o.items) ? o.items : null;
     } catch (e) { ranked = null; }
   }
+  const out = (it, rel, type, desc) => ({ title: it.title, url: it.url, source: it.source, description: desc || it.snippet, type: type || (it.kind === "video" ? "video" : it.kind === "pdf" ? "pdf" : undefined), durationMin: it.durationMin, relevance: rel,
+    embeddable: it.embeddable, pdfVerified: it.pdfVerified, sizeBytes: it.sizeBytes, videoId: it.videoId });
   const results = ranked
-    ? ranked.filter((x) => clean[x.i]).map((x) => ({ title: clean[x.i].title, url: clean[x.i].url, source: clean[x.i].source, description: x.description || clean[x.i].snippet, type: x.type, durationMin: clean[x.i].durationMin, relevance: Math.max(0, Math.min(1, Number(x.relevance) || 0.5)) }))
-    : clean.slice(0, max).map((r, i) => ({ title: r.title, url: r.url, source: r.source, description: r.snippet, type: r.kind === "video" ? "video" : undefined, durationMin: r.durationMin, relevance: Math.max(0.3, 0.9 - i * 0.06) }));
+    ? ranked.filter((x) => clean[x.i]).map((x) => out(clean[x.i], Math.max(0, Math.min(1, Number(x.relevance) || 0.5)), x.type, x.description))
+    : clean.slice(0, max).map((r, i) => out(r, Math.max(0.3, 0.9 - i * 0.05)));
   return { ok: true, results: results.slice(0, max) };
 }
 
@@ -135,10 +146,17 @@ export default {
     if (!c.ok && req.headers.get("Origin")) return json({ ok: false, error: "origin-not-allowed" }, 403);
 
     if (url.pathname === "/health" && req.method === "GET")
-      return json({ ok: true, ai: !!(env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY), search: !!env.BRAVE_API_KEY }, 200, c.headers);
+      return json({ ok: true, ai: !!(env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY), search: true, brave: !!env.BRAVE_API_KEY, pdfProxy: true }, 200, c.headers);
 
     if (url.pathname.startsWith("/v1/push/")) return handlePush(req, env, c, url, json);   // own limits; does not use the AI quota
 
+    if (url.pathname === "/v1/pdf" && req.method === "GET") {
+      const rl0 = await rateLimit(env, (req.headers.get("CF-Connecting-IP") || "unknown") + ":pdf");
+      if (rl0.limited) return json({ ok: false, error: "rate-limited" }, 429, c.headers);
+      const r = await fetchPdf(url.searchParams.get("url") || "");
+      if (r.error) return json({ ok: false, error: r.error }, r.status, c.headers);
+      return new Response(r.body, { status: 200, headers: { "Content-Type": "application/pdf", "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff", ...c.headers } });
+    }
     if (req.method !== "POST") return json({ ok: false, error: "not-found" }, 404, c.headers);
     const ip = req.headers.get("CF-Connecting-IP") || "unknown";
     const rl = await rateLimit(env, ip);

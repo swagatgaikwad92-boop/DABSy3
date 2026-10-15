@@ -4,14 +4,14 @@
    code: append one object to OUTFITS (or ACCESSORIES) below.
 
    All art is drawn in DABSy's own coordinate space, a 300 × 330 box.
-   v8: the creature has two presentations — MINIMAL (floating eyes + bow
-   tie, no body, the default) and FURRY (fur aura). Everything below is
-   positioned relative to the EYES and shared by both:
+   v10: the creature has two presentations — MAGIC WORLD (the supplied
+   DABSy art in the supplied room, the default) and MINIMAL (the original
+   black-screen look: floating eyes + bow tie). Everything below is drawn
+   relative to the classic EYES; PLACEMENT.magic maps it onto the new body:
      eyes     centres (115,172) (185,172), each ≈52 × 76
      bow tie  centre (150,236), drawn at 55 % of its original size
-     furry body (only drawn in Furry mode)  x 38–262, y 78–312
    Per-presentation offsets live in PLACEMENT and in an item's own
-   `place:{ minimal:{x,y,s,r}, furry:{…} }`, so accessories never depend
+   `place:{ minimal:{x,y,s,r}, magic:{…} }`, so accessories never depend
    on a body shape being present.
 
    An OUTFIT       = a base look.  parts: { neck, eyes, ears, head }
@@ -198,10 +198,11 @@
      Offsets (SVG units) applied to a whole slot group, so that pieces which
      used to rest on the furry body sit naturally around the floating eyes.
      x,y = translate · s = scale · r = rotate (deg) · o = [originX, originY].
-     An item's own place.{minimal|furry} is merged over the slot default.   */
+     An item's own place.{minimal|magic} is merged over the slot default.   */
   const PLACEMENT = {
     minimal: { neck: {}, eyes: {}, ears: {}, head: { y: 16 } },
-    furry:   { neck: {}, eyes: {}, ears: {}, head: { y: 16 } },   // v8.3: identical to minimal
+    // MAGIC WORLD: the supplied body is wider and its eyes sit lower (centres ~ (160,212), span ~145u). Gear is moved/scaled to match.
+    magic:   { neck: { x: 10, y: 40, s: 1.18 }, eyes: { x: 10, y: 40, s: 1.18 }, ears: { x: 10, y: 40, s: 1.18 }, head: { x: 8, y: 2, s: 1.12, o: [150, 100] } },
   };
 
   window.DABSy = window.DABSy || {};

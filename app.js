@@ -384,6 +384,10 @@
     // (egg detection is passive: it only watches, it never changes the reply)
     bus.emit("user:said", { text });
 
+    if(window.DABSy.calIntel && window.DABSy.calIntel.hasPending()){      // answer to "which day?" / "add it? yes/no"
+      const r = await window.DABSy.calIntel.answer(text);
+      if(r){ memory.addSession("dabsy", r.text); say(r.text, r.state); return; }
+    }
     if(pendingCategoryQuestion){
       const cat = DABSyCore.matchCategoryFromText(text);
       if(cat){
@@ -426,6 +430,10 @@
 
     if(await localCommand(text)) { director.dispatch("DABSY_REPLY", { speakText: null }); return; }
 
+    if(window.DABSy.calIntel){                          // commitments with a day/time -> classified, dated, saved and verified
+      const cal = await window.DABSy.calIntel.handle(text).catch(e => { console.error(e); return null; });
+      if(cal){ memory.addSession("dabsy", cal.text); memory.addHistory({ type: "chat", user: text, reply: cal.text }); say(cal.text, cal.state); return; }
+    }
     const result = await ai.parseIntent(text);
     if(result.reply) memory.addSession("dabsy", result.reply);
     memory.addHistory({ type: "chat", user: text, reply: result.reply || result.type });
@@ -492,6 +500,9 @@
   document.getElementById("sc-apps").innerHTML = ui.icon("sparkle", 18) + "<span>Apps</span>";
   document.getElementById("sc-brief").innerHTML = ui.icon("sparkle", 18) + "<span>Today</span>";
   document.getElementById("sc-talk").innerHTML = ui.icon("mic", 18) + "<span>Talk</span>";
+  document.getElementById("sc-home").innerHTML = ui.icon("sparkle", 18) + "<span>Come home</span>";
+  const scHome = document.getElementById("sc-home");
+  bus.on("world:state", () => { scHome.hidden = !(window.DABSy.world && window.DABSy.world.isAway()); });   // only while she is wandering
   function applySettings(){
     document.body.classList.toggle("show-shortcuts", !!memory.getSettings().showShortcuts);
   }

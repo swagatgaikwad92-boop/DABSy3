@@ -28,8 +28,8 @@
     { title: "Tasks and reminders", text: "Press and hold me to see your tasks and reminders. Tasks stay alive. If one is due I'll ask whether to start it, move it, or skip it. If it slips I offer a new slot. Ignore me and I back off. Everything lands in the bell at the top.", highlight: "#bell-btn" },
     { title: "Studying with me", text: "Tell me what you want to study and for how long. I look for real material, you pick what you like, I plan the time around it, and I can send the plan to Study Space." },
     { title: "Picking material", text: "You'll see one card at a time. Swipe right to choose, left to skip, or use the Choose and Skip buttons. Undo is always there." },
-    { title: "The gestures that matter", text: "Tap an eye: chat. Tap the bow tie: play. Double-tap: apps. Hold: tasks. Stroke me: I like that. Every one has a button or key alternative." },
-    { title: "Where Settings lives", text: "Double-tap me, then Settings. You can replay this tour any time from Settings → Help & Tutorial.", last: true },
+    { title: "The gestures that matter", text: "Tap an eye: chat. Tap the bow tie: play. Double-tap the bow tie: apps. Hold: tasks. Stroke me: I like that. Every one has a button or key alternative." },
+    { title: "Where Settings lives", text: "Double-tap my bow tie, then Settings. You can replay this tour any time from Settings → Help & Tutorial.", last: true },
   ];
 
   let root = null, idx = 0, release = null;

@@ -1,0 +1,136 @@
+/* ============================================================
+   D.A.B.S.y — magic.css : MAGIC WORLD (body[data-form="magic"])
+   The supplied room is the scene; the supplied DABSy art is the character.
+   world-engine.js builds the layers and sets the geometry variables
+   (--mw-*-x/y/w/h, in % of DABSy's 300x330 box) from habitats-data.js.
+
+   Rules this file keeps
+     · the character art is never stretched: every expression is a rigid
+       move, a uniform scale of <= 6 %, or the eyelid; nothing squashes
+       the supplied eye / body / bow images.
+     · the outer fur is the supplied picture and is STATIC: nothing here
+       animates it (no filter, no displacement, no per-strand motion).
+     · only compositor properties move (transform, translate, scale,
+       opacity). No filter animation, no blend modes.
+     · selectors carry :root[data-theme] so the light interface theme never
+       recolours the character.
+   ============================================================ */
+
+/* ---------------- the scene ---------------- */
+#world{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;opacity:0;background:#090c1c;transition:opacity .9s var(--ease-soft)}
+#world.ready{opacity:1}
+.booting #world{opacity:0}
+.w-scene{position:absolute;transform:translate3d(var(--w-cam,0px),0,0);transition:transform 2.6s cubic-bezier(.3,0,.2,1);will-change:transform}
+.w-bg{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .9s var(--ease-soft);-webkit-user-drag:none;user-select:none}
+.w-bg.on{opacity:1}
+/* lamp glows breathe in opacity only (compositor); they pause while a sheet is open to save battery */
+.w-light{position:absolute;height:0;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  background:radial-gradient(closest-side,rgba(var(--c),var(--a)),rgba(var(--c),calc(var(--a) * .35)) 46%,transparent 74%);
+  animation:w-breathe 7.5s ease-in-out infinite alternate}
+@keyframes w-breathe{from{opacity:.62}to{opacity:1}}
+body.sheet-open .w-light,body.live-talk .w-light{animation-play-state:paused}
+/* a soft top/bottom shade keeps the status area and the chat dock legible on any picture */
+.w-shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(5,7,20,.36) 0,rgba(5,7,20,0) 16%,rgba(5,7,20,0) 58%,rgba(5,7,20,.40) 100%)}
+.w-dim{position:absolute;inset:0;background:rgba(5,7,20,.40);opacity:0;transition:opacity .4s var(--ease-soft)}
+body.cmd-open .w-dim,body.kb-open .w-dim,body.live-talk .w-dim{opacity:1}
+body[data-form="magic"] #atmosphere{display:none}
+
+/* ---------------- DABSy in the world ---------------- */
+body[data-form="magic"] #creature-wrap{
+  left:0;top:0;width:var(--mw-box,160px);height:calc(var(--mw-box,160px) * 1.1);z-index:2;
+  transform:none!important;transform-origin:50% 50%;
+  transition:translate var(--mw-dur,0s) var(--mw-ease,ease),scale var(--mw-dur,0s) var(--mw-ease,ease),opacity 1s var(--ease-soft),filter 1s var(--ease-soft)}
+body[data-form="magic"] #face{transform:none;transition:none}
+body[data-form="magic"] .cr-shadow{display:block;left:6%;right:6%;bottom:.8%;height:6%;filter:none;
+  background:radial-gradient(closest-side,rgba(4,5,16,.62),rgba(4,5,16,.28) 55%,transparent 80%)}
+
+.mw-layer{position:absolute;display:block;pointer-events:none;user-select:none;-webkit-user-drag:none}
+.mw-halo{left:var(--mw-halo-x);top:var(--mw-halo-y);width:var(--mw-halo-w);height:var(--mw-halo-h)}
+.mw-flecks{left:var(--mw-fleck-x);top:var(--mw-fleck-y);width:var(--mw-fleck-w);height:var(--mw-fleck-h)}
+.mw-body{left:var(--mw-body-x);top:var(--mw-body-y);width:var(--mw-body-w);height:var(--mw-body-h)}
+.mw-bow{left:var(--mw-bow-x);top:var(--mw-bow-y);width:var(--mw-bow-w);height:var(--mw-bow-h)}
+/* the classic SVG bow is replaced by the supplied bow picture (a worn scarf / collar from the wardrobe still draws) */
+body[data-form="magic"] .bow-art{display:none}
+
+/* eyes: the supplied eye pictures, positioned from the measured geometry */
+body[data-form="magic"] #eye-left{left:var(--mw-eyeL-x);top:var(--mw-eyeL-y);width:var(--mw-eyeL-w);height:var(--mw-eyeL-h)}
+body[data-form="magic"] #eye-right{left:var(--mw-eyeR-x);top:var(--mw-eyeR-y);width:var(--mw-eyeR-w);height:var(--mw-eyeR-h)}
+:root[data-theme] body[data-form="magic"] #face .eye-shape{
+  height:100%;border-radius:0;box-shadow:none;transform:none;scale:1;overflow:visible;
+  background:var(--mw-eye-img) center / 100% 100% no-repeat;
+  -webkit-mask:var(--mw-eye-img) center / 100% 100% no-repeat;mask:var(--mw-eye-img) center / 100% 100% no-repeat}
+body[data-form="magic"] #eye-left .eye-shape{--mw-eye-img:var(--mw-eye-l)}
+body[data-form="magic"] #eye-right .eye-shape{--mw-eye-img:var(--mw-eye-r)}
+body[data-form="magic"] .eye-core,body[data-form="magic"] .eye-highlight,body[data-form="magic"] .eye-spec{display:none}
+/* the glow replaces the halo baked into the full picture */
+:root[data-theme] body[data-form="magic"] #face .eye-glow{inset:-34%;mix-blend-mode:normal;opacity:.78;filter:blur(7px);
+  background:radial-gradient(closest-side,rgba(168,208,255,.46),rgba(168,208,255,.15) 55%,transparent 76%)}
+body.lite-gfx[data-form="magic"] .eye-glow{filter:none}
+/* the blink: dark plush closing over the eye, clipped to the eye's own shape */
+:root[data-theme] body[data-form="magic"] #face .eye-lid{left:-4%;right:-4%;top:-8%;
+  background:linear-gradient(180deg,#34302d,#2a2725);box-shadow:none;border-radius:0 0 50% 50% / 0 0 38% 38%}
+:root[data-theme] body[data-form="magic"] #face .eye.blinking .eye-lid{height:112%}
+body[data-form="magic"] .eye.blinking .eye-glow{opacity:.3}
+body[data-form="magic"] .eye .touch-ripple{border-radius:50%}
+
+/* expressions: lid and rigid moves only (the supplied eyes are never reshaped) */
+:root[data-theme] body[data-form="magic"] #face.exp-curious .eye-shape,
+:root[data-theme] body[data-form="magic"] #face.exp-listening .eye-shape,
+:root[data-theme] body[data-form="magic"] #face.exp-happy .eye-shape,
+:root[data-theme] body[data-form="magic"] #face.exp-proud .eye-shape{scale:1.03}
+:root[data-theme] body[data-form="magic"] #face.exp-excited .eye-shape{scale:1.05}
+:root[data-theme] body[data-form="magic"] #face.exp-surprised .eye-shape{scale:1.06}
+:root[data-theme] body[data-form="magic"] #face.exp-thinking .eye-shape{transform:translate(5%,-6%)}
+:root[data-theme] body[data-form="magic"] #face.exp-focused .eye-lid{height:14%}
+:root[data-theme] body[data-form="magic"] #face.exp-sleepy .eye-lid{height:60%}
+:root[data-theme] body[data-form="magic"] #face.exp-sleepy .eye-glow{opacity:.3}
+:root[data-theme] body[data-form="magic"] #face.exp-confused #eye-left .eye-shape{transform:rotate(-4deg)}
+:root[data-theme] body[data-form="magic"] #face.exp-confused #eye-right .eye-shape{transform:rotate(3deg)}
+:root[data-theme] body[data-form="magic"] #face.exp-concerned #eye-left .eye-shape{transform:rotate(4deg)}
+:root[data-theme] body[data-form="magic"] #face.exp-concerned #eye-right .eye-shape{transform:rotate(-4deg)}
+:root[data-theme] body[data-form="magic"] #face.exp-playful #eye-left .eye-lid{height:44%}
+:root[data-theme] body[data-form="magic"] #face.exp-happy .eye-glow,
+:root[data-theme] body[data-form="magic"] #face.exp-proud .eye-glow{background:radial-gradient(closest-side,rgba(255,224,176,.46),rgba(255,224,176,.14) 55%,transparent 76%)}
+
+/* eye gaze and speaking: smaller travel than the classic eyes, no stretching */
+@keyframes mw-look{0%{transform:translate(0,0)}100%{transform:translate(calc(var(--lx,0px) * .42),calc(var(--ly,0px) * .42))}}
+body[data-form="magic"] .eye.micro-look{animation-name:mw-look}
+@keyframes mw-talk{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.4%)}}
+body[data-form="magic"] .eye.talking .eye-shape{animation-name:mw-talk}
+@keyframes mw-recoil{0%,100%{transform:scale(1)}35%{transform:scale(1.06)}}
+body[data-form="magic"] .eye.recoil{animation-name:mw-recoil}
+
+/* breathing: a slow lift of the whole creature (no stretch), and a small gait while she walks */
+@keyframes mw-breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-.9%)}}
+@keyframes mw-waddle{0%,100%{transform:translateY(0) rotate(-2deg)}25%{transform:translateY(-2.4%) rotate(0)}50%{transform:translateY(0) rotate(2deg)}75%{transform:translateY(-2.4%) rotate(0)}}
+body[data-form="magic"] #face.idle-breathe .cr-sway{animation:mw-breathe 4.8s ease-in-out infinite}
+body[data-form="magic"] #face.walking .cr-sway{animation:mw-waddle .62s ease-in-out infinite}
+body.sheet-open[data-form="magic"] #face .cr-sway,body.live-talk[data-form="magic"] #face .cr-sway{animation-play-state:paused}
+
+/* one-shot reactions: rigid and restrained (the classic set squashes and stretches; these do not) */
+@keyframes mw-hop{0%,100%{transform:none}40%{transform:translateY(-7%)}65%{transform:none}80%{transform:translateY(-1.5%)}}
+@keyframes mw-wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-3deg)}50%{transform:rotate(3deg)}75%{transform:rotate(-1.5deg)}}
+@keyframes mw-nod{0%,100%{transform:none}40%{transform:translateY(2.6%)}}
+@keyframes mw-shake{0%,100%{transform:none}25%{transform:translateX(-2.5%)}50%{transform:translateX(2.5%)}75%{transform:translateX(-1.5%)}}
+@keyframes mw-perk{0%,100%{transform:none}50%{transform:translateY(-3.2%)}}
+@keyframes mw-dance{0%,100%{transform:none}20%{transform:translateY(-4%) rotate(-3deg)}45%{transform:translateY(0) rotate(3deg)}70%{transform:translateY(-3%) rotate(-2deg)}}
+@keyframes mw-yawn{0%,100%{transform:none}50%{transform:translateY(-1.6%)}}
+@keyframes mw-dizzy{0%,100%{transform:none}25%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}75%{transform:rotate(-2deg)}}
+body[data-form="magic"] .r-hop{animation-name:mw-hop}
+body[data-form="magic"] .r-wiggle{animation-name:mw-wiggle}
+body[data-form="magic"] .r-nod{animation-name:mw-nod}
+body[data-form="magic"] .r-shake{animation-name:mw-shake}
+body[data-form="magic"] .r-perk{animation-name:mw-perk}
+body[data-form="magic"] .r-dance{animation-name:mw-dance}
+body[data-form="magic"] .r-yawn{animation-name:mw-yawn}
+body[data-form="magic"] .r-dizzy{animation-name:mw-dizzy}
+
+/* the Settings tile that previews Magic World */
+.wd-tile.mw-tile{position:relative;overflow:hidden;padding:0;aspect-ratio:3/4}
+.wd-tile.mw-tile img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 82%}
+.wd-tile.mw-tile .wd-name{position:absolute;left:0;right:0;bottom:0;padding:18px 8px 8px;background:linear-gradient(180deg,transparent,rgba(5,7,20,.78));color:#f6f2e4}
+.wd-tile.mw-tile.classic{background:#070914;display:grid;place-items:center}
+.wd-tile.mw-tile.classic svg{width:78%;height:auto}
+.seg-b[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+
+@media (max-height:480px) and (orientation:landscape){body.kb-open[data-form="magic"] #creature-wrap{opacity:0}}

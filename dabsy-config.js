@@ -19,7 +19,7 @@
   window.DABSy = window.DABSy || {};
 
   const CONFIG = {
-    version: "9.1.0",
+    version: "10.0.0",
 
     push: {
       // Web Push for reminders when the app is closed. Deploy backend/ (see BACKEND.md, "Web Push"), then put its
@@ -50,10 +50,12 @@
     },
 
     ecosystem: {
+      // androidBrowserIntent: in the INSTALLED Android app, hand sibling apps to Chrome itself (no tinted Custom-Tab bar). Off until verified on a real phone.
+      launch: { androidBrowserIntent: false },
       apps: [
-        { id: "study",      name: "Study Space",     url: "../StudySpace/",      icon: "book",    handoff: "studyspace" }  /* absolute URL also fine, e.g. "https://you.github.io/study-space/" — different origins are supported */,
-        { id: "calendar",   name: "Ghibli Calendar", url: "../Ghibli-Calander/", icon: "leaf",    handoff: "core-calendar" },
-        { id: "solvecount", name: "SolveCount",      url: "../SolveCount/",      icon: "count",   handoff: "summary" },
+        { id: "study",      name: "Study Space",     url: "https://swagatgaikwad92-boop.github.io/study-space/", icon: "book", handoff: "studyspace" },
+        { id: "calendar",   name: "Ghibli Calendar", url: "https://swagatgaikwad92-boop.github.io/Ghibli-Calander/", icon: "leaf", handoff: "core-calendar" },
+        { id: "solvecount", name: "SolveCount",      url: "https://swagatgaikwad92-boop.github.io/SolveCount/", icon: "count", handoff: "summary" },
         { id: "settings",   name: "Settings",        builtin: true,              icon: "sliders" },
       ],
     },

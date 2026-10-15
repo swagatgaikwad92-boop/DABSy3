@@ -9,6 +9,13 @@
      press and hold         -> face:longpress          -> tasks / reminders
      drag / stroke          -> face:petted
 
+   MAGIC WORLD gesture model (tap while she is wandering)
+     When DABSy is away from her home spot (world-engine: isAway()), a normal
+     single tap anywhere on her is NOT chat / briefing / spin. It emits
+     face:tap-away, and world-engine walks her home. The tap is held for the
+     double-tap window first, so a double-tap (apps) or a hold (tasks) can
+     still win and nothing fires twice. Once she is home, taps behave as above.
+
    Discrimination rules
      · a hold (>= LONG_MS, finger still) fires once and cancels any pending tap
      · movement > MOVE_PX turns the press into a stroke: no tap, no hold
@@ -43,12 +50,17 @@
   const inside = (p, q) => q && p.x >= q.l && p.x <= q.r && p.y >= q.t && p.y <= q.b;
   function regionOf(p){
     // bow tie first (it sits right under the eyes): its real, rendered position, not a fixed % of the box
-    const tie = document.querySelector("#slot-neck .bow-art") || document.querySelector("#slot-neck .bow-knot") || document.getElementById("slot-neck");
+    const tie = document.getElementById("mw-bow") || document.querySelector("#slot-neck .bow-art") || document.querySelector("#slot-neck .bow-knot") || document.getElementById("slot-neck");
     const tieBox = hitRect(tie, 8, 8);                     // .bow-art spans both lobes; it stays measurable even while the 3D tie is drawn over it
-    if(tieBox && inside(p, tieBox)) return "tie";
     // eyes: each eye's rendered box, padded; the gap between them counts too
     const boxes = eyeEls.map(e => hitRect(e, 14, 12)).filter(Boolean);
-    if(boxes.some(b => inside(p, b))) return "eyes";
+    const inTie = tieBox && inside(p, tieBox), inEye = boxes.some(b => inside(p, b));
+    if(inTie && inEye){                                    // small (far away) DABSy: the two minimum-size targets overlap, so the nearer centre wins
+      const d = q => Math.hypot(p.x - (q.l + q.r) / 2, p.y - (q.t + q.b) / 2);
+      return d(tieBox) < Math.min(...boxes.map(d)) ? "tie" : "eyes";
+    }
+    if(inTie) return "tie";
+    if(inEye) return "eyes";
     if(boxes.length === 2){
       const gap = { l: boxes[0].r - 14, r: boxes[1].l + 14, t: Math.min(boxes[0].t, boxes[1].t), b: Math.max(boxes[0].b, boxes[1].b) };
       if(inside(p, gap)) return "eyes";
@@ -103,6 +115,11 @@
     lastTapAt = now;
     clearTimeout(tapTimer);
     if(second){ tapCount = 0; lastTapAt = 0; bus.emit("face:doubletap", { region }); return; }
+    const away = !!(window.DABSy.world && window.DABSy.world.isAway());
+    if(away){                                           // she is wandering: this tap calls her home, and does nothing else
+      tapTimer = setTimeout(() => { bus.emit("face:tap-away", { region }); tapCount = 0; }, DOUBLE_MS - 40);
+      return;
+    }
     if(region === "eyes"){                              // eyes: no waiting — chat opens on the tap itself
       tapCount = 1;
       bus.emit("face:tap", { count: 1, region });
@@ -117,7 +134,12 @@
   // follows the release would then land on that overlay's backdrop and close it again. Swallow it, centrally.
   let swallowClickUntil = 0;
   window.addEventListener("click", e => {
-    if(Date.now() < swallowClickUntil && !(e.target && e.target.closest && e.target.closest("#shortcuts,#chat-area,#bell-btn"))){ e.stopImmediatePropagation(); e.preventDefault(); }
+    if(Date.now() >= swallowClickUntil) return;
+    const other = e.target && e.target.closest && e.target.closest("#shortcuts,#chat-area,#bell-btn");
+    // In Magic World she stands low on screen, so the chat she just opened (and its chips) can appear UNDER her finger:
+    // the follow-up click at the very same spot belongs to the tap that opened it, never to a chip.
+    const underFinger = last && Math.hypot((e.clientX || 0) - last.x, (e.clientY || 0) - last.y) < 36;
+    if(!other || underFinger){ e.stopImmediatePropagation(); e.preventDefault(); }
   }, true);
   face.addEventListener("pointerup", e => end(e, false));
   face.addEventListener("pointercancel", e => end(e, true));
@@ -132,11 +154,12 @@
 
   /* ---- keyboard + visible alternatives ---- */
   face.addEventListener("keydown", e => {
-    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); bus.emit("face:tap", { count: 1, region: "eyes", via: "key" }); }
+    if(e.key === "Enter" || e.key === " "){ e.preventDefault(); if(window.DABSy.world && window.DABSy.world.isAway()) bus.emit("face:tap-away", { region: "eyes", via: "key" }); else bus.emit("face:tap", { count: 1, region: "eyes", via: "key" }); }
     else if(e.key === "ArrowDown"){ e.preventDefault(); bus.emit("face:doubletap", { region: "body" }); }
     else if(e.key === "ArrowUp"){ e.preventDefault(); bus.emit("face:longpress", { region: "body" }); }
   });
   document.getElementById("sc-apps").addEventListener("click", () => bus.emit("face:doubletap", { region: "body", via: "button" }));
+  document.getElementById("sc-home").addEventListener("click", () => bus.emit("face:tap-away", { region: "body", via: "button" }));
   document.getElementById("sc-talk").addEventListener("click", () => bus.emit("face:talk", { via: "button" }));
 
   /* ---- rapid tapping -> playful annoyance ---- */

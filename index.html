@@ -25,20 +25,10 @@
 <link rel="stylesheet" href="./projection.css" />
 <link rel="stylesheet" href="./theme.css" />
 <link rel="stylesheet" href="./soda.css" />
+<link rel="stylesheet" href="./magic.css" />
 </head>
 <body>
 
-  <!-- soft-fur displacement filter, applied once to a static layer of the creature -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
-    <filter id="tie-fuzz" x="-4%" y="-4%" width="108%" height="108%">
-      <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="2" seed="3" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="2.2" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-    <filter id="fur-fuzz" x="-6%" y="-6%" width="112%" height="112%">
-      <feTurbulence type="fractalNoise" baseFrequency="0.7" numOctaves="2" seed="7" result="n"/>
-      <feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G"/>
-    </filter>
-  </svg>
 
   <div id="boot-veil"></div>
 
@@ -53,18 +43,9 @@
     <!-- the creature -->
     <div id="creature-wrap">
       <div id="face" class="exp-neutral" role="button" tabindex="0"
-           aria-label="D.A.B.S.y. Tap an eye to chat, tap the bow tie to play, double-tap for apps, press and hold for tasks. Enter to chat, arrow down for apps, arrow up for tasks.">
+           aria-label="D.A.B.S.y. Tap an eye to chat, tap the bow tie for today at a glance, double-tap for apps, press and hold for tasks. If she is exploring the room, a tap calls her home. Enter to chat, arrow down for apps, arrow up for tasks.">
         <div class="cr-shadow"></div>
         <div class="cr-react"><div class="cr-sway"><div class="cr-tilt">
-          <div class="cr-ear cr-ear-l"></div>
-          <div class="cr-ear cr-ear-r"></div>
-          <div class="cr-body">
-            <div class="cr-fur"></div>
-            <div class="cr-strands"></div>
-            <div class="cr-grain"></div>
-            <div class="cr-sheen"></div>
-          </div>
-          <div class="cr-plate"></div>
           <div class="eye" id="eye-left">
             <div class="eye-glow"></div>
             <div class="eye-shape"><div class="eye-core"></div><div class="eye-highlight"></div><div class="eye-spec"></div><div class="eye-lid"></div></div>
@@ -73,8 +54,6 @@
             <div class="eye-glow"></div>
             <div class="eye-shape"><div class="eye-core"></div><div class="eye-highlight"></div><div class="eye-spec"></div><div class="eye-lid"></div></div>
           </div>
-          <div class="cr-cheek cr-cheek-l"></div>
-          <div class="cr-cheek cr-cheek-r"></div>
           <svg class="cr-wear" viewBox="0 0 300 330" aria-hidden="true" focusable="false">
             <g id="slot-neck"></g>
             <g id="slot-eyes"></g>
@@ -89,6 +68,7 @@
     <div id="shortcuts" aria-label="DABSy shortcuts">
       <button id="sc-apps" class="btn glass" type="button" aria-label="Open my apps (same as double-tap)"></button>
       <button id="sc-brief" class="btn glass" type="button" aria-label="Today at a glance (same as tapping the bow tie)"></button>
+      <button id="sc-home" class="btn glass" type="button" aria-label="Call D.A.B.S.y home (same as tapping her while she is exploring)" hidden></button>
       <button id="sc-talk" class="btn glass" type="button" aria-label="Talk or type to me (same as tapping an eye)"></button>
     </div>
 
@@ -117,7 +97,6 @@
     </div>
   </section>
 
-  <script src="./fur-engine.js"></script>
   <script src="./dabsy-config.js"></script>
   <script src="./dabsy-core.js"></script>
   <script src="./emotion-engine.js"></script>
@@ -135,6 +114,7 @@
   <script src="./interaction-engine.js"></script>
   <script src="./voice-engine.js"></script>
   <script src="./ai-engine.js"></script>
+  <script src="./calendar-intel.js"></script>
   <script src="./notify-engine.js"></script>
   <script src="./push-engine.js"></script>
 <script src="./briefing-engine.js"></script>
@@ -146,8 +126,9 @@
   <script src="./ecosystem-engine.js"></script>
   <script src="./reactions.js"></script>
   <script src="./pwa-engine.js"></script>
-  <script src="./fur3d-engine.js"></script>
   <script src="./stickers.js"></script>
+<script src="./habitats-data.js"></script>
+<script src="./world-engine.js"></script>
 <script src="./viewport-engine.js"></script>
 <script src="./app.js"></script>
   <script src="./boot.js"></script>

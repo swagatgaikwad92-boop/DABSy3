@@ -8,7 +8,7 @@
      outfits.list() / listAccessories()   for the Wardrobe UI
      outfits.preview(id,isAcc)        small SVG used in Wardrobe tiles
      outfits.previewCurrent()         SVG of what DABSy is wearing right now
-     outfits.setForm("minimal"|"furry")   v8 FUR MODE (persisted with the wardrobe)
+     outfits.setForm("minimal"|"magic")   presentation: classic black screen | MAGIC WORLD (persisted with the wardrobe)
      outfits.setTie(paletteId)            bow-tie colour
 
    The creature itself has four empty SVG groups (#slot-neck, #slot-eyes,
@@ -25,11 +25,12 @@
   const face = document.getElementById("face");
 
   const DEFAULT_FUR = ["#7482d8", "#4552a6", "#222a66"];
-  // form: "minimal" (default: floating eyes + bow tie) | "furry" (fur aura).  tie: bow-tie palette id.
-  let state = Object.assign({ outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "furry", tie: "outfit" }, memory.read(KEY, {}));
-  // v8.2: the plush 3D character is the default look; saved devices move to it once (Settings → Wardrobe → Fur mode still switches it off)
-  if(!state.v82){ state.form = "furry"; state.v82 = 1; try{ memory.write(KEY, state); }catch(_){} }
-  if(state.form !== "furry") state.form = "minimal";
+  // form: "magic" (MAGIC WORLD, default) | "minimal" (the original black-screen look: floating eyes + bow tie).  tie: bow-tie palette id.
+  let state = Object.assign({ outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "magic", tie: "outfit" }, memory.read(KEY, {}));
+  // v10: the old fur mode is gone. Anyone who had it ("furry") moves to MAGIC WORLD; a saved "minimal" choice is kept.
+  if(state.form === "furry") state.form = "magic";
+  if(state.form !== "magic") state.form = "minimal";
+  delete state.v82;
   if(!TIE_PALETTES.some(t => t.id === state.tie)) state.tie = "outfit";
   state.acc = Object.assign({ eyes: null, ears: null, head: null }, state.acc || {});
 
@@ -120,38 +121,21 @@
     bus.emit("outfit:changed", { outfit: outfit.id, acc: { ...state.acc }, form: state.form, tie: state.tie });
   }
 
-  /* ---------------- presentation: Minimal <-> Furry ----------------
-     Only the look changes. Eyes, bow tie, accessories, memory, settings and
-     every running animation are untouched. Fur layers are removed from the
-     page (display:none) once the fade-out ends, so Minimal costs nothing.  */
-  let formTimer = null;
-  function paintForm(animate){
-    const fur = state.form === "furry";
-    clearTimeout(formTimer);
-    face.dataset.form = state.form; document.body.dataset.form = state.form;
-    if(fur){
-      face.classList.remove("fur-off");                    // put the layers back, then fade them in
-      if(animate){ void face.offsetWidth; face.classList.add("form-anim"); }
-      face.classList.add("fur-on");
-    } else {
-      face.classList.remove("fur-on");
-      if(animate) face.classList.add("form-anim");
-      formTimer = setTimeout(() => face.classList.add("fur-off"), animate ? 720 : 0);
-    }
-    if(animate) setTimeout(() => face.classList.remove("form-anim"), 900);
-  }
+  /* ---------------- presentation: Classic (minimal) <-> MAGIC WORLD ----------------
+     Only the look changes. Memory, settings, chats, accessories and every
+     running animation are untouched. world-engine.js builds / removes the
+     scene and the supplied character layers when body[data-form] changes. */
+  function paintForm(){ face.dataset.form = state.form; document.body.dataset.form = state.form; }
   function setForm(form){
-    form = form === "furry" ? "furry" : "minimal";
+    form = form === "magic" ? "magic" : "minimal";
     if(form === state.form) return false;
-    state.form = form; save();
-    paintForm(!window.DABSy.ui.reducedMotion());
-    // re-place (not re-draw) every worn piece so it glides to its new spot
+    state.form = form; save(); paintForm();
+    // re-place (not re-draw) every worn piece so it sits correctly for the new presentation
     SLOTS.forEach(slot => {
       const w = document.getElementById("slot-" + slot)?.firstElementChild; if(!w) return;
       const acc = state.acc[slot] ? accById(state.acc[slot]) : null;
       w.setAttribute("style", placeStyle(slot, acc, state.form));
     });
-    document.body.dataset.form = form; face.dataset.form = form;
     bus.emit("outfit:form", { form });
     bus.emit("outfit:changed", { outfit: state.outfit, acc: { ...state.acc }, form, tie: state.tie });
     return true;
@@ -225,14 +209,12 @@
   // form: "minimal" | "furry" (defaults to what DABSy wears now). Minimal previews draw only eyes + bow tie + gear.
   function render(outfit, accMap, form, tieId){
     const n = ++pv;
-    form = form || state.form;
+    form = "minimal";                                      // wardrobe previews always draw the clean eyes + gear
     const fur = (outfit.tint && outfit.tint.fur) || DEFAULT_FUR;
     let parts = "";
     SLOTS.forEach(slot => { parts += slotMarkup(slot, outfit, accMap, form, tieId == null ? state.tie : tieId); });
-    const body = form === "furry" ? `
-      <ellipse cx="88" cy="96" rx="26" ry="32" transform="rotate(-18 88 96)" fill="${fur[1]}"/><ellipse cx="212" cy="96" rx="26" ry="32" transform="rotate(18 212 96)" fill="${fur[1]}"/>
-      <path d="M150 78 C222 78 262 124 262 196 C262 270 222 312 150 312 C78 312 38 270 38 196 C38 124 78 78 150 78Z" fill="url(#pb)"/>` : "";
-    const eyeFill = form === "furry" ? "#bfe9ff" : "var(--pv-eye,#d9ecff)";
+    const body = "";
+    const eyeFill = "var(--pv-eye,#d9ecff)";
     const svg = `<svg viewBox="0 0 300 330" class="pv-${form}" aria-hidden="true">
       <defs><radialGradient id="pb" cx=".35" cy=".25" r="1"><stop offset="0" stop-color="${fur[0]}"/><stop offset=".5" stop-color="${fur[1]}"/><stop offset="1" stop-color="${fur[2]}"/></radialGradient></defs>
       ${body}
@@ -247,7 +229,7 @@
   }
   function previewCurrent(){ return render(byId(state.outfit) || byId("classic"), state.acc); }
   // a tile for the Minimal/Furry chooser (never shows accessories, so the two looks compare cleanly)
-  function previewForm(form){ return render(byId(state.outfit) || byId("classic"), null, form); }
+  function previewForm(){ return render(byId(state.outfit) || byId("classic"), null, "minimal"); }
   function previewTie(tieId){ return render(byId(state.outfit) || byId("classic"), null, "minimal", tieId); }
 
   window.DABSy.outfits = {
@@ -259,10 +241,10 @@
   // an outfit that is out of season quietly falls back to classic
   const cur = byId(state.outfit);
   if(!cur || !canEquip(cur)) state.outfit = "classic";
-  paintForm(false);
+  paintForm();
   apply();
   checkAchievements();
   bus.on("tasks:completed", () => checkAchievements());
   bus.on("session:finished", () => checkAchievements());
-  bus.on("memory:wiped", () => { state = { outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "furry", v82: 1, tie: "outfit" }; paintForm(false); apply(); });
+  bus.on("memory:wiped", () => { state = { outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "magic", tie: "outfit" }; paintForm(); apply(); bus.emit("outfit:form", { form: "magic" }); });
 })();

@@ -19,7 +19,8 @@
   function segmented(label, options, value, onChange){
     const wrap = el("div", { class: "seg", role: "radiogroup", "aria-label": label });
     const paint = v => [...wrap.children].forEach(b => { const on = b.dataset.v === v; b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); });
-    options.forEach(([v, text]) => wrap.append(el("button", { type: "button", role: "radio", class: "seg-b", "data-v": v, onclick: () => { paint(v); onChange(v); } }, text)));
+    options.forEach(([v, text, off]) => wrap.append(el("button", { type: "button", role: "radio", class: "seg-b", "data-v": v, "aria-disabled": off ? "true" : null, title: off || null,
+      onclick: () => { if(off){ ui.toast({ text: off }); return; } paint(v); onChange(v); } }, text)));
     paint(value);
     return wrap;
   }
@@ -53,19 +54,9 @@
       wardrobe.innerHTML = "";
       const cur = D.outfits.current();
 
-      /* v8: character presentation (FUR MODE) + bow tie */
-      wardrobe.append(switchRow("Fur mode", "Adds fine fur fibres around the floating eyes and bow tie. Off = the clean eyes and bow tie. The eyes, bow tie and everything else stay exactly the same.", cur.form === "furry", v => { D.outfits.setForm(v ? "furry" : "minimal"); D.face.react("perk"); paintWardrobe(); }));
-      wardrobe.append(el("div", { class: "section-title" }, "Character"));
-      const formGrid = el("div", { class: "wd-grid wd-grid-2" });
-      [["minimal", "Minimal"], ["furry", "Furry"]].forEach(([f, name]) => {
-        const on = cur.form === f;
-        const tile = el("button", { class: "wd-tile" + (on ? " on" : ""), type: "button", "aria-pressed": String(on), "aria-label": name + " mode",
-          onclick: () => { if(D.outfits.setForm(f)) D.face.react("perk"); paintWardrobe(); } });
-        tile.innerHTML = D.outfits.previewForm(f) + `<span class="wd-name">${name}</span>`;
-        formGrid.append(tile);
-      });
-      wardrobe.append(formGrid);
-      wardrobe.append(el("div", { class: "section-title" }, "Bow tie colour"));
+      if(cur.form === "magic"){
+        wardrobe.append(el("p", { class: "hint" }, "In Magic World DABSy wears her own bow tie from the artwork. Bow-tie colours apply in the Classic black-screen look. Glasses, headphones, hats and the rest still work in both."));
+      } else wardrobe.append(el("div", { class: "section-title" }, "Bow tie colour"));
       const tieRow = el("div", { class: "tie-row", role: "radiogroup", "aria-label": "Bow tie colour" });
       D.outfits.tiePalettes().forEach(p => {
         const on = cur.tie === p.id;
@@ -74,7 +65,7 @@
         sw.style.setProperty("--sw", p.c ? `linear-gradient(135deg,${p.c[0]},${p.c[1]})` : "conic-gradient(#cdb9ff,#7db3ff,#8fffe6,#ffd27a,#ff8aa0,#cdb9ff)");
         tieRow.append(sw);
       });
-      wardrobe.append(tieRow);
+      if(cur.form !== "magic") wardrobe.append(tieRow);
       wardrobe.append(el("div", { class: "section-title" }, "Outfits"));
       const grid = el("div", { class: "wd-grid" });
       D.outfits.list().forEach(o => {
@@ -100,9 +91,35 @@
     }
     paintWardrobe();
 
-    /* ---------- appearance (interface theme; independent of Fur mode) ---------- */
+    /* ---------- MAGIC WORLD ---------- */
+    const worldBox = el("div", {});
+    function paintWorld(){
+      worldBox.innerHTML = "";
+      const W = D.world, form = D.outfits.form(), info = W.lightInfo();
+      const grid = el("div", { class: "wd-grid wd-grid-2" });
+      const magic = el("button", { class: "wd-tile mw-tile" + (form === "magic" ? " on" : ""), type: "button", "aria-pressed": String(form === "magic"), "aria-label": "Magic World: DABSy lives in a cosy room",
+        onclick: () => { if(D.outfits.setForm("magic")) D.face.react("perk"); paintWorld(); paintWardrobe(); } },
+        el("img", { src: D.worldData.habitats[0].variants.night.src, alt: "", loading: "lazy" }), el("span", { class: "wd-name" }, "Magic World"));
+      const classic = el("button", { class: "wd-tile mw-tile classic" + (form === "minimal" ? " on" : ""), type: "button", "aria-pressed": String(form === "minimal"), "aria-label": "Classic black screen: just her eyes and bow tie",
+        onclick: () => { if(D.outfits.setForm("minimal")) D.face.react("perk"); paintWorld(); paintWardrobe(); } });
+      classic.innerHTML = D.outfits.previewForm() + '<span class="wd-name">Classic black screen</span>';
+      grid.append(magic, classic);
+      worldBox.append(grid);
+      if(form !== "magic"){ worldBox.append(el("p", { class: "hint" }, "Choose Magic World to see the room, day and night, and DABSy's wandering.")); return; }
+      const lightOpts = [["day", "Day", info.hasDay ? null : "Daytime artwork for this room hasn't been added yet."], ["night", "Night"], ["auto", "Auto"]];
+      worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Time of day"),
+        el("div", { class: "s" }, info.hasDay ? "Auto follows your phone's clock (day " + info.dayHours.map(h => ui.fmtTime(new Date(2000, 0, 1, Math.floor(h), Math.round((h % 1) * 60)))).join(" to ") + "). Day or Night stays until you change it." : "Only the night artwork is installed for this room, so Night is always shown. Day and Auto will switch as soon as daytime artwork is added.")),
+        segmented("Time of day", lightOpts, info.hasDay ? info.pref : "night", v => { W.setLight(v); paintWorld(); })));
+      worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Wandering"),
+        el("div", { class: "s" }, "How often DABSy strolls to other spots in the room. She stays put while you chat, study or use a panel, and when Reduce motion is on. Tap her while she is away and she walks home.")),
+        segmented("Wandering", [["off", "Off"], ["calm", "Calm"], ["lively", "Lively"]], W.roam(), v => W.setRoam(v))));
+    }
+    paintWorld();
+    offs.push(bus.on("outfit:form", () => paintWorld()));
+
+    /* ---------- appearance (interface theme; independent of the character look) ---------- */
     const appearance = section("appearance", "Appearance",
-      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Theme"), el("div", { class: "s" }, "Dark is the default. Light is a soft ivory theme. Auto follows your phone. This is separate from Fur mode, so any combination works.")),
+      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Theme"), el("div", { class: "s" }, "Dark is the default. Light is a soft ivory theme. Auto follows your phone. This is separate from the character look (Magic World / Classic), so any combination works.")),
         segmented("Theme", [["dark", "Dark"], ["light", "Light"], ["auto", "Auto"]], D.theme.get(), v => D.theme.set(v))));
 
     /* ---------- notifications ---------- */
@@ -195,7 +212,7 @@
     /* ---------- help ---------- */
     const help = section("help", "Help & Tutorial",
       el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Replay Tutorial"), el("div", { class: "s" }, "A tiny tour of what I can do.")), el("button", { class: "btn sm primary", type: "button", onclick: () => { sh.close(); setTimeout(() => D.require("onboarding").then(o => o.start({ replay: true })), 300); } }, "Replay")),
-      el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Gestures"), el("div", { class: "s" }, "Tap an eye: chat · Tap the bow tie: play · Double-tap: your apps · Press and hold: tasks and reminders · Stroke: pet me. Everything has a button alternative in Accessibility."))));
+      el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Gestures"), el("div", { class: "s" }, "Tap an eye: chat · Tap the bow tie: today at a glance · Double-tap (bow tie): your apps · Press and hold: tasks and reminders · Stroke: pet me. If she is wandering the room, a tap calls her home first. Everything has a button alternative in Accessibility."))));
 
     /* ---------- about ---------- */
     const installBtn = el("button", { class: "btn sm", type: "button", hidden: true, onclick: async () => { if(await D.pwa.promptInstall()) installBtn.hidden = true; } }, "Install app");
@@ -208,6 +225,7 @@
     body.append(
       section("ai", "DABSy AI", aiRow, el("div", { class: "popup-actions", style: "justify-content:flex-start" }, aiBtn), aiNote),
       appearance,
+      section("world", "Magic World", worldBox),
       section("wardrobe", "Wardrobe", wardrobe),
       notifSection, studySection, voiceSection, a11y,
       section("connections", "Connections", conn),

@@ -1,0 +1,26 @@
+/* ============================================================
+   Study Space — card colour patch   (goes at the END of style.css, or in a new file linked after it)
+
+   WHY THE CARDS LOOK DULL (read from the deployed repo's style.css / tokens):
+     1. Note surfaces are painted as   rgba(var(--note), .62)   on top of the paper (#f4f1ea) and then
+        a white glass layer (.glass: rgba(255,255,255,.5) + saturate(1.25)). Only 62 % of the pastel
+        survives, and what survives is pastel-on-cream: butter lands at ~#fbeec2, sky at ~#dfe9f1 —
+        low chroma, close to the paper, so the cards read as "washed out".
+     2. The pastels themselves (e.g. sage 214,235,214) are already very light.
+     3. `.obj.is-dimmed{opacity:.3;filter:saturate(.6)}` greys any dimmed card even further.
+   FIX AT THE SOURCE (no global saturate, no new gradients/blur/shadows, glass look kept):
+     - slightly deeper pastel bases, and higher surface alpha so the colour actually shows
+     - dimmed state: less opacity loss, much less desaturation
+   Contrast: text is --ink #2a2622; every card colour below keeps >= 9:1 against it (computed, see docs).
+   Study Space is a light-only app (no prefers-color-scheme / dark theme exists in its CSS), so there
+   is no dark variant to maintain.
+   ============================================================ */
+.obj-note[data-color="butter"] { --note: 255, 224, 110; }
+.obj-note[data-color="blush"]  { --note: 255, 190, 180; }
+.obj-note[data-color="sage"]   { --note: 176, 224, 188; }
+.obj-note[data-color="sky"]    { --note: 168, 208, 246; }
+.obj-note[data-color="lilac"]  { --note: 208, 190, 246; }
+.obj-note .obj-surface { background: rgba(var(--note, 255, 224, 110), .9); }
+.obj-note.is-selected .obj-surface { background: rgba(var(--note, 255, 224, 110), .97); }
+.obj.is-dimmed { opacity: .5; filter: saturate(.85); }
+.obj.is-dimmed:hover { opacity: .7; }

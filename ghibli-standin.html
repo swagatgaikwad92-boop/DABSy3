@@ -1,0 +1,14 @@
+<!doctype html><meta charset=utf-8><title>Ghibli stand-in</title><body><ul id=list></ul>
+<script src="../dabsy-core.js"></script>
+<script>
+/* stand-in for Ghibli state.js as read from the real repo: load ONCE, save() writes the WHOLE state, no listeners */
+const KEY="ghibliforest_v1";
+window.LF=(function(){let state;try{state=JSON.parse(localStorage.getItem(KEY))||{events:[],tasks:[]}}catch(e){state={events:[],tasks:[]}}
+ state.events=state.events||[];state.tasks=state.tasks||[];
+ const save=()=>localStorage.setItem(KEY,JSON.stringify(state));
+ return {state,save,addEvent(ev){ev.id="lf"+Math.random().toString(36).slice(2,8);state.events.push(ev);save();return ev},
+  updateEvent(id,p){const e=state.events.find(x=>x.id===id);if(e){Object.assign(e,p,{updatedAt:new Date().toISOString()});save()}return e},
+  removeItem(k,id){const a=state[k],i=a.findIndex(x=>x.id===id);if(i>=0)a.splice(i,1);save()}}})();
+function render(){document.getElementById("list").innerHTML=LF.state.events.map(e=>`<li data-id="${e.id}">${e.date} ${e.category} ${e.title}</li>`).join("")}
+document.addEventListener("DOMContentLoaded",()=>{render();DABSyCore.subscribe((t)=>{if(t.indexOf("calendar.")===0||t==="task.deleted")render()})});
+</script>

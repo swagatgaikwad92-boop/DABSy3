@@ -44,9 +44,32 @@
     return ok;
   }
   const urlOf = app => new URL(app.url, document.baseURI).toString();
-  function openApp(app, extra){
+  /* Opening a sibling app. There is NO iframe/embedded viewer anywhere in DABSy: this is a plain top-level browsing context.
+     - Normal browser tab: a NAMED window (one per app), so tapping again re-uses the tab instead of piling up copies.
+       Not "noopener": that would force a brand-new tab every time. The apps are first-party siblings.
+     - Installed DABSy (display-mode: standalone) on Android: the sibling lives OUTSIDE DABSy's manifest scope, so Chrome
+       opens it in a Custom Tab whose toolbar is tinted with DABSy's theme_color (#0f1318, near-black). That bar belongs to
+       the browser container, not to Study Space. config.ecosystem.launch.androidBrowserIntent hands the URL to Chrome
+       itself instead (a full tab, no tinted bar). Not verifiable from a desktop test rig: see docs/INTEGRATION.md.
+     - If the popup is blocked we fall back to navigating this tab (top-level), never to an embed. */
+  const standalone = () => { try{ return matchMedia("(display-mode: standalone)").matches || navigator.standalone === true; }catch(e){ return false; } };
+  const isAndroid = () => /Android/i.test(navigator.userAgent || "");
+  function launchUrl(app, extra){
     const u = new URL(urlOf(app)); if(extra) Object.keys(extra).forEach(k => u.searchParams.set(k, extra[k]));
-    window.open(u.toString(), "_blank", "noopener");
+    return u;
+  }
+  function openApp(app, extra){
+    const u = launchUrl(app, extra), href = u.toString();
+    const L = (cfg.launch || {});
+    if(standalone() && isAndroid() && L.androidBrowserIntent && u.protocol === "https:"){
+      const intent = "intent://" + u.host + u.pathname + u.search + u.hash + "#Intent;scheme=https;package=com.android.chrome;S.browser_fallback_url=" + encodeURIComponent(href) + ";end";
+      try{ window.location.href = intent; return "intent"; }catch(e){}
+    }
+    let w = null;
+    try{ w = window.open(href, "dabsy-app-" + app.id); }catch(e){ w = null; }
+    if(w){ try{ w.focus(); }catch(e){} return "window"; }
+    window.location.assign(href);                                  // popup blocked: ordinary top-level navigation
+    return "navigate";
   }
 
   /* ---------------- bubble overlay ---------------- */

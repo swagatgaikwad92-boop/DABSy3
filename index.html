@@ -27,6 +27,8 @@
 <link rel="stylesheet" href="./banana.css" />
 <link rel="stylesheet" href="./soda.css" />
 <link rel="stylesheet" href="./magic.css" />
+<link rel="stylesheet" href="./widgets.css" />
+<link rel="stylesheet" href="./perf.css" />
 </head>
 <body>
 
@@ -40,6 +42,10 @@
     <button id="bell-btn" class="icon-btn glass" type="button" aria-label="Notifications">
       <span id="bell-icon"></span><i id="bell-dot" hidden></i>
     </button>
+
+    <!-- v10.2: manual Day / Night (never automatic unless chosen in Settings) -->
+    <button id="daynight-btn" class="icon-btn glass" type="button" aria-label="Switch between Day and Night"></button>
+    <div id="widgets" aria-label="Widgets"></div>
 
     <!-- the creature -->
     <div id="creature-wrap">
@@ -128,7 +134,9 @@
   <script src="./reactions.js"></script>
   <script src="./pwa-engine.js"></script>
   <script src="./stickers.js"></script>
+<script src="./habitat-scenes.js"></script>
 <script src="./habitats-data.js"></script>
+<script src="./widget-engine.js"></script>
 <script src="./world-engine.js"></script>
 <script src="./viewport-engine.js"></script>
 <script src="./app.js"></script>

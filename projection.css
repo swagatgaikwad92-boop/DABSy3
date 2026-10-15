@@ -19,18 +19,19 @@ body.study-active #atmosphere{ opacity: 0.4; }
 body.study-active #chat-area, body.study-active #subtitle, body.session-active #chat-area{ display: none; }
 
 #projection-surface{
+  background: var(--surface-sheet, var(--glass)) !important;
   position: absolute; /* also the positioning context for #projection-pointer */
   right: 4%;
   left: 4%;
-  bottom: 6%;
-  top: 16%;
+  bottom: calc(3% + var(--sab));
+  top: clamp(132px, 19%, 190px);
   background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-panel);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   box-shadow: var(--shadow-pop);
-  padding: 22px;
+  padding: 22px 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -44,15 +45,33 @@ body.study-active #chat-area, body.study-active #subtitle, body.session-active #
   line-height: 1.6;
   color: var(--ink);
 }
-#projection-content h3{ font-size: 1rem; margin: 0 0 6px; color: var(--accent); }
-#projection-content .step{
-  padding: 12px 14px;
-  margin-bottom: 10px;
-  background: var(--glass-strong);
-  border-radius: 14px;
-  border-left: 3px solid var(--accent-2);
-}
-#projection-content .step.highlight{ border-left-color: var(--accent-warm); background: rgba(255,211,154,0.08); }
+
+/* ---------- v10.2: Study Mode is a flowing document, not a wall of cards ----------
+   No per-step boxes, backgrounds or borders. Spacing and type carry the structure. */
+#projection-content{ scroll-behavior:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain }
+.study-doc{ max-width:40rem; margin:0 auto; padding:2px 2px 28px }
+.study-title{ font-size:1.28rem; line-height:1.3; margin:0 0 14px; color:var(--ink); font-weight:700; letter-spacing:-.01em }
+.study-h{ font-size:.78rem; text-transform:uppercase; letter-spacing:.09em; color:var(--accent); margin:26px 0 6px; font-weight:700 }
+.study-doc p{ margin:0 0 14px; position:relative }
+.study-def strong{ color:var(--accent); font-weight:700 }
+.study-doc strong{ font-weight:700 } .study-doc code{ font-family:ui-monospace,Menlo,monospace; font-size:.92em; opacity:.92 }
+.study-doc .m{ font-family:Georgia,"Times New Roman",serif; font-style:italic }
+.study-formula{ text-align:center; font-family:Georgia,"Times New Roman",serif; font-size:1.22rem; margin:18px 0; padding:12px 0; color:var(--ink);
+  border-top:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border); overflow-x:auto; position:relative }
+.study-list{ margin:0 0 16px; padding:0 0 0 1.25rem } .study-list li{ margin:0 0 10px; padding-left:2px; position:relative }
+.study-steps{ list-style:none; padding-left:0; counter-reset:st; border-left:2px solid var(--glass-border); margin-left:6px }
+.study-steps li{ counter-increment:st; padding-left:34px; margin-bottom:14px; transition:opacity .4s var(--ease-soft),transform .4s var(--ease-soft) }
+.study-steps li::before{ content:counter(st); position:absolute; left:-13px; top:1px; width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
+  font-size:.78rem; font-weight:700; background:var(--panel-solid,#1b2230); color:var(--accent); border:1px solid var(--glass-border) }
+.study-steps li.pending{ display:none }
+.study-steps li:not(.pending){ animation:study-in .45s var(--ease-soft) both }
+@keyframes study-in{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:none } }
+/* the paragraph being read: a thin accent bar in the margin, nothing else */
+.study-doc .reading::after{ content:""; position:absolute; left:-12px; top:.2em; bottom:.2em; width:3px; border-radius:3px; background:var(--accent-warm); opacity:.9 }
+.study-steps li.reading::after{ left:-1px }
+.study-more{ display:block; margin:4px auto 20px; padding:8px 16px; border-radius:999px; font-size:.85rem; font-weight:600; color:var(--accent); background:none; border:1px solid var(--glass-border) }
+.study-wait{ opacity:.8; margin:8px 0 }
+@media (prefers-reduced-motion:reduce){ .study-steps li:not(.pending){ animation:none } }
 
 #projection-close{
   align-self: center;

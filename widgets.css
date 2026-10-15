@@ -1,0 +1,107 @@
+/* ============================================================
+   D.A.B.S.y — widgets.css (v10.2): fluid liquid-glass widgets
+   Glass = translucent tinted body + backdrop blur + a fine reflective rim (gradient mask) + a specular
+   highlight + soft inner shading. Shapes are real shapes (border-radius geometry), with content padding
+   that follows the shape so text and tap targets stay inside. All motion is transform/opacity only and
+   only runs for ~0.7 s on a double-tap; idle widgets cost nothing (no loops).
+   ============================================================ */
+#widgets{position:absolute;inset:0;z-index:4;pointer-events:none;transition:opacity .25s var(--ease-soft)}
+#widgets.off{opacity:0}
+#widgets.off .wgt{pointer-events:none;visibility:hidden;transition:visibility 0s .25s}
+
+.wgt{--wt-a:rgba(255,255,255,.20);--wt-b:rgba(255,255,255,.05);--wt-ink:var(--ink);--wt-pad:12px;
+  position:absolute;left:0;top:0;box-sizing:border-box;pointer-events:auto;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;outline:none;
+  color:var(--wt-ink);overflow:hidden;isolation:isolate;
+  background:linear-gradient(150deg,var(--wt-a),var(--wt-b) 48%,var(--wt-a));
+  -webkit-backdrop-filter:blur(16px) saturate(175%) brightness(1.05);backdrop-filter:blur(16px) saturate(175%) brightness(1.05);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -14px 26px rgba(255,255,255,.05),inset 1px 0 0 rgba(255,255,255,.16),0 12px 28px rgba(8,10,30,.30),0 2px 6px rgba(8,10,30,.18);
+  transition:transform .0s;will-change:transform}
+.wgt[data-shape="round"]{border-radius:28px}
+.wgt[data-shape="pill"]{border-radius:999px}
+.wgt[data-shape="circle"]{border-radius:50%}
+.wgt[data-shape="blob"]{border-radius:58% 42% 55% 45% / 47% 57% 43% 53%}
+.wgt[data-shape="leaf"]{border-radius:46% 10% 46% 10% / 46% 10% 46% 10%}
+/* fine reflective rim */
+.wgt::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;pointer-events:none;z-index:3;
+  background:linear-gradient(140deg,rgba(255,255,255,.85),rgba(255,255,255,.05) 38%,rgba(255,255,255,0) 62%,rgba(255,255,255,.45));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+/* specular highlight + faint caustic */
+.wgt::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:1;
+  background:radial-gradient(120% 70% at 18% -8%,rgba(255,255,255,.50),rgba(255,255,255,.08) 46%,transparent 62%),radial-gradient(70% 55% at 92% 110%,rgba(180,200,255,.22),transparent 70%)}
+.wgt[data-tint="lilac"]{--wt-a:rgba(190,170,255,.34);--wt-b:rgba(150,170,255,.10)}
+.wgt[data-tint="mint"]{--wt-a:rgba(140,235,205,.32);--wt-b:rgba(130,215,235,.10)}
+.wgt[data-tint="peach"]{--wt-a:rgba(255,190,150,.36);--wt-b:rgba(255,150,170,.10)}
+/* NIGHT: a dark glass body behind light ink keeps contrast high on any room picture */
+:root[data-theme="dark"] .wgt{--wt-ink:#f4f1ff;background:linear-gradient(150deg,var(--wt-a),var(--wt-b) 48%,var(--wt-a)),rgba(18,20,46,.46)}
+/* DAY: a milky glass body behind dark ink */
+:root[data-theme="light"] .wgt{--wt-ink:#262a3b;background:linear-gradient(150deg,var(--wt-a),var(--wt-b) 48%,var(--wt-a)),rgba(255,252,246,.58);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),inset 0 -12px 22px rgba(255,255,255,.18),0 12px 26px rgba(70,64,100,.20),0 2px 5px rgba(70,64,100,.12)}
+:root[data-theme="light"] .wgt::after{background:linear-gradient(140deg,rgba(255,255,255,1),rgba(255,255,255,.2) 40%,rgba(120,120,170,.18) 62%,rgba(255,255,255,.8))}
+.wgt:focus-visible{box-shadow:0 0 0 3px var(--accent),0 12px 28px rgba(8,10,30,.3)}
+.wgt.dragging{cursor:grabbing;z-index:5;box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 22px 44px rgba(8,10,30,.42);opacity:.96}
+
+.wgt-body{position:absolute;inset:0;z-index:2;padding:var(--wt-pad);display:flex;flex-direction:column;justify-content:center;min-width:0;overflow:hidden}
+.wgt[data-shape="circle"] .wgt-body,.wgt[data-shape="pill"] .wgt-body{align-items:center;text-align:center}
+.wt-clock{font-weight:650;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums;white-space:nowrap}
+.wt-date{font-size:.74rem;opacity:.82;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.wt-wx{display:flex;align-items:center;gap:8px}.wt-ico svg{width:26px;height:26px}.wt-temp{font-weight:650;letter-spacing:-.02em;line-height:1}
+.wt-setup,.wt-empty{display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center;font-size:.78rem;line-height:1.25}
+.wt-setup b,.wt-empty b{font-weight:650}.wt-setup span,.wt-empty span{opacity:.8;font-size:.7rem}
+.wt-h{display:flex;align-items:center;gap:6px;font-size:.78rem;margin-bottom:5px}.wt-h svg{width:16px;height:16px;opacity:.9}.wt-h b{font-weight:650}.wt-h span{margin-left:auto;opacity:.78;font-size:.7rem}
+.wt-list{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.wt-row{display:flex;align-items:center;gap:7px;font-size:.78rem;line-height:1.2;min-width:0}
+.wt-row .wt-t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wt-row .wt-sub{opacity:.7;font-size:.7rem;flex-shrink:0}
+.wt-row.done .wt-t{text-decoration:line-through;opacity:.55}
+.wt-check{position:relative;width:18px;height:18px;border-radius:50%;flex-shrink:0;border:1.6px solid currentColor;background:rgba(255,255,255,.08);opacity:.9}
+.wt-check::before{content:"";position:absolute;inset:-12px}                        /* 42 px touch target around an 18 px tick */
+.wt-check.on{background:var(--accent);border-color:var(--accent)}
+.wt-check.on::after{content:"";position:absolute;left:5px;top:2px;width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.wt-more{font-size:.68rem;opacity:.7;margin-top:3px}
+.wt-next .wt-t2{font-weight:650;font-size:.9rem;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.wt-stats{display:flex;gap:12px;justify-content:center}.wt-stats div{display:flex;flex-direction:column;align-items:center}.wt-stats b{font-size:1.4rem;line-height:1.1}.wt-stats span{font-size:.64rem;opacity:.8}
+
+/* ---- add / remove / restore motion ---- */
+.wgt-in{animation:wgt-in .55s cubic-bezier(.2,.9,.25,1.15) both}
+@keyframes wgt-in{from{opacity:0;scale:.82}to{opacity:1;scale:1}}
+.wgt-out{opacity:0;scale:.9;transition:opacity .22s,scale .22s}
+.wgt-morph .wgt-body{animation:wgt-fade .3s ease both}@keyframes wgt-fade{from{opacity:.0}to{opacity:1}}
+
+/* ---- the double-tap: bloom from the touch point, a travelling sheen, a settling ripple ---- */
+.wgt-glow{position:absolute;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;pointer-events:none;z-index:4;
+  background:radial-gradient(closest-side,rgba(255,255,255,.95),rgba(255,255,255,.5) 38%,rgba(190,205,255,.18) 66%,transparent 78%);
+  opacity:0;transform:scale(.2);animation:wgt-glow .72s cubic-bezier(.2,.7,.2,1) forwards}
+@keyframes wgt-glow{0%{opacity:.95;transform:scale(.2)}55%{opacity:.7;transform:scale(var(--s,3))}100%{opacity:0;transform:scale(calc(var(--s,3) * 1.25))}}
+.wgt-sheen{position:absolute;top:-20%;bottom:-20%;left:0;width:46%;pointer-events:none;z-index:4;opacity:0;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.55) 45%,rgba(255,255,255,.12) 60%,transparent);
+  transform:translateX(-120%) skewX(-16deg);animation:wgt-sheen .7s cubic-bezier(.4,0,.2,1) .06s forwards}
+@keyframes wgt-sheen{0%{opacity:0;transform:translateX(-120%) skewX(-16deg)}15%{opacity:1}100%{opacity:0;transform:translateX(330%) skewX(-16deg)}}
+.wgt-ripple{animation:wgt-ripple .72s cubic-bezier(.3,1.4,.4,1)}
+@keyframes wgt-ripple{0%{scale:1}18%{scale:.955 1.03}42%{scale:1.03 .985}68%{scale:.992 1.006}100%{scale:1}}
+.wgt-pulse{animation:wgt-pulse .16s ease}@keyframes wgt-pulse{50%{opacity:.7}}
+@media (prefers-reduced-motion:reduce){.wgt-glow,.wgt-sheen,.wgt-ripple,.wgt-in{animation:none}}
+body.reduce-motion .wgt-glow,body.reduce-motion .wgt-sheen,body.reduce-motion .wgt-ripple,body.reduce-motion .wgt-in{animation:none}
+/* weak devices: keep the glass look, drop the blur */
+body.lite-gfx .wgt{-webkit-backdrop-filter:none;backdrop-filter:none}
+
+/* ---- sheets: compact so the widgets behind stay visible while customising ---- */
+body.wgt-editing .sheet.wgt-sheet{max-height:min(56vh,calc(var(--vvh) * .56))}
+body.wgt-editing .sheet-backdrop{background:rgba(0,0,0,.10);backdrop-filter:none;-webkit-backdrop-filter:none}
+body.wgt-editing #creature-wrap{opacity:1}
+.wd-line{margin:0 0 8px;font-size:.92rem;line-height:1.5}.wd-line.dim{opacity:.7;font-size:.8rem}
+.wd-big{margin:0 0 6px;font-size:1.7rem;font-weight:650}.wd-big small{font-size:.9rem;font-weight:500;opacity:.8}
+.wd-btns{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}.wd-msg{font-size:.82rem;opacity:.85;margin-top:6px;min-height:1em}
+.wd-live{padding-bottom:6px;border-bottom:1px solid var(--glass-border)}
+.wd-chips{display:flex;gap:8px;flex-wrap:wrap}
+.wd-chip{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:62px;min-height:48px;padding:7px 10px;border-radius:16px;font-size:.78rem;font-weight:600;color:var(--ink-dim);background:var(--glass);border:1px solid var(--glass-border)}
+.wd-chip.on{color:var(--ink);background:var(--glass-strong);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.wd-glyph{display:grid;place-items:center;height:26px}
+.wt-list.big{gap:10px}.wt-list.big .wt-row{font-size:.95rem}.wt-list.big .wt-check{width:22px;height:22px}
+.wd-add-row{align-items:center}.wd-add-ico{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:var(--glass-strong);border:1px solid var(--glass-border);flex-shrink:0}
+/* wallpaper picker tiles */
+.wp-grid .wp-tile{position:relative;aspect-ratio:3/4;overflow:hidden;padding:0}
+.wp-grid .wp-tile img,.wp-grid .wp-tile svg{width:100%;height:100%;object-fit:cover;display:block;max-height:none}
+.wp-blurb{position:absolute;left:8px;right:8px;bottom:30px;font-size:.66rem;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.8);text-align:center}
+.wp-tile .wd-name{position:absolute;left:0;right:0;bottom:6px;text-align:center;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.85)}
+.wp-check{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font-weight:800;box-shadow:0 2px 8px rgba(0,0,0,.4)}
+.wp-tile.on{outline:3px solid var(--accent);outline-offset:-3px}
+.wp-broken{display:grid;place-items:center;height:100%;background:linear-gradient(160deg,#1c1f4a,#0a0c24);color:#fff;font-size:.72rem;text-align:center;padding:8px}

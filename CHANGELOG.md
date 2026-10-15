@@ -1,3 +1,17 @@
+# DABSy v10.2.0 (+ supplied day/night wallpapers) — wallpapers, manual Day/Night, habitat seating, keyboard perf, flowing Study Mode, glass widgets, tutorial
+
+**Wallpapers supplied by you** are now real day AND night rooms: Moonlit window nook, Study desk, Lakeside (the daylight grade is gone). Cosy bed stays as an illustrated room. Files: `assets/magic/{room,desk,lake}-{day,night}.webp`, embedded in `magic-assets.js` (1.2 MB, loaded only when a wallpaper is on). Spots for the new rooms were placed by eye from your pictures; check them on your phone.
+**1. Wallpaper selection.** I could NOT reproduce "cannot select" in headless Chromium: the old Magic World tile did switch. Real fragilities found and fixed: only ONE picture existed (so "choosing" looked like nothing happened), the settings sheet covered the result, a failed image silently flipped back to Classic, and the world kept its own light/roam prefs. Now: Settings → Wallpaper has Black screen + 4 rooms (3 new illustrated rooms, each with real day and night pictures, plus the supplied photo room). Tap applies immediately, a tick + aria-checked marks it, it persists, a failed picture is refused with a message (selection never silently changes), Black screen is one tap. Files: `habitat-scenes.js` (new), `habitats-data.js`, `world-engine.js`, `settings-engine.js`.
+**2. Day/Night.** One control (`DABSy.theme.setMode("day"|"night"|"auto")`) drives interface AND room. Top-left sun/moon button + Settings → Day / Night. Default Night; Auto only if chosen; the clock is never read otherwise. The photo room has no day artwork: its Day is a static daylight grade (labelled as such). `theme-engine.js`, `perf.css`.
+**3. Seating.** Spots are derived from object geometry in `habitat-scenes.js` (pillow top, desk top, sill top). Wandering now defaults to OFF (it was the random sitting); it can visit the room's other real objects if enabled. Switching wallpaper re-seats her. In Study Mode she tucks to a compact spot above the explanation.
+**4. Keyboard lag — causes:** visualViewport `scroll` listener (fires constantly), `--vvh` rewritten every tick, smooth `scrollIntoView` on every change, an animated `bottom` on the chat dock, duplicate world listener, and blur/glow/breathing running during the transition. Fix: `viewport-engine.js` (single rAF reader, 4 px quantised, no scroll listener, once-only guard), `kb-moving` window pausing decorative work (`perf.css`), no `bottom` transition (`core.css`).
+**5. Study Mode.** `study-engine.js` parses the answer into heading / definition / formula / paragraph / list and draws plain typography (`projection.css`); no per-step boxes. Only real procedures (3+ numbered steps) reveal progressively; "Show all steps".
+**6. Widgets.** `widget-engine.js`, `widgets.css`: Time & date, Weather (Open-Meteo, needs location + network, setup state otherwise), Today's to-dos, Today's study, Up next, Focus. Shapes rounded/pill/circle/blob/leaf, sizes S/M/L, tints, drag, add/remove/restore, persistence, double-tap liquid-glass response.
+**7. Tutorial.** 9 new steps with small pictures; first launch once; Replay from Settings → Help & Tutorial.
+Version 10.2.0, cache `dabsy-v10.2.0`. Hard refresh / reinstall may be needed to replace the old service-worker cache.
+
+---
+
 # DABSy v10.1.0 — repair: images, Classic default, Banana Milk x Aoi Soda cards
 
 **1. Images not loading — root cause.** The screenshots show broken-image icons for every Magic World picture while all CSS/JS loaded, i.e. the files under `assets/magic/` were not being served. The original v9.1 project had no sub-folders at all (flat repo), and v10 introduced `assets/magic/*.webp`; a flat/drag-drop upload skips folders, so every `./assets/magic/...` URL 404'd. (I could not inspect your live site; this is the cause the evidence fits. The paths themselves are correct relative paths and resolve on a local copy.)
@@ -49,14 +63,3 @@ Version 10.0.0, service-worker cache `dabsy-v10.0.0`.
 - New receiver `DS_init` in `app.js`: video -> existing YouTube player, PDF -> existing PDF viewer (fetched direct, or via optional proxy), plan sticky note, acks, de-duplication, error dialogs with "Open original".
 - Fixed a pre-existing freeze: showing 4+ toasts at once caused an infinite loop in the toast code.
 - `index.html`: optional `resource-proxy` meta. `sw.js`: cache version bumped.
-
-## 10.1.1 — AI connection repair
-- Cause (most likely, not verified against the live Worker): Google retired gemini-2.0-flash on 1 Jun 2026; gemini-2.5-flash is scheduled 16 Oct 2026. New Worker uses gemini-3.5-flash with automatic fallback.
-- New `dabsy-brain/worker.js` (POST {message} -> {reply}, real error codes, /health and /test).
-- ai-engine.js now shows the specific failure instead of one vague line; keeps `ai.lastError()`.
-
-## 10.1.2
-- Evidence: the live Worker still answers GET / with 405 (the new Worker answers 200 JSON), and "Gemini request failed." exists nowhere in this project, so the deployed Worker is still the old code.
-- New diagnose.html (open it on your GitHub Pages site, tap Run check).
-- Worker: a model with no quota no longer stops the fallback chain.
-- App: detects the old Worker and says so plainly.

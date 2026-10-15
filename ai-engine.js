@@ -38,8 +38,6 @@
     };
   }
 
-  let lastError = null; // the most recent real failure, for the diagnostic in Settings
-
   async function post(path, body){
     const base = cfg().proxyUrl.replace(/\/+$/, "");
     if(!base) return { ok: false, error: "no-proxy" };
@@ -62,22 +60,9 @@
     const base = cfg().proxyUrl.replace(/\/+$/, "");
     if(!base){ setState("limited", "The AI service isn't set up on this deployment yet."); return statusInfo(); }
     if(cfg().mode === "message"){
-      // Updated Worker (v2) answers GET /health with its version, key presence and models. The old one answers 405.
-      if(Date.now() - lastCheck < 20000) return statusInfo();
-      lastCheck = Date.now();
+      // dabsy-brain has no /health route; the first real reply is the proof. Don't claim "Ready" before that.
       caps.search = false;
-      try{
-        const ctl = new AbortController(); const t = setTimeout(() => ctl.abort(), 7000);
-        const r = await fetch(base + "/health", { signal: ctl.signal }); clearTimeout(t);
-        const d = await r.json().catch(() => null);
-        if(r.ok && d && d.version >= 2){
-          if(d.hasKey === false) setState("checking", "The Worker has no Google key set (secret GEMINI_API_KEY).");
-          else setState("ready", "Connected");
-        } else setState("checking", "The Cloudflare Worker looks like the old version. Update it, then reopen DABSy.");
-      }catch(e){
-        // CORS block or old Worker: stay optimistic, the first real reply is the proof.
-        if(state === "checking") setState("checking", "Not confirmed yet. I'll confirm on my first reply.");
-      }
+      if(state === "checking") setState("ready", "Set up. I'll confirm the connection on my first reply.");
       return statusInfo();
     }
     if(Date.now() - lastCheck < 20000) return statusInfo();
@@ -122,31 +107,14 @@
     try{
       const res = await fetch(base, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ message }), signal: ctl.signal });
       let data = null; try{ data = await res.json(); }catch(_){}
-      if(res.status === 429 && !(data && data.error === "gemini-quota")){ setState("ready", "Taking a short breather — busy right now."); return { ok: false, error: "rate-limited" }; }
-      const blob = JSON.stringify(data || {});
-      if(/gemini request failed/i.test(blob)){
-        // That exact sentence is not produced by this app or by the current Worker: it comes from the OLD deployed Worker.
-        lastError = { code: "old-worker", detail: "The deployed Worker is the old version.", status: res.status, at: Date.now() };
-        setState("checking", "The Cloudflare Worker is still the old version and needs updating.");
-        return { ok: false, error: "old-worker" };
-      }
-      if(!res.ok || (data && data.ok === false)){
-        const code = (data && typeof data.error === "string" && data.error.length < 40 && /^[a-z0-9-]+$/.test(data.error)) ? data.error : ("http-" + res.status);
-        lastError = { code, detail: (data && data.detail) || "", status: res.status, at: Date.now() };
-        try{ console.warn("[DABSy AI] backend error:", lastError); }catch(_){}
-        setState("checking", "The last request failed (" + code + "). I'll retry on your next message.");
-        return { ok: false, error: code, detail: lastError.detail };
-      }
-      if(!data || typeof data.reply !== "string" || !data.reply.trim()){ lastError = { code: "bad-response", detail: "", status: res.status, at: Date.now() }; return { ok: false, error: "bad-response" }; }
-      lastError = null;
+      if(res.status === 429){ setState("ready", "Taking a short breather — busy right now."); return { ok: false, error: "rate-limited" }; }
+      if(!res.ok){ setState("checking", "The last request failed. I'll retry on your next message."); return { ok: false, error: "http-" + res.status }; }
+      if(!data || typeof data.reply !== "string" || !data.reply.trim()){ return { ok: false, error: "bad-response" }; }
       setState("ready", "Connected");
       return { ok: true, text: data.reply.trim() };
     }catch(e){
-      const aborted = e && e.name === "AbortError";
-      lastError = { code: aborted ? "timeout" : "network", detail: String(e && e.message || e).slice(0, 100), status: 0, at: Date.now() };
-      try{ console.warn("[DABSy AI] request failed:", lastError); }catch(_){}
       setState("checking", navigator.onLine ? "I couldn't reach the AI service. I'll retry on your next message." : "You're offline.");
-      return { ok: false, error: aborted ? "timeout" : (navigator.onLine ? "network" : "offline") };
+      return { ok: false, error: navigator.onLine ? "network" : "offline" };
     }finally{ clearTimeout(t); }
   }
 
@@ -328,17 +296,7 @@
     if(err === "no-proxy") return "My thinking service isn't set up yet, so I'm in limited mode.";
     if(err === "no-image") return "I can't look at pictures with the current setup yet.";
     if(err === "bad-response") return "I got a strange answer back from my thinking service. Try again.";
-    if(err === "old-worker") return "My Cloudflare Worker is still the old version, so Google can't answer. It needs the updated Worker code.";
-    if(err === "timeout") return "My thinking service took too long to answer. Try again in a moment.";
-    if(err === "network") return "I couldn't reach my thinking service just now (network problem).";
-    if(err === "no-api-key") return "My thinking service has no Google key set yet. (Worker secret GEMINI_API_KEY is missing.)";
-    if(err === "bad-api-key" || err === "gemini-400" || err === "gemini-401" || err === "gemini-403") return "Google rejected my key. The key needs replacing in the Worker secrets.";
-    if(err === "gemini-quota") return "Google says my free allowance is used up for now. Try again later.";
-    if(err === "gemini-404") return "The Google model I use is no longer available. The Worker needs the updated version.";
-    if(err === "origin-not-allowed") return "My thinking service blocked this website address. The Worker's allowed address needs fixing.";
-    if(/^gemini-5|^worker-exception|^gemini-0|^http-5/.test(String(err))) return "My thinking service had a problem on its side (" + err + "). Try again soon.";
-    if(/^http-/.test(String(err))) return "My thinking service answered with an error (" + err + ").";
-    return "I couldn't reach my thinking service just now" + (err ? " (" + err + ")" : "") + ".";
+    return "I couldn't reach my thinking service just now.";
   }
 
   const VALID_STATES = ["IDLE","CURIOUS","HAPPY","FOCUSED","THINKING","SURPRISED","PLAYFUL","STUDY_FOCUS","CONFUSED","SUCCESS"];
@@ -410,7 +368,7 @@
 
   window.DABSy.ai = {
     status: () => state, statusInfo, check, generate, askJSON, research, localParse, parseGoal, parseIntent,
-    askConflictQuestion, resolveConflictIntent, askDABSy, errorLine, limitedReply, lastError: () => lastError, parseTimeOfDay, parseDuration, subjectOf,
+    askConflictQuestion, resolveConflictIntent, askDABSy, errorLine, limitedReply, parseTimeOfDay, parseDuration, subjectOf,
     get canSearch(){ return state !== "limited" && caps.search; },
   };
   window.addEventListener("load", () => setTimeout(check, 1500));

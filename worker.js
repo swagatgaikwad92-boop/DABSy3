@@ -1,140 +1,185 @@
+import { handlePush, runDue } from "./push.js";
+import { ytSearch, ytEmbeddable, pdfSearch, verifyPdf, fetchPdf } from "./search.js";
 /* ============================================================
-   dabsy-brain — Cloudflare Worker (replacement, v2)
-   DABSy app  ->  this Worker  ->  Google Gemini API
+   DABSy AI proxy — Cloudflare Worker
+   browser (DABSy PWA)  ->  this Worker  ->  AI provider + search API
 
-   Contract the app uses:  POST  { "message": "..." }  ->  { "reply": "..." }
-   Errors come back as     { "ok": false, "error": "<code>", "detail": "<short reason>" }
-   so the app (and you) can see the REAL cause instead of a vague message.
+   WHY: the PWA is public static files. Anything inside it (including a
+   key) is readable by anyone. The secrets live HERE, as Worker secrets.
 
-   SECRET (set in Cloudflare, never in the app):  GEMINI_API_KEY
-   Optional variables:  GEMINI_MODEL (e.g. gemini-3.5-flash), ALLOWED_ORIGINS
+   Endpoints (JSON, POST unless noted)
+     GET  /health        -> { ok, ai:boolean, search:boolean }
+     POST /v1/generate   { task, system, prompt, json?, image? } -> { ok, text }
+     POST /v1/research   { query, subject?, level?, maxResults?, maxMinutes?, wantPdf? }   (keyless: YouTube + PDFs, verified)
+     GET  /v1/pdf?url=…  streams a PDF (https only, ≤25 MB, SSRF-guarded) so Study Space can read it despite CORS
+                         -> { ok, results:[{title,url,source,description,type,durationMin,relevance}] }
+
+   Secrets / vars (see wrangler.toml and BACKEND.md)
+     ANTHROPIC_API_KEY   (secret)  AI provider key      — OR —  GEMINI_API_KEY
+     BRAVE_API_KEY       (secret)  real web search (research falls back to "no search" without it)
+     ALLOWED_ORIGINS     (var)     comma list, e.g. https://you.github.io
+     AI_MODEL            (var, optional)
+     RATE (KV namespace, optional) per-IP daily budget that survives isolate restarts
+
+   Nothing here is "free unlimited AI": every call costs the key owner
+   money. Limits below exist to protect that budget.
    ============================================================ */
 
-const DEFAULT_ORIGINS = ["https://swagatgaikwad92-boop.github.io"];
+const LIMITS = { perMinute: 12, perDay: 150, promptChars: 6000, systemChars: 3000, imageBytes: 1_500_000, maxTokens: 900 };
+const TASKS = new Set(["chat", "intent", "explain", "doubt", "conflict", "recall", "rank"]);
+const mem = new Map(); // per-isolate fallback when no KV is bound
 
-// Tried in order. If Google retires or doesn't know one (404), the next is used.
-const MODEL_CHAIN = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
-
-const LIMITS = { messageChars: 14000, maxOutputTokens: 4096, perMinute: 15, perDay: 300 };
-const mem = new Map();
-
-function getKey(env) {
-  return env.GEMINI_API_KEY || env.GOOGLE_API_KEY || env.GEMINI_KEY || env.API_KEY || "";
-}
-function allowedOrigins(env) {
-  const extra = String(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
-  return extra.length ? extra : DEFAULT_ORIGINS;
-}
-function corsHeaders(env, req) {
+function cors(env, req) {
   const origin = req.headers.get("Origin") || "";
-  const ok = allowedOrigins(env).includes(origin);
-  return {
-    ok,
-    origin,
-    headers: ok
-      ? { "Access-Control-Allow-Origin": origin, Vary: "Origin", "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Max-Age": "86400" }
-      : {},
-  };
+  const allowed = String(env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  const ok = allowed.includes(origin); // exact match only; "*" is deliberately not supported for an AI proxy
+  return { ok, headers: ok ? { "Access-Control-Allow-Origin": origin, Vary: "Origin", "Access-Control-Allow-Methods": "GET,POST,OPTIONS", "Access-Control-Allow-Headers": "Content-Type", "Access-Control-Max-Age": "86400" } : {} };
 }
-const send = (obj, status, extra) =>
-  new Response(JSON.stringify(obj), { status: status || 200, headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(extra || {}) } });
+const json = (obj, status, extra) => new Response(JSON.stringify(obj), { status: status || 200, headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...(extra || {}) } });
 
-function limited(ip) {
-  const now = Date.now();
-  const mk = `m:${ip}:${Math.floor(now / 60000)}`, dk = `d:${ip}:${new Date().toISOString().slice(0, 10)}`;
-  const bump = (k) => { const v = (mem.get(k) || 0) + 1; mem.set(k, v); return v; };
-  if (mem.size > 4000) mem.clear();
-  return bump(mk) > LIMITS.perMinute || bump(dk) > LIMITS.perDay;
+async function rateLimit(env, ip) {
+  const now = Date.now(), minKey = `m:${ip}:${Math.floor(now / 60000)}`, dayKey = `d:${ip}:${new Date().toISOString().slice(0, 10)}`;
+  async function bump(key, ttl) {
+    if (env.RATE) { const v = Number(await env.RATE.get(key)) || 0; await env.RATE.put(key, String(v + 1), { expirationTtl: ttl }); return v + 1; }
+    const v = (mem.get(key) || 0) + 1; mem.set(key, v); if (mem.size > 5000) mem.clear(); return v;
+  }
+  const m = await bump(minKey, 120), d = await bump(dayKey, 90000);
+  if (m > LIMITS.perMinute) return { limited: true, retryAfter: 30 };
+  if (d > LIMITS.perDay) return { limited: true, retryAfter: 3600 };
+  return { limited: false };
 }
 
-function modelList(env) {
-  const first = String(env.GEMINI_MODEL || "").trim();
-  return first ? [first, ...MODEL_CHAIN.filter((m) => m !== first)] : MODEL_CHAIN;
-}
-
-// Calls Gemini once for one model. Returns { ok, text } or { ok:false, status, reason }.
-async function callGemini(model, key, message) {
-  let r;
-  try {
-    r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+/* ---------------- model call ---------------- */
+async function callModel(env, { system, prompt, json: wantJson, image }) {
+  const sys = (system || "") + (wantJson ? "\nRespond with valid JSON only. No markdown." : "");
+  if (env.ANTHROPIC_API_KEY) {
+    const content = [];
+    if (image) content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: image } });
+    content.push({ type: "text", text: prompt });
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
-      headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: message }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: LIMITS.maxOutputTokens },
-      }),
+      headers: { "x-api-key": env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: env.AI_MODEL || "claude-haiku-4-5", max_tokens: LIMITS.maxTokens, system: sys, messages: [{ role: "user", content }] }),
     });
-  } catch (e) {
-    return { ok: false, status: 0, reason: "network: " + String(e && e.message || e).slice(0, 80) };
+    if (!r.ok) throw new Error("provider-" + r.status);
+    const d = await r.json();
+    return (d.content || []).map((p) => p.text || "").join("");
   }
-  let d = null;
-  try { d = await r.json(); } catch (_) {}
-  if (!r.ok) {
-    const reason = (d && d.error && (d.error.message || d.error.status)) || ("HTTP " + r.status);
-    return { ok: false, status: r.status, reason: String(reason).slice(0, 160) };
+  if (env.GEMINI_API_KEY) {
+    const parts = [{ text: sys + "\n\n" + prompt }];
+    if (image) parts.push({ inline_data: { mime_type: "image/jpeg", data: image } });
+    const model = env.AI_MODEL || "gemini-2.0-flash";
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST", headers: { "x-goog-api-key": env.GEMINI_API_KEY, "content-type": "application/json" },
+      body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.7, maxOutputTokens: LIMITS.maxTokens } }),
+    });
+    if (!r.ok) throw new Error("provider-" + r.status);
+    const d = await r.json();
+    return ((d.candidates || [])[0]?.content?.parts || []).map((p) => p.text || "").join("");
   }
-  const cand = d && d.candidates && d.candidates[0];
-  const text = ((cand && cand.content && cand.content.parts) || []).filter((p) => !p.thought).map((p) => p.text || "").join("").trim();
-  if (!text) {
-    const why = (d && d.promptFeedback && d.promptFeedback.blockReason) || (cand && cand.finishReason) || "empty";
-    return { ok: false, status: 200, reason: "empty-reply (" + why + ")", empty: true };
-  }
-  return { ok: true, text };
+  throw new Error("no-provider");
 }
 
-async function think(env, message) {
-  const key = getKey(env);
-  if (!key) return { ok: false, error: "no-api-key", detail: "The Worker has no GEMINI_API_KEY secret.", http: 500 };
-  let last = null, sawQuota = null;
-  for (const model of modelList(env)) {
-    const res = await callGemini(model, key, message);
-    if (res.ok) return { ok: true, reply: res.text, model };
-    last = Object.assign({ model }, res);
-    // Key problems: switching models will not help, so stop and report it.
-    if (res.status === 400 && /api key/i.test(res.reason)) return { ok: false, error: "bad-api-key", detail: res.reason, http: 502 };
-    if (res.status === 401 || res.status === 403) return { ok: false, error: "gemini-" + res.status, detail: model + ": " + res.reason, http: 502 };
-    // Quota is counted per model, so another model may still have room: remember it and keep trying.
-    if (res.status === 429) sawQuota = sawQuota || (model + ": " + res.reason);
-    // 404 (retired/unknown model), 5xx, empty answer, network: try the next model.
-  }
-  if (sawQuota) return { ok: false, error: "gemini-quota", detail: sawQuota, http: 429 };
-  return { ok: false, error: "gemini-" + (last ? last.status : "unknown"), detail: last ? `${last.model}: ${last.reason}` : "no model answered", http: 502 };
+/* ---------------- search ---------------- */
+function mins(v) {
+  if (!v) return null;
+  if (typeof v === "number") return Math.round(v / 60) || null;
+  const p = String(v).split(":").map(Number).filter((n) => !isNaN(n));
+  if (!p.length) return null;
+  const s = p.length === 3 ? p[0] * 3600 + p[1] * 60 + p[2] : p.length === 2 ? p[0] * 60 + p[1] : p[0];
+  return Math.max(1, Math.round(s / 60));
+}
+async function brave(env, path, q, count) {
+  const u = new URL("https://api.search.brave.com/res/v1/" + path);
+  u.searchParams.set("q", q); u.searchParams.set("count", String(count)); u.searchParams.set("safesearch", "strict");
+  const r = await fetch(u, { headers: { "X-Subscription-Token": env.BRAVE_API_KEY, Accept: "application/json" } });
+  if (!r.ok) throw new Error("search-" + r.status);
+  return r.json();
 }
 
+async function research(env, body) {
+  const q = String(body.query || "").slice(0, 200).trim();
+  if (!q) return { ok: false, error: "bad-request" };
+  const max = Math.min(12, Math.max(3, Number(body.maxResults) || 8));
+  const maxMin = Number(body.maxMinutes) || 60;
+  // keyless discovery (YouTube + optional PDFs); Brave adds general web results only when its key is set
+  const jobs = [ytSearch(q + " explained", 14).catch(() => null), body.wantPdf ? pdfSearch(q, 8).catch(() => null) : Promise.resolve([]),
+    env.BRAVE_API_KEY ? brave(env, "web/search", q, 8).catch(() => null) : Promise.resolve(null)];
+  const [yt, pdfs, web] = await Promise.all(jobs);
+  if (yt === null && pdfs === null && web === null) return { ok: false, error: "search-unavailable" };
+  const items = [];
+  (yt || []).forEach((v) => { if (!v.durationMin || v.durationMin <= maxMin) items.push(Object.assign({ kind: "video", snippet: v.description }, v)); });
+  ((web && web.web && web.web.results) || []).forEach((r) => items.push({ title: r.title, url: r.url, snippet: (r.description || "").replace(/<[^>]+>/g, ""), source: r.meta_url?.hostname || "", durationMin: null, kind: "web" }));
+  (pdfs || []).forEach((p) => items.push(Object.assign({ kind: "pdf", snippet: p.description }, p)));
+  // verify what we're about to recommend (parallel, capped)
+  const checked = await Promise.all(items.slice(0, 22).map(async (it) => {
+    if (it.kind === "video") { const ok = await ytEmbeddable(it.videoId); if (ok === false) return null; it.embeddable = ok === true; }
+    else if (it.kind === "pdf") { const v = await verifyPdf(it.url); if (!v) return null; it.pdfVerified = true; it.sizeBytes = v.bytes; }
+    return it;
+  }));
+  const clean = checked.filter((i) => i && /^https?:\/\//.test(i.url || "")).slice(0, 16);
+  if (!clean.length) return { ok: true, results: [] };
+  let ranked = null;
+  if (env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY) {
+    try {
+      const list = clean.map((r, i) => `${i}. ${r.title} | ${r.source} | ${(r.snippet || "").slice(0, 160)}`).join("\n");
+      const text = await callModel(env, { system: "You rank study resources. You never invent items.", json: true,
+        prompt: `Student wants: ${q}${body.level ? " (" + body.level + ")" : ""}.\nCandidates:\n${list}\nReturn JSON {"items":[{"i":<index>,"relevance":0..1,"type":"video|article|practice|notes|pdf|course","description":"<=140 chars, factual from the snippet only"}]} with only the best ${max}, best first. Drop spam, ads, paywalled or off-topic items.` });
+      const o = JSON.parse(text.replace(/^```json|```$/g, "").trim());
+      ranked = Array.isArray(o.items) ? o.items : null;
+    } catch (e) { ranked = null; }
+  }
+  const out = (it, rel, type, desc) => ({ title: it.title, url: it.url, source: it.source, description: desc || it.snippet, type: type || (it.kind === "video" ? "video" : it.kind === "pdf" ? "pdf" : undefined), durationMin: it.durationMin, relevance: rel,
+    embeddable: it.embeddable, pdfVerified: it.pdfVerified, sizeBytes: it.sizeBytes, videoId: it.videoId });
+  const results = ranked
+    ? ranked.filter((x) => clean[x.i]).map((x) => out(clean[x.i], Math.max(0, Math.min(1, Number(x.relevance) || 0.5)), x.type, x.description))
+    : clean.slice(0, max).map((r, i) => out(r, Math.max(0.3, 0.9 - i * 0.05)));
+  return { ok: true, results: results.slice(0, max) };
+}
+
+/* ---------------- router ---------------- */
 export default {
   async fetch(req, env) {
-    const c = corsHeaders(env, req);
+    const c = cors(env, req);
     const url = new URL(req.url);
-
     if (req.method === "OPTIONS") return new Response(null, { status: c.ok ? 204 : 403, headers: c.headers });
-    if (c.origin && !c.ok) return send({ ok: false, error: "origin-not-allowed", detail: "Allowed: " + allowedOrigins(env).join(", ") }, 403);
+    if (!c.ok && req.headers.get("Origin")) return json({ ok: false, error: "origin-not-allowed" }, 403);
 
-    // Health: GET /  or  GET /health   (no key is ever shown, only yes/no)
-    if (req.method === "GET" && (url.pathname === "/" || url.pathname === "/health")) {
-      return send({ ok: true, worker: "dabsy-brain", version: 2, build: "2026-10-15", hasKey: !!getKey(env), models: modelList(env), allowedOrigins: allowedOrigins(env) }, 200, c.headers);
+    if (url.pathname === "/health" && req.method === "GET")
+      return json({ ok: true, ai: !!(env.ANTHROPIC_API_KEY || env.GEMINI_API_KEY), search: true, brave: !!env.BRAVE_API_KEY, pdfProxy: true }, 200, c.headers);
+
+    if (url.pathname.startsWith("/v1/push/")) return handlePush(req, env, c, url, json);   // own limits; does not use the AI quota
+
+    if (url.pathname === "/v1/pdf" && req.method === "GET") {
+      const rl0 = await rateLimit(env, (req.headers.get("CF-Connecting-IP") || "unknown") + ":pdf");
+      if (rl0.limited) return json({ ok: false, error: "rate-limited" }, 429, c.headers);
+      const r = await fetchPdf(url.searchParams.get("url") || "");
+      if (r.error) return json({ ok: false, error: r.error }, r.status, c.headers);
+      return new Response(r.body, { status: 200, headers: { "Content-Type": "application/pdf", "Cache-Control": "public, max-age=3600", "X-Content-Type-Options": "nosniff", ...c.headers } });
     }
-    // Self-test: GET /test  asks Gemini one tiny question and shows the real result.
-    if (req.method === "GET" && url.pathname === "/test") {
-      if (limited("test:" + (req.headers.get("CF-Connecting-IP") || "x"))) return send({ ok: false, error: "rate-limited" }, 429, c.headers);
-      const r = await think(env, "Reply with the single word: ready");
-      return send(r.ok ? { ok: true, modelUsed: r.model, reply: r.reply } : { ok: false, error: r.error, detail: r.detail }, r.ok ? 200 : r.http, c.headers);
-    }
+    if (req.method !== "POST") return json({ ok: false, error: "not-found" }, 404, c.headers);
+    const ip = req.headers.get("CF-Connecting-IP") || "unknown";
+    const rl = await rateLimit(env, ip);
+    if (rl.limited) return json({ ok: false, error: "rate-limited", retryAfter: rl.retryAfter }, 429, { ...c.headers, "Retry-After": String(rl.retryAfter) });
 
-    if (req.method !== "POST") return send({ ok: false, error: "use-POST" }, 405, c.headers);
-    if (limited(req.headers.get("CF-Connecting-IP") || "unknown")) return send({ ok: false, error: "rate-limited", retryAfter: 30 }, 429, { ...c.headers, "Retry-After": "30" });
-
-    let body;
-    try { body = await req.json(); } catch (_) { return send({ ok: false, error: "bad-json" }, 400, c.headers); }
-    const message = String((body && (body.message ?? body.prompt)) || "").trim();
-    if (!message) return send({ ok: false, error: "empty-message" }, 400, c.headers);
-    if (message.length > LIMITS.messageChars) return send({ ok: false, error: "message-too-long" }, 413, c.headers);
+    let body; try { body = await req.json(); } catch (e) { return json({ ok: false, error: "bad-json" }, 400, c.headers); }
 
     try {
-      const r = await think(env, message);
-      if (r.ok) return send({ ok: true, reply: r.reply, model: r.model }, 200, c.headers);
-      return send({ ok: false, error: r.error, detail: r.detail }, r.http || 502, c.headers);
+      if (url.pathname === "/v1/generate") {
+        const task = String(body.task || "chat");
+        if (!TASKS.has(task)) return json({ ok: false, error: "bad-task" }, 400, c.headers);
+        const prompt = String(body.prompt || ""), system = String(body.system || "");
+        if (!prompt || prompt.length > LIMITS.promptChars || system.length > LIMITS.systemChars) return json({ ok: false, error: "bad-size" }, 400, c.headers);
+        let image = body.image ? String(body.image) : undefined;
+        if (image && image.length > LIMITS.imageBytes) return json({ ok: false, error: "image-too-large" }, 413, c.headers);
+        const text = await callModel(env, { system, prompt, json: !!body.json, image });
+        return json({ ok: true, text }, 200, c.headers);
+      }
+      if (url.pathname === "/v1/research") return json(await research(env, body), 200, c.headers);
     } catch (e) {
-      return send({ ok: false, error: "worker-exception", detail: String(e && e.message || e).slice(0, 120) }, 500, c.headers);
+      return json({ ok: false, error: String(e.message || "upstream").slice(0, 60) }, 502, c.headers);
     }
+    return json({ ok: false, error: "not-found" }, 404, c.headers);
   },
+  async scheduled(event, env, ctx) { ctx.waitUntil(runDue(env)); },
 };

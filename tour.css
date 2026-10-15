@@ -9,3 +9,19 @@
 .tour-hl{box-shadow:0 0 0 3px var(--accent),0 0 24px var(--accent)!important;border-radius:50%;z-index:96!important}
 body.touring #creature-wrap{transform:translate(-50%,-50%) scale(.8) translateY(-10vh)}
 @keyframes tour-in{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+
+/* ---- v10.2 tour visuals (tiny CSS pictures; no images, no network) ---- */
+.tour-visual{margin:2px 0 10px}.tv{display:flex;align-items:center;justify-content:center;gap:10px;height:78px;border-radius:16px;background:rgba(127,127,160,.10);padding:8px}
+.tv-tile{position:relative;width:46px;height:62px;border-radius:12px;background:linear-gradient(160deg,var(--a),var(--b));border:2px solid transparent}
+.tv-tile.on{border-color:var(--accent)}.tv-tile b{position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:#fff;font:700 11px/18px system-ui;text-align:center}
+.tv-eyes{position:absolute;left:12px;top:20px;width:8px;height:16px;border-radius:5px;background:#d8ecff;box-shadow:16px 0 #d8ecff}
+.tv-orb{width:34px;height:34px;border-radius:50%}.tv-orb.sun{background:radial-gradient(circle at 35% 30%,#fff6b0,#ffb84a)}.tv-orb.moon{background:radial-gradient(circle at 65% 35%,#f4f1ff,#8b86d8)}
+.tv-switch{width:52px;height:28px;border-radius:99px;background:rgba(127,127,160,.35);position:relative}.tv-switch u{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff}
+.tv-room{position:relative;width:140px;height:60px;border-radius:12px;background:linear-gradient(#2d2958,#1d1a40);overflow:hidden}
+.tv-pillow{position:absolute;left:40px;bottom:8px;width:60px;height:16px;border-radius:10px;background:#9a87e8}.tv-dab{position:absolute;left:56px;bottom:20px;width:28px;height:24px;border-radius:12px 12px 8px 8px;background:#5a64b8}
+.tv-sky{background:linear-gradient(160deg,#7cb8ff,#e7d3ff)}
+.tv-glass{display:block;background:linear-gradient(150deg,rgba(255,255,255,.65),rgba(255,255,255,.2));border:1.5px solid rgba(255,255,255,.85);box-shadow:0 4px 10px rgba(40,40,100,.25);position:relative;overflow:hidden}
+.tv-glass.bloom u{position:absolute;left:55%;top:40%;width:40px;height:40px;margin:-20px;border-radius:50%;background:radial-gradient(closest-side,#fff,rgba(255,255,255,.2) 70%,transparent)}
+.tv-page{flex-direction:column;align-items:flex-start;justify-content:center;gap:6px;padding:10px 16px}.tv-page b{width:50%;height:9px;border-radius:5px;background:var(--accent)}.tv-page s{display:block;width:100%;height:5px;border-radius:3px;background:rgba(127,127,160,.4)}.tv-page s.short{width:60%}.tv-page em{display:block;align-self:center;width:44%;height:10px;border-top:1px solid rgba(127,127,160,.6);border-bottom:1px solid rgba(127,127,160,.6)}
+.tv-kb{flex-direction:column;justify-content:flex-end;gap:6px;padding:6px 10px}.tv-bar{width:90%;height:14px;border-radius:99px;background:var(--accent);opacity:.8}.tv-keys{width:100%;height:26px;border-radius:8px;background:repeating-linear-gradient(90deg,rgba(127,127,160,.45) 0 14px,transparent 14px 18px)}
+.tour-visual{align-self:stretch}

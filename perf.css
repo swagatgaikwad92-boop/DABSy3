@@ -1,0 +1,19 @@
+/* ============================================================
+   D.A.B.S.y — perf.css (v10.2): keyboard + typing performance, and the Day/Night button
+   While the keyboard is moving (body.kb-moving, ~0.4 s, set by viewport-engine.js) the decorative work that
+   repaints every frame is switched off: backdrop blurs, the eye-glow blur, lamp glows, the creature's breathing.
+   Everything comes back as soon as the keyboard has settled. Nothing here is applied the rest of the time.
+   ============================================================ */
+#daynight-btn{position:absolute;top:calc(14px + var(--sat));left:16px;z-index:20;width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+body.touring #daynight-btn,body.study-active #daynight-btn,body.session-active #daynight-btn{opacity:0;pointer-events:none}
+
+body.kb-moving .glass,body.kb-moving #subtitle,body.kb-moving #input-dock,body.kb-moving .sheet,body.kb-moving .toast,
+body.kb-moving .wgt,body.kb-moving .popup-card,body.kb-moving #projection-surface,body.kb-moving .popup-backdrop,body.kb-moving .sheet-backdrop,
+body.kb-moving #eco-backdrop{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+body.kb-moving .eye-glow{filter:none!important}
+body.kb-moving .w-light,body.kb-moving #atmosphere,body.kb-moving #atmosphere *{animation-play-state:paused!important}
+body.kb-moving #face,body.kb-moving #face *{animation-play-state:paused!important}
+/* typing: keep the dock on its own layer and keep its repaints from touching the rest of the page */
+#chat-area{contain:layout style}
+#input-dock{contain:layout style}
+body.kb-open .w-light{animation-play-state:paused}

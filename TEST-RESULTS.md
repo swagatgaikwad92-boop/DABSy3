@@ -1,3 +1,19 @@
+# v10.2 tests (Playwright/Chromium headless, local server, touch emulation, no internet) — `tests/t11.py t12.py t13.py t14.py`
+
+| Area | Result |
+|---|---|
+| Wallpaper: 5 tiles, tap each room applies + selected state, persists after reload, Black screen returns/persists | PASS |
+| Broken wallpaper picture refused | NOT VERIFIED (my test was unreliable: image was cached; the code path returns false on load failure) |
+| Day/Night: button switches theme + room, persists after reload, back to Night, Settings has Day/Night/Auto (Night default) | PASS |
+| Seating: all 4 rooms x day/night x 390x844 and 360x640: feet on home spot (within 3 px), body fully on screen | PASS (32/32) |
+| Keyboard (EMULATED by overriding visualViewport height, not a real keyboard): dock above keyboard, focus kept, 2 style writes, closes cleanly, listeners guarded | PASS (emulation only) |
+| Study Mode: no `.step` cards, structure parsed, no card backgrounds, progressive steps then all revealed, companion above explanation (8 px of her transparent box margin overlaps; her body does not), returns to spot | PASS (AI stubbed; speech off) |
+| Widgets: 6 types via sheet, no overlaps, double-tap anim + single sheet, shape/size live, remove/restore, persistence, weather setup state, hidden during chat | PASS (classic 360x640 fits only 2 of 6; the rest are refused with a message) |
+| Tutorial: offer on first launch, 9 new topics, remembered, not repeated, replay keeps prefs, cards fit 360x640 | PASS |
+| Old suites t2/t3/t7/t10 | PASS except t2 "no console errors" (offline sandbox name-resolution, same as before) |
+
+**NOT tested:** real Android keyboard/frame rates, GitHub Pages deployment, weather with real location + network, speech-driven reading, sheen effect (headless runs lite-gfx), service-worker upgrade.
+
 # v10.1 repair tests (Playwright/Chromium, local server, no internet) — `tests/t7.py t8.py t9.py t10.py`
 
 | Check | Result |

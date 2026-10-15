@@ -54,3 +54,9 @@ Version 10.0.0, service-worker cache `dabsy-v10.0.0`.
 - Cause (most likely, not verified against the live Worker): Google retired gemini-2.0-flash on 1 Jun 2026; gemini-2.5-flash is scheduled 16 Oct 2026. New Worker uses gemini-3.5-flash with automatic fallback.
 - New `dabsy-brain/worker.js` (POST {message} -> {reply}, real error codes, /health and /test).
 - ai-engine.js now shows the specific failure instead of one vague line; keeps `ai.lastError()`.
+
+## 10.1.2
+- Evidence: the live Worker still answers GET / with 405 (the new Worker answers 200 JSON), and "Gemini request failed." exists nowhere in this project, so the deployed Worker is still the old code.
+- New diagnose.html (open it on your GitHub Pages site, tap Run check).
+- Worker: a model with no quota no longer stops the fallback chain.
+- App: detects the old Worker and says so plainly.

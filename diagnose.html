@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DABSy connection check</title>
+<style>
+:root{color-scheme:light dark;font-family:system-ui,sans-serif}
+body{margin:0;padding:16px;max-width:640px;margin-inline:auto;line-height:1.45}
+button{font-size:18px;padding:14px 20px;border-radius:12px;border:0;background:#2a7de1;color:#fff;width:100%}
+.card{border:1px solid #8886;border-radius:12px;padding:12px;margin:12px 0}
+.ok{border-color:#2a9d4a}.bad{border-color:#d33}.warn{border-color:#d08a00}
+pre{white-space:pre-wrap;word-break:break-word;font-size:13px;margin:6px 0 0}
+h1{font-size:22px}h2{font-size:16px;margin:0}
+#verdict{font-size:17px;font-weight:600}
+</style></head><body>
+<h1>DABSy connection check</h1>
+<p>Tap the button. It tests the Worker and Google step by step. No secrets are shown.</p>
+<button id="go">Run check</button>
+<div id="verdict" class="card" hidden></div>
+<div id="out"></div>
+<script src="./dabsy-config.js"></script>
+<script>
+const base = (window.DABSy.config.ai.proxyUrl || "").replace(/\/+$/, "");
+const out = document.getElementById("out"), verdict = document.getElementById("verdict");
+function card(title, cls, text){ const d=document.createElement("div"); d.className="card "+cls; d.innerHTML="<h2></h2><pre></pre>"; d.querySelector("h2").textContent=title; d.querySelector("pre").textContent=text; out.appendChild(d); }
+async function call(path, opt){
+  const ctl=new AbortController(); const t=setTimeout(()=>ctl.abort(),30000);
+  try{ const r=await fetch(base+path,Object.assign({signal:ctl.signal},opt)); const txt=await r.text(); let j=null; try{j=JSON.parse(txt)}catch(_){} return {status:r.status,txt:txt.slice(0,500),j}; }
+  catch(e){ return {status:0,txt:String(e&&e.message||e),j:null,failed:true}; }
+  finally{ clearTimeout(t); }
+}
+document.getElementById("go").onclick = async () => {
+  out.innerHTML=""; verdict.hidden=false; verdict.className="card"; verdict.textContent="Checking…";
+  let v = "";
+  card("Address used by the app","",base||"(none set)");
+  // 1. Worker version
+  const h = await call("/health");
+  if(h.failed){ card("1. Reach the Worker","bad","Browser could not read the answer ("+h.txt+").\nThis means: the Worker is the OLD version (it sends no permission header), or the address is wrong, or you are offline."); v="The Worker is not answering this page. Most likely it is still the OLD code. Do the Cloudflare update steps."; }
+  else if(h.status===405 || !h.j || !(h.j.version>=2)){ card("1. Worker version","bad","HTTP "+h.status+"\n"+h.txt+"\nThis is NOT the new Worker."); v="The Worker on Cloudflare is still the OLD version. Update it with dabsy-brain-worker.js and tap Deploy."; }
+  else {
+    card("1. Worker version","ok","New Worker is deployed (version "+h.j.version+", build "+(h.j.build||"?")+").\nGoogle key present: "+h.j.hasKey+"\nModels it will try: "+(h.j.models||[]).join(", "));
+    if(!h.j.hasKey) v="The Worker is new but has NO Google key. Add the secret GEMINI_API_KEY in Cloudflare.";
+    else {
+      // 2. Real Gemini call
+      const t = await call("/test");
+      if(t.j && t.j.ok){ card("2. Google answered","ok","Model used: "+t.j.modelUsed+"\nReply: "+t.j.reply); 
+        const p = await call("/",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({message:"Say hi in three words."})});
+        if(p.j && p.j.ok){ card("3. Chat request (what the app sends)","ok","Reply: "+p.j.reply); v="EVERYTHING WORKS. DABSy's AI is connected. Reopen DABSy."; }
+        else { card("3. Chat request","bad","HTTP "+p.status+"\n"+p.txt); v="The test passed but the chat request failed. Send me the red box text."; }
+      } else {
+        const code=t.j&&t.j.error, det=t.j&&t.j.detail;
+        card("2. Google call","bad","HTTP "+t.status+"\nError: "+(code||t.txt)+"\nDetail: "+(det||"-"));
+        v = {"bad-api-key":"Google rejected the key. Make a new key in Google AI Studio and replace the GEMINI_API_KEY secret.",
+             "gemini-403":"Google refused the key's permission. Make a NEW key in Google AI Studio (not restricted) and replace the secret.",
+             "gemini-401":"Google rejected the key. Replace the GEMINI_API_KEY secret with a new key.",
+             "gemini-quota":"Google's free allowance is used up for these models. Wait, or enable billing in Google AI Studio.",
+             "gemini-404":"None of the models in the list exist for this key. Send me the red box text.",
+             "no-api-key":"The Worker has no Google key. Add the secret GEMINI_API_KEY."}[code] || "Google call failed. Send me the red box text.";
+      }
+    }
+  }
+  verdict.className="card "+(v.startsWith("EVERYTHING")?"ok":"bad"); verdict.textContent=v;
+};
+</script></body></html>

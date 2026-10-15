@@ -6,7 +6,7 @@ async def main():
     async with async_playwright() as p:
         b = await p.chromium.launch()
         ctx = await b.new_context(viewport={'width':390,'height':844}, device_scale_factor=2, has_touch=True, is_mobile=True)
-        await ctx.add_init_script('localStorage.setItem("dabsy_onboarding_v1",JSON.stringify({tutorialCompleted:true,outcome:"skipped"}))')
+        await ctx.add_init_script('localStorage.setItem("dabsy_onboarding_v1",JSON.stringify({tutorialCompleted:true,outcome:"skipped"}));localStorage.setItem("dabsy_wardrobe_v1",JSON.stringify({form:"magic",formChosen:true}))')
         pg = await ctx.new_page(); cdp = await ctx.new_cdp_session(pg)
         errs=[]
         pg.on('console', lambda m: errs.append(m.text) if m.type=='error' else None)

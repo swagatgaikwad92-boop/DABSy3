@@ -134,3 +134,8 @@ body[data-form="magic"] .r-dizzy{animation-name:mw-dizzy}
 .seg-b[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
 
 @media (max-height:480px) and (orientation:landscape){body.kb-open[data-form="magic"] #creature-wrap{opacity:0}}
+
+/* while the artwork is being fetched/decoded the creature waits (never longer than the preload timeout, then Classic shows) */
+body.mw-loading #creature-wrap{visibility:hidden}
+/* settings tile: if the room picture can't load, a calm night gradient stands in (the tile stays labelled) */
+.wd-tile.mw-tile:not(.classic){background:linear-gradient(180deg,#141a3d,#2a2350 60%,#3b2b3f)}

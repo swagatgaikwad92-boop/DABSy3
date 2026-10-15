@@ -19,7 +19,7 @@
   window.DABSy = window.DABSy || {};
 
   const CONFIG = {
-    version: "10.0.0",
+    version: "10.1.0",
 
     push: {
       // Web Push for reminders when the app is closed. Deploy backend/ (see BACKEND.md, "Web Push"), then put its

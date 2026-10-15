@@ -99,7 +99,7 @@
       const grid = el("div", { class: "wd-grid wd-grid-2" });
       const magic = el("button", { class: "wd-tile mw-tile" + (form === "magic" ? " on" : ""), type: "button", "aria-pressed": String(form === "magic"), "aria-label": "Magic World: DABSy lives in a cosy room",
         onclick: () => { if(D.outfits.setForm("magic")) D.face.react("perk"); paintWorld(); paintWardrobe(); } },
-        el("img", { src: D.worldData.habitats[0].variants.night.src, alt: "", loading: "lazy" }), el("span", { class: "wd-name" }, "Magic World"));
+        el("img", { src: (D.world && D.world.assetUrl ? D.world.assetUrl("room-night.webp") : D.worldData.habitats[0].variants.night.src), alt: "", loading: "lazy", onerror: ev => ev.target.remove() }), el("span", { class: "wd-name" }, "Magic World"));
       const classic = el("button", { class: "wd-tile mw-tile classic" + (form === "minimal" ? " on" : ""), type: "button", "aria-pressed": String(form === "minimal"), "aria-label": "Classic black screen: just her eyes and bow tie",
         onclick: () => { if(D.outfits.setForm("minimal")) D.face.react("perk"); paintWorld(); paintWardrobe(); } });
       classic.innerHTML = D.outfits.previewForm() + '<span class="wd-name">Classic black screen</span>';

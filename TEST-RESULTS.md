@@ -1,3 +1,18 @@
+# v10.1 repair tests (Playwright/Chromium, local server, no internet) — `tests/t7.py t8.py t9.py t10.py`
+
+| Check | Result |
+|---|---|
+| Fresh install, 390x844 and 360x640: Classic DABSy shown, centred (face centre x=195/180), 0 images, 0 broken, 0 page errors, 0 404s | PASS |
+| Stale v10 state `form:"magic"` never chosen -> Classic | PASS |
+| Invalid stored form -> Classic | PASS |
+| Explicit Magic World choice kept: 5 images, 0 broken, 0 failed requests, creature visible | PASS |
+| Magic World with `magic-assets.js` AND `assets/magic/*` both returning 404 -> Classic shown, no broken icons, toast | PASS |
+| Banana Milk cards, dark and ivory themes, 360 wide: milk surface, thin cyan border, stronger cyan on selected, readable text | PASS (rendered with the real CSS classes; resource-card rows were built from their real markup in a sheet, the real swipe-card screen was not driven) |
+| Classic: eye tap opens chat once; face does not overlap chat; 400 px tall squeeze keeps face on screen | PASS |
+| Magic World gesture/roaming suite re-run (`t2.py`) and calendar/sync suite (`t3.py`, 13 checks) and launch test (`t5.py`) | PASS (console "errors" = offline sandbox) |
+
+**NOT tested:** your real GitHub Pages deployment and the cause there (I can only say what the evidence fits), a real phone keyboard, the real swipe-card screen with live search results, service-worker upgrade from v10.0.0 on your phone (hard refresh / reinstall may be needed so the old cache is replaced).
+
 # v10 test results (honest) — Playwright + Chromium, 390x844 touch, local server, no internet
 
 Scripts are in `tests/`. "Stand-in" = `tests/ghibli-standin.html`, a page that loads the real `dabsy-core.js` and mimics Ghibli's `state.js` (load once, whole-state save, no listeners) as read from the repo. The REAL deployed Ghibli / Study Space were never loaded.

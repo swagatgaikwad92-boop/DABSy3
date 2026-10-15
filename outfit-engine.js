@@ -25,11 +25,11 @@
   const face = document.getElementById("face");
 
   const DEFAULT_FUR = ["#7482d8", "#4552a6", "#222a66"];
-  // form: "magic" (MAGIC WORLD, default) | "minimal" (the original black-screen look: floating eyes + bow tie).  tie: bow-tie palette id.
-  let state = Object.assign({ outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "magic", tie: "outfit" }, memory.read(KEY, {}));
-  // v10: the old fur mode is gone. Anyone who had it ("furry") moves to MAGIC WORLD; a saved "minimal" choice is kept.
-  if(state.form === "furry") state.form = "magic";
-  if(state.form !== "magic") state.form = "minimal";
+  // form: "magic" (MAGIC WORLD, opt-in) | "minimal" (the original black-screen look: floating eyes + bow tie).  tie: bow-tie palette id.
+  let state = Object.assign({ outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "minimal", formChosen: false, tie: "outfit" }, memory.read(KEY, {}));
+  // CLASSIC DABSy (floating eyes + bow tie on the dark screen) is the default. Magic World is opt-in: it is honoured only if the user
+  // actually picked it (formChosen). A stale / invalid / "furry" value, or "magic" that was never chosen, falls back to Classic.
+  if(state.form !== "magic" || state.formChosen !== true) state.form = "minimal";
   delete state.v82;
   if(!TIE_PALETTES.some(t => t.id === state.tie)) state.tie = "outfit";
   state.acc = Object.assign({ eyes: null, ears: null, head: null }, state.acc || {});
@@ -126,10 +126,10 @@
      running animation are untouched. world-engine.js builds / removes the
      scene and the supplied character layers when body[data-form] changes. */
   function paintForm(){ face.dataset.form = state.form; document.body.dataset.form = state.form; }
-  function setForm(form){
+  function setForm(form, opt){
     form = form === "magic" ? "magic" : "minimal";
     if(form === state.form) return false;
-    state.form = form; save(); paintForm();
+    state.form = form; if(!(opt && opt.auto)) state.formChosen = true; save(); paintForm();
     // re-place (not re-draw) every worn piece so it sits correctly for the new presentation
     SLOTS.forEach(slot => {
       const w = document.getElementById("slot-" + slot)?.firstElementChild; if(!w) return;
@@ -246,5 +246,5 @@
   checkAchievements();
   bus.on("tasks:completed", () => checkAchievements());
   bus.on("session:finished", () => checkAchievements());
-  bus.on("memory:wiped", () => { state = { outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "magic", tie: "outfit" }; paintForm(); apply(); bus.emit("outfit:form", { form: "magic" }); });
+  bus.on("memory:wiped", () => { state = { outfit: "classic", acc: { eyes: null, ears: null, head: null }, unlocked: [], form: "minimal", formChosen: false, tie: "outfit" }; paintForm(); apply(); bus.emit("outfit:form", { form: "minimal" }); });
 })();

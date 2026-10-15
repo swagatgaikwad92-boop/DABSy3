@@ -1,3 +1,15 @@
+# DABSy v10.1.0 — repair: images, Classic default, Banana Milk x Aoi Soda cards
+
+**1. Images not loading — root cause.** The screenshots show broken-image icons for every Magic World picture while all CSS/JS loaded, i.e. the files under `assets/magic/` were not being served. The original v9.1 project had no sub-folders at all (flat repo), and v10 introduced `assets/magic/*.webp`; a flat/drag-drop upload skips folders, so every `./assets/magic/...` URL 404'd. (I could not inspect your live site; this is the cause the evidence fits. The paths themselves are correct relative paths and resolve on a local copy.)
+   Fix: the artwork now ships inside a root-level script, `magic-assets.js` (data URIs, 296 KB, loaded only when Magic World is on), with the folder as a second route. Before Magic World is shown, every picture is preloaded and decoded; if any fails, DABSy shows **Classic** with a short message instead of broken icons. The settings preview tile hides a failed image and shows a night gradient. `sw.js` no longer lists the sub-folder images (precache stays non-fatal).
+**2. Position — root cause.** Not a layout bug in Classic. Magic World deliberately stands DABSy on the cushion at the bottom of the room picture; with the room image missing, only a dark screen and a creature at the bottom were left. Classic keeps the original centred layout (verified 390x844, 360x640, squeezed 400 px tall, with chat open).
+**3. Classic is the default.** `outfit-engine.js`: default form is Classic. Magic World is honoured only if the user chose it (`formChosen`); a stale v10 `magic` value that was never chosen, `furry`, or any invalid value falls back to Classic. Choosing Magic World/Classic in Settings still works and persists. Existing explicit choices are kept.
+**4. Banana Milk x Aoi Soda.** New `banana.css`: tokens `--bm-*` / `--aoi*` (milk, cream, cyan borders, ink levels, link, ok, danger). Applied to resource cards and list rows, plan blocks, notification items and settings/hub rows; breaks stay mint, errors keep their red. Text contrast on the milk surface: 13.4 / 8.2 / 6.4 (primary/secondary/tertiary), cyan links 5.2, success 5.2, error 6.0. Dark and ivory page themes are untouched.
+
+Files: `outfit-engine.js`, `world-engine.js`, `settings-engine.js`, `magic.css`, `magic-assets.js` (new), `tools/embed-assets.py` (new), `banana.css` (new), `index.html`, `sw.js`, `dabsy-config.js` (10.1.0).
+
+---
+
 # DABSy v10.0.0 — MAGIC WORLD, calendar intelligence, fast Ghibli sync, real-app launch
 
 **Magic World** (replaces the old fur mode; the original black-screen mode is kept as "Classic black screen")

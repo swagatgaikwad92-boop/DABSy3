@@ -1,0 +1,89 @@
+/* ============================================================
+   D.A.B.S.y — banana.css : BANANA MILK x AOI SODA cards
+   A palette for CARDS only (resource cards, plan/priority rows, notification items, settings & hub rows).
+   The dark/ivory page themes, the creature and the warning colours are untouched.
+
+   Banana Milk  = pale vanilla / buttery cream surfaces (never mustard, orange or neon)
+   Aoi Soda     = thin, crisp fresh-cyan borders; a slightly stronger cyan for selected / active / focus
+   Text on cards is always the dark ink below (>= 12:1 on the milk surface), whatever page theme is active,
+   so the tokens that children read (--ink, --ink-dim, --glass …) are re-scoped to the card.
+   ============================================================ */
+:root{
+  --bm-milk:#fff4c8;            /* Banana Milk primary background */
+  --bm-milk-hi:#fffae0;         /* lighter cream surface (inner chips, buttons) */
+  --bm-milk-lo:#fdeeb4;         /* deeper milk for the bottom of the gradient */
+  --bm-cream:#fffdf3;           /* lightest surface */
+  --aoi:#58cbe9;                /* Aoi Soda border */
+  --aoi-strong:#1aa3cf;         /* selected / active / interactive border */
+  --aoi-focus:rgba(26,163,207,.38);
+  --bm-ink:#2a2820;             /* primary text      (13.4:1 on --bm-milk) */
+  --bm-ink-2:#4c493b;           /* secondary text    ( 8.2:1 on --bm-milk) */
+  --bm-ink-3:#5d5948;           /* tertiary / hints  ( 6.4:1 on --bm-milk) */
+  --bm-link:#0a6f8c;            /* cyan text on milk ( 5.2:1 on --bm-milk) */
+  --bm-ok:#1b7548;              /* success           ( 5.2:1 on --bm-milk) */
+  --bm-danger:#ad2c2a;          /* error / destructive ( 6.0:1 on --bm-milk) */
+  --bm-warn:#8a5a00;
+  --bm-surface:linear-gradient(165deg,rgba(255,255,255,.62),rgba(255,255,255,0) 52%),linear-gradient(180deg,var(--bm-milk),var(--bm-milk-lo));
+  --bm-shadow:0 10px 26px rgba(40,70,90,.16);
+}
+
+:root .rcard,
+:root .rc-list .rc-row,
+:root .nc-item,
+:root .plan-b,
+:root .sheet .row{
+  /* re-scope what children inherit so every label, icon and ghost button stays readable on cream */
+  --ink:var(--bm-ink); --ink-dim:var(--bm-ink-2); --ink-faint:var(--bm-ink-3);
+  --accent:var(--bm-link); --ok:var(--bm-ok); --danger:var(--bm-danger);
+  --glass:rgba(255,255,255,.55); --glass-strong:var(--bm-milk-hi); --glass-border:rgba(26,163,207,.42);
+  color:var(--bm-ink); color-scheme:light;
+  background:var(--bm-surface);
+  border:1px solid var(--aoi);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85), var(--bm-shadow);
+}
+
+:root .rcard{ border-radius:26px; box-shadow:inset 0 1px 0 rgba(255,255,255,.85), 0 16px 36px var(--card-shadow,rgba(0,0,0,.35)); }
+
+
+/* selected / active / interactive: a stronger cyan, still thin */
+:root .rc-list .rc-row.on,
+:root .plan-b.cur,
+:root .nc-item.new,
+:root .rcard.top:focus-visible{
+  border-color:var(--aoi-strong);
+  box-shadow:inset 0 0 0 1px var(--aoi-strong), inset 0 1px 0 rgba(255,255,255,.85), var(--bm-shadow);
+}
+
+:root .nc-item.new{ background:linear-gradient(165deg,rgba(255,255,255,.7),rgba(255,255,255,0) 52%),linear-gradient(180deg,var(--bm-milk-hi),var(--bm-milk)); }
+
+:root .rcard.top:focus-visible,
+:root .rcard :focus-visible,
+:root .rc-list .rc-row :focus-visible,
+:root .plan-b :focus-visible,
+:root .nc-item :focus-visible{ outline:2px solid var(--aoi-strong); outline-offset:3px; box-shadow:0 0 0 4px var(--aoi-focus); }
+
+:root .rc-list .rc-incl input{ accent-color:var(--aoi-strong); }
+
+:root .plan-b.k-break{ background:linear-gradient(165deg,rgba(255,255,255,.6),rgba(255,255,255,0) 52%),linear-gradient(180deg,#eefaf4,#dff3ea); }
+   /* a break stays visibly different */
+:root .plan-b.done,
+:root .nc-item.acted{ filter:saturate(.8); }
+
+
+/* buttons that live inside a card: cream pills with a cyan hairline; primary keeps its accent gradient + dark label */
+:root .rcard .btn:not(.primary),
+:root .rc-list .btn:not(.primary),
+:root .nc-item .btn:not(.primary),
+:root .plan-b .btn:not(.primary),
+:root .rc-open{ background:var(--bm-milk-hi); color:var(--bm-ink); border:1px solid var(--aoi); }
+
+:root .rcard .btn.primary,
+:root .rc-list .btn.primary,
+:root .nc-item .btn.primary{ color:#10303b; }
+
+/* destructive / error text keeps its own colour */
+:root .rcard .danger,
+:root .rc-list .danger,
+:root .nc-item .danger{ color:var(--bm-danger); }
+@media (prefers-reduced-transparency: reduce){ :root .rcard,:root .rc-row,:root .nc-item,:root .plan-b{ background:var(--bm-milk); } }
+:root .rc-list .rc-source,:root .rc-list .rc-why{ opacity:1; color:var(--bm-ink-3); }

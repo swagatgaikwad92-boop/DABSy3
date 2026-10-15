@@ -114,7 +114,7 @@
       paintLights(); bus.emit("world:light", { light: name });
     };
     img.onload = show; img.onerror = () => { worldEl.classList.add("ready"); };
-    img.src = v.src;
+    img.src = assetUrl(v.src.split("/").pop());
     sceneEl.insertBefore(img, sceneEl.firstChild);
     if(img.complete && img.naturalWidth) show();
   }
@@ -319,6 +319,28 @@
   /* ============================================================
      DOM: scene + character layers (built only while Magic World is on)
      ============================================================ */
+  /* ---- artwork: embedded bundle first (always deploys with the root files), the assets/ folder as a second route ---- */
+  const assetUrl = f => (D.worldAssets && D.worldAssets[f]) || (DATA.assets + f);
+  let assetsState = "idle", assetsErr = "";                        // idle | loading | ready | failed
+  function loadScript(src){ return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("could not load " + src)); document.head.appendChild(s); }); }
+  function preload(file){
+    return new Promise((res, rej) => {
+      const i = new Image(); const t = setTimeout(() => rej(new Error("timed out: " + file)), 9000);
+      i.onload = () => { clearTimeout(t); (i.decode ? i.decode().catch(() => {}) : Promise.resolve()).then(res); };
+      i.onerror = () => { clearTimeout(t); rej(new Error("failed: " + file)); };
+      i.src = assetUrl(file);
+    });
+  }
+  async function ensureAssets(){
+    if(assetsState === "ready") return true;
+    assetsState = "loading"; assetsErr = "";
+    try{
+      if(!D.worldAssets){ try{ await loadScript("./magic-assets.js"); }catch(e){ /* fall through: the folder route may still work */ } }
+      const files = Object.values(CH.files).concat(habitat.variants.night ? [habitat.variants.night.src.split("/").pop()] : []);
+      await Promise.all(files.map(preload));
+      assetsState = "ready"; return true;
+    }catch(e){ assetsState = "failed"; assetsErr = String(e && e.message || e); return false; }
+  }
   function pct(v, of){ return (v / of * 100).toFixed(3) + "%"; }
   function setVars(){
     const r = document.documentElement.style;
@@ -326,12 +348,12 @@
     put("body", { x: 0, y: 0, w: CH.bodyW, h: CH.bodyH });
     put("eyeL", CH.eyeL); put("eyeR", CH.eyeR); put("bow", CH.bow); put("fleck", CH.flecks);
     put("halo", { x: -CH.halo.pad, y: -CH.halo.pad, w: CH.bodyW + CH.halo.pad * 2, h: CH.bodyH + CH.halo.pad * 2 });
-    r.setProperty("--mw-eye-l", `url("${DATA.assets + CH.files.eyeL}")`); r.setProperty("--mw-eye-r", `url("${DATA.assets + CH.files.eyeR}")`);
+    r.setProperty("--mw-eye-l", `url("${assetUrl(CH.files.eyeL)}")`); r.setProperty("--mw-eye-r", `url("${assetUrl(CH.files.eyeR)}")`);
   }
   function buildCharacter(){
     if(face.querySelector(".mw-body")) return;
     const tilt = face.querySelector(".cr-tilt"), firstEye = document.getElementById("eye-left");
-    const mk = (cls, file) => { const i = new Image(); i.className = "mw-layer " + cls; i.alt = ""; i.decoding = "async"; i.draggable = false; i.setAttribute("aria-hidden", "true"); i.src = DATA.assets + file; return i; };
+    const mk = (cls, file) => { const i = new Image(); i.className = "mw-layer " + cls; i.alt = ""; i.decoding = "async"; i.draggable = false; i.setAttribute("aria-hidden", "true"); i.src = assetUrl(file); return i; };
     [mk("mw-halo", CH.files.halo), mk("mw-flecks", CH.files.flecks), mk("mw-body", CH.files.body)].forEach(n => tilt.insertBefore(n, firstEye));
     const bow = mk("mw-bow", CH.files.bow); bow.id = "mw-bow"; tilt.insertBefore(bow, tilt.querySelector(".cr-wear"));
   }
@@ -367,9 +389,22 @@
     face.setAttribute("aria-label", baseLabel);
     destroyCharacter(); destroyScene();
   }
+  let syncToken = 0;
   function syncForm(){
     const form = D.outfits && D.outfits.form ? D.outfits.form() : document.body.dataset.form;
-    if(form === "magic") enter(); else exit();
+    const my = ++syncToken;
+    if(form !== "magic"){ exit(); document.body.classList.remove("mw-loading"); return; }
+    if(active) return;
+    document.body.classList.add("mw-loading");                      // creature stays hidden for the moment it takes to load; never longer than the preload timeout
+    ensureAssets().then(ok => {
+      if(my !== syncToken) return;                                  // the user changed presentation meanwhile
+      document.body.classList.remove("mw-loading");
+      if(ok){ enter(); return; }
+      // the artwork really could not load: show Classic DABSy (the real classic assets) instead of broken pictures
+      console.warn("[Magic World] artwork unavailable, showing Classic:", assetsErr);
+      if(D.outfits && D.outfits.setForm) D.outfits.setForm("minimal", { auto: true });
+      ui.toast({ text: "Magic World's pictures didn't load, so I'm showing Classic DABSy. Check your connection and try again from Settings.", timeout: 7000 });
+    });
   }
 
   /* ---- user preferences ---- */
@@ -422,6 +457,7 @@
   D.world = {
     active: () => active, state: () => state, isAway, returnHome, snapshot, setLight, setRoam, lightInfo,
     roam: () => prefs.roam, habitat: () => habitat, relayout: onResize,
+    assets: () => ({ state: assetsState, error: assetsErr, embedded: !!D.worldAssets }), assetUrl,
     /* for tests and the settings preview only */
     _goto(id){ const sp = spotById(id); if(!active || !sp) return false; clearTimeout(timer); target = sp; hops = 1; setState(sp.id === homeSpot().id ? ST.BACK : ST.MOVE); travel(screenOf(sp), { speed: 240, minS: .5, maxS: 1.2 }); return true; },
   };

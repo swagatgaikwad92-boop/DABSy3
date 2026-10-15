@@ -49,3 +49,8 @@ Version 10.0.0, service-worker cache `dabsy-v10.0.0`.
 - New receiver `DS_init` in `app.js`: video -> existing YouTube player, PDF -> existing PDF viewer (fetched direct, or via optional proxy), plan sticky note, acks, de-duplication, error dialogs with "Open original".
 - Fixed a pre-existing freeze: showing 4+ toasts at once caused an infinite loop in the toast code.
 - `index.html`: optional `resource-proxy` meta. `sw.js`: cache version bumped.
+
+## 10.1.1 — AI connection repair
+- Cause (most likely, not verified against the live Worker): Google retired gemini-2.0-flash on 1 Jun 2026; gemini-2.5-flash is scheduled 16 Oct 2026. New Worker uses gemini-3.5-flash with automatic fallback.
+- New `dabsy-brain/worker.js` (POST {message} -> {reply}, real error codes, /health and /test).
+- ai-engine.js now shows the specific failure instead of one vague line; keeps `ai.lastError()`.

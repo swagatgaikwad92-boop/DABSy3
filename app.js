@@ -366,7 +366,7 @@
   let utteranceBusy = false;
   async function handleUserUtterance(text){
     if(utteranceBusy) return;
-    utteranceBusy = true;
+    utteranceBusy = true; subtitle.classList.remove("live");
     textInput.readOnly = true;        // not "disabled": that drops focus and closes the phone keyboard after every send
     try{ await processUtterance(text); }
     finally{
@@ -434,7 +434,10 @@
       const cal = await window.DABSy.calIntel.handle(text).catch(e => { console.error(e); return null; });
       if(cal){ memory.addSession("dabsy", cal.text); memory.addHistory({ type: "chat", user: text, reply: cal.text }); say(cal.text, cal.state); return; }
     }
-    const result = await ai.parseIntent(text);
+    // v10.3: while the answer is still being written, show it in the subtitle as it arrives (real streaming from the Worker;
+    // an older Worker that doesn't stream just shows the finished answer as before)
+    let streamedAny = false;
+    const result = await ai.parseIntent(text, { onPartial: partial => { streamedAny = true; subtitle.classList.add("live"); showSubtitle(partial); } });
     if(result.reply) memory.addSession("dabsy", result.reply);
     memory.addHistory({ type: "chat", user: text, reply: result.reply || result.type });
 

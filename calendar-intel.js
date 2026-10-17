@@ -231,6 +231,10 @@
   async function handle(text, now){
     let p = interpret(text, now);
     if(p && p.recurring) return null;
+    // v10.3: the AI refinement used to run for EVERY message that the rules did not recognise, so an ordinary chat message cost
+    // two sequential AI requests (this one, then the chat reply). It now only runs when the text carries a scheduling cue.
+    const CUE = /\b(\d{1,2}(:\d{2})?\s*(am|pm)|\d{1,2}:\d{2}|today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week|this week|noon|midnight|morning|evening|o'?clock|exam|test|quiz|meeting|lecture|class|deadline|submission|submit|due|appointment|remind)\b/i;
+    if(!p && !CUE.test(String(text))) return null;
     if(!p || p.confidence === "low" || (!p.date && !p.ask)){
       const refined = await refineWithAI(text, p, now).catch(() => p);
       if(refined) p = refined;

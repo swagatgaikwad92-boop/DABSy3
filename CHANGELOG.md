@@ -1,3 +1,10 @@
+# DABSy v10.4.0 — dock off-screen fix + real-time Day/Night
+- **Bug:** the chat dock/chips slid off the right edge. Cause: my v10.3 keyboard change replaced `transform: translateX(-50%)` (what centres the dock) with a vertical-only transform. Fixed in `core.css` (`translate3d(-50%, …)`). Tested at 360×780: dock is centred and fully on screen with chat open, predicted keyboard and real keyboard.
+- **Day/Night = real time:** Auto now follows the phone's clock (Day 06:00–17:59, Night otherwise), re-checked every minute and on returning to the app. Existing installs are switched to Auto once. The sun/moon button and Settings → Day / Night still let you force Day or Night until you pick Auto again. Files: `theme-engine.js`, `index.html` (pre-paint script), `settings-engine.js`.
+- Tests: `tests/t16.py` 14/14; t12 13/13; t13 14/14. `tests/t11.py` still asserts the old "Night default" and is out of date.
+
+---
+
 # DABSy v10.3.0 — Turbo AI + three user bugs
 - **Widgets "not available":** added an always-visible widgets button (top left, next to Day/Night) and, on first run only, a Time & date widget is added so the feature is visible. Settings → Widgets still works.
 - **Study Mode glass:** the answer surface is now real liquid glass (translucent tint, blur, rim, highlight), day and night.

@@ -19,7 +19,7 @@
   window.DABSy = window.DABSy || {};
 
   const CONFIG = {
-    version: "10.2.0",
+    version: "10.3.0",
 
     push: {
       // Web Push for reminders when the app is closed. Deploy backend/ (see BACKEND.md, "Web Push"), then put its
@@ -36,6 +36,9 @@
       // "proxy"   = the original backend/worker.js: POST /v1/generate
       mode: "message",
       requestTimeoutMs: 25000,
+      // Stream answers word by word when the Worker supports it (dabsy-brain.js v10.3). An older Worker answers with plain JSON and
+      // the app detects that automatically, so leaving this on is safe.
+      streaming: true,
     },
 
     // Real resource discovery. Deploy backend/worker.js (free Cloudflare plan, no API key needed for

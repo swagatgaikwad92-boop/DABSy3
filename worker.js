@@ -66,16 +66,23 @@ async function callModel(env, { system, prompt, json: wantJson, image }) {
     return (d.content || []).map((p) => p.text || "").join("");
   }
   if (env.GEMINI_API_KEY) {
-    const parts = [{ text: sys + "\n\n" + prompt }];
+    // v10.3: gemini-2.0-flash was shut down on 1 June 2026. Defaults below follow Google's deprecations page (2026-10-12).
+    // For streaming, retries and per-task models use dabsy-brain.js (the standalone AI Worker) instead.
+    const parts = [{ text: prompt }];
     if (image) parts.push({ inline_data: { mime_type: "image/jpeg", data: image } });
-    const model = env.AI_MODEL || "gemini-2.0-flash";
+    let model = env.AI_MODEL && !/^gemini-2\.0/.test(env.AI_MODEL) ? env.AI_MODEL : "gemini-3.5-flash-lite";
+    const gen = { temperature: 0.7, maxOutputTokens: LIMITS.maxTokens };
+    if (wantJson) gen.responseMimeType = "application/json";
+    if (/^gemini-3/.test(model)) gen.thinkingConfig = { thinkingLevel: /3\.8|3\.1-pro/.test(model) ? "low" : "minimal" };
+    else if (/^gemini-2\.5/.test(model)) gen.thinkingConfig = { thinkingBudget: 0 };
+    const body = { contents: [{ role: "user", parts }], generationConfig: gen };
+    if (sys.trim()) body.systemInstruction = { parts: [{ text: sys }] };
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-      method: "POST", headers: { "x-goog-api-key": env.GEMINI_API_KEY, "content-type": "application/json" },
-      body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: { temperature: 0.7, maxOutputTokens: LIMITS.maxTokens } }),
+      method: "POST", headers: { "x-goog-api-key": env.GEMINI_API_KEY, "content-type": "application/json" }, body: JSON.stringify(body),
     });
     if (!r.ok) throw new Error("provider-" + r.status);
     const d = await r.json();
-    return ((d.candidates || [])[0]?.content?.parts || []).map((p) => p.text || "").join("");
+    return ((d.candidates || [])[0]?.content?.parts || []).filter((p) => !p.thought).map((p) => p.text || "").join("");
   }
   throw new Error("no-provider");
 }

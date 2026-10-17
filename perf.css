@@ -5,6 +5,8 @@
    Everything comes back as soon as the keyboard has settled. Nothing here is applied the rest of the time.
    ============================================================ */
 #daynight-btn{position:absolute;top:calc(14px + var(--sat));left:16px;z-index:20;width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+#widgets-btn{position:absolute;top:calc(14px + var(--sat));left:68px;z-index:20;width:44px;height:44px;border-radius:50%;display:grid;place-items:center}
+body.touring #widgets-btn,body.study-active #widgets-btn,body.session-active #widgets-btn,body.cmd-open #widgets-btn,body.kb-open #widgets-btn{opacity:0;pointer-events:none}
 body.touring #daynight-btn,body.study-active #daynight-btn,body.session-active #daynight-btn{opacity:0;pointer-events:none}
 
 body.kb-moving .glass,body.kb-moving #subtitle,body.kb-moving #input-dock,body.kb-moving .sheet,body.kb-moving .toast,
@@ -17,3 +19,6 @@ body.kb-moving #face,body.kb-moving #face *{animation-play-state:paused!importan
 #chat-area{contain:layout style}
 #input-dock{contain:layout style}
 body.kb-open .w-light{animation-play-state:paused}
+
+/* v10.3: a streaming reply stays visible above the keyboard (the subtitle is normally hidden while the keyboard is open) */
+body.kb-open #subtitle.live.visible{opacity:1;pointer-events:auto;bottom:calc(var(--kb,0px) + 150px + var(--sab))}

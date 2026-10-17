@@ -1,3 +1,11 @@
+# DABSy v10.3.0 — Turbo AI + three user bugs
+- **Widgets "not available":** added an always-visible widgets button (top left, next to Day/Night) and, on first run only, a Time & date widget is added so the feature is visible. Settings → Widgets still works.
+- **Study Mode glass:** the answer surface is now real liquid glass (translucent tint, blur, rim, highlight), day and night.
+- **Keyboard smoothness:** the chat dock now rises with a GPU transform and starts the instant you tap the input (predicted height, then corrected from the real one and remembered); DABSy makes ONE 0.3 s move instead of three. Keyboard tested by emulation only.
+- **AI:** see docs/TURBO-AI-DEPLOY.md. New `backend/dabsy-brain.js` (streaming, bounded retry, honest errors, current Gemini models), streaming + honest errors + bounded history in `ai-engine.js`, one AI request per chat message (`calendar-intel.js`), streamed replies in the subtitle and Study Mode. Tests: `tests/worker-test.mjs` (24/24, mock Gemini), `tests/t15.py` (20/20, mock Worker).
+
+---
+
 # DABSy v10.2.0 (+ supplied day/night wallpapers) — wallpapers, manual Day/Night, habitat seating, keyboard perf, flowing Study Mode, glass widgets, tutorial
 
 **Wallpapers supplied by you** are now real day AND night rooms: Moonlit window nook, Study desk, Lakeside (the daylight grade is gone). Cosy bed stays as an illustrated room. Files: `assets/magic/{room,desk,lake}-{day,night}.webp`, embedded in `magic-assets.js` (1.2 MB, loaded only when a wallpaper is on). Spots for the new rooms were placed by eye from your pictures; check them on your phone.

@@ -26,7 +26,8 @@ async def main():
         await pg.tap('#set-widgets .btn.primary'); await pg.wait_for_timeout(1000)
         rows=await pg.query_selector_all('.wd-add-row'); ok(f'{name}: Add-widget sheet lists 6 types', len(rows)==6, str(len(rows)))
         for i in range(len(rows)):
-            btns=await pg.query_selector_all('.wd-add-row .btn'); await btns[i].tap(); await pg.wait_for_timeout(250)
+            btns=await pg.query_selector_all('.wd-add-row .btn')
+            if (await btns[i].inner_text()).strip()=='Add': await btns[i].tap(); await pg.wait_for_timeout(250)   # the clock is auto-added once on first run
         res=await pg.evaluate('JSON.stringify(DABSy.widgets.list().map(w=>[w.type,!!w.rect]))')
         print(name,res)
         await pg.screenshot(path=SH+f't13_{name}_add.png')

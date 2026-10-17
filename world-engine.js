@@ -170,7 +170,11 @@
     const base = screenOf(attendFrom || homeSpot());
     const chat = document.getElementById("chat-area"), sub = document.getElementById("subtitle");
     let limit = L.H - 8;
-    if(chat){ const r = chat.getBoundingClientRect(); if(r.height) limit = Math.min(limit, r.top - 10); }
+    if(chat && chat.offsetHeight){
+      // computed from the (possibly predicted) keyboard height, NOT from the dock's current on-screen position, which is mid-transition
+      const vp = D.viewport, gap = vp ? vp.chatBottomGap() : L.H * .05;
+      limit = Math.min(limit, L.H - gap - chat.offsetHeight - 10);
+    }
     if(sub && sub.classList.contains("visible") && !document.body.classList.contains("kb-open")){ const r = sub.getBoundingClientRect(); if(r.height) limit = Math.min(limit, r.top - 8); }
     const bodyH = L.box * 1.1 * BODY_H_FRAC, avail = limit - TOP_SAFE;
     let s = Math.min(base.s, .92);
@@ -315,14 +319,14 @@
       attend = true; attendFrom = curSpot || homeSpot();
       clearTimeout(timer); clearTimeout(moveTimer); face.classList.remove("walking");
       setState(ST.BUSY);
-      travel(attendTarget(), { speed: 240, minS: .6, maxS: 1.4, camera: false });
+      travel(attendTarget(), { speed: 900, minS: .3, maxS: .34, camera: false });
     } else if(wantAttend && attend){
-      applyPos(attendTarget(), reduced() ? .2 : .5);
+      applyPos(attendTarget(), reduced() ? .2 : .3);
     } else if(!wantAttend && attend){
       attend = false; const back = attendFrom || homeSpot(); attendFrom = null;
       curSpot = back; target = back;
       setState(back.id === homeSpot().id ? ST.HOME : ST.DEST);
-      travel(screenOf(back), { speed: 240, minS: .6, maxS: 1.4, camera: false });
+      travel(screenOf(back), { speed: 700, minS: .34, maxS: .5, camera: false });
     } else if(blocked()){
       clearTimeout(timer); timer = 0;
       if(state === ST.HOME || state === ST.DEST) { /* stay put until resume() */ }
@@ -487,7 +491,8 @@
   window.addEventListener("resize", onResize);
   window.addEventListener("orientationchange", () => setTimeout(onResize, 260));
   // the viewport engine announces ONCE when the keyboard has finished moving (no per-frame listener here)
-  document.addEventListener("dabsy:kbsettled", () => { if(active && attend) applyPos(attendTarget(), reduced() ? .2 : .35); });
+  document.addEventListener("dabsy:kb", () => { if(active && attend && !companion) applyPos(attendTarget(), reduced() ? .2 : .3); });
+  document.addEventListener("dabsy:kbsettled", () => { if(active && attend && !companion) applyPos(attendTarget(), .15); });
   bus.on("theme:changed", () => { if(active) paintVariant(true); });
   document.addEventListener("visibilitychange", () => {
     if(!active) return;

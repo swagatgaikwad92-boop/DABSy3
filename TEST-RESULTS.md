@@ -1,3 +1,10 @@
+# v10.3 tests
+- Worker (`node tests/worker-test.mjs`, mock Gemini): 24/24. Covers models/thinking, 503 retry once with fallback, bounded to 2 calls, daily quota not retried, Retry-After honoured/refused, 400/403/404 handling, no key leakage, streaming chunks + thought text excluded, mid-stream failure not retried, client cancel propagates, origin check, rate limit.
+- App + Worker (`tests/t15.py`, mock Gemini timing SIMULATED): streaming 12/12, errors/duplicates/study stream 5/5, bounded history + keyboard 4/4.
+- Regression: t11 quick 24/24, t12 13/13, t13 14/14, t14 7/7.
+- Not run: real Gemini, physical Android, Cloudflare deployment, load/rate-limit under real traffic; t11 full (360x640 matrix) not rerun after v10.3.
+- Note: during development one Worker test failed because my mock errored before the first chunk could be read; I fixed the mock timing, not the Worker.
+
 # v10.2 tests (Playwright/Chromium headless, local server, touch emulation, no internet) — `tests/t11.py t12.py t13.py t14.py`
 
 | Area | Result |

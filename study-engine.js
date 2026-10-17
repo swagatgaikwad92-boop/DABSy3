@@ -138,14 +138,20 @@
     bus.emit("projection:open");
     content.innerHTML = '<p class="study-wait">Thinking it through…</p>';
     pointer.style.opacity = "0";
-    let result;
+    let result, lastPaint = 0;
+    // while the answer is still arriving, draw what exists so far (throttled); the final render + read-along follow
+    const paintPartial = text => {
+      if(my !== run) return; const t = Date.now(); if(t - lastPaint < 140) return; lastPaint = t;
+      render(topic.length > 70 ? topic.slice(0, 70) + "…" : topic, parse(text)); content.classList.add("streaming");
+    };
     try{
       result = await ai.askDABSy(`Explain for a Class 11 science student: ${topic}`,
-        { context: "Study Mode. Write a clear, readable explanation. Use a short heading or two only if the answer has distinct parts. Define key terms as 'Term: meaning'. Put each formula on its own line (e.g. F = m × a). Use a numbered list ONLY for a real worked procedure; otherwise write natural short paragraphs, or bullets for revision. Match the length to the question: a simple fact gets one or two sentences. Reply in the language the student wrote in (English, Hindi, Marathi or a mix); keep equations and technical terms readable." });
+        { context: "Study Mode. Write a clear, readable explanation. Use a short heading or two only if the answer has distinct parts. Define key terms as 'Term: meaning'. Put each formula on its own line (e.g. F = m × a). Use a numbered list ONLY for a real worked procedure; otherwise write natural short paragraphs, or bullets for revision. Match the length to the question: a simple fact gets one or two sentences. Reply in the language the student wrote in (English, Hindi, Marathi or a mix); keep equations and technical terms readable.", onPartial: paintPartial });
     }catch(e){ result = null; }
     if(my !== run) return;
     if(!result || !result.text){ content.innerHTML = '<p class="study-wait">I couldn\'t reach my explanation service just now. Planning, tasks and reminders still work. Try again in a moment.</p>'; return; }
     const title = topic.length > 70 ? topic.slice(0, 70) + "…" : topic;
+    content.classList.remove("streaming");
     const { units, hasPending } = render(title, parse(result.text));
     if(hasPending){
       const b = document.createElement("button"); b.type = "button"; b.className = "study-more"; b.textContent = "Show all steps";
@@ -156,7 +162,7 @@
   }
 
   function stopStudy(){
-    run++;
+    run++; try{ ai.abort(); }catch(e){}
     voice.stopSpeaking();
     pointer.style.opacity = "0";
   }

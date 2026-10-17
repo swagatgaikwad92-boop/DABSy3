@@ -70,7 +70,8 @@ async def main():
     await b.close()
 
     # ---- 3 habitat seating, both sizes ----
-    for (vw,vh) in [(390,844),(360,640)]:
+    import os
+    for (vw,vh) in ([(390,844)] if os.environ.get('QUICK') else [(390,844),(360,640)]):
       for hab in ['bed','desk','lake','window-nook']:
         for theme in ['dark','light']:
           b,ctx,pg=await mk(p,vw,vh,pre='localStorage.setItem("dabsy_wardrobe_v1",JSON.stringify({form:"magic",formChosen:true}));localStorage.setItem("dabsy_world_v1",JSON.stringify({habitat:"%s",roam:"off",v:2}));localStorage.setItem("dabsy_settings",JSON.stringify({theme:"%s"}));'%(hab,theme))

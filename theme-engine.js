@@ -17,8 +17,14 @@
   const META = { dark: "#0f1318", light: "#fbf6e6" };
   let applied = null;
 
-  const choice = () => { const t = memory.getSettings().theme; return t === "light" || t === "auto" ? t : "dark"; };
-  const resolve = c => c === "auto" ? (mq && mq.matches ? "light" : "dark") : c;
+  /* v10.4: Auto = REAL TIME. Day (light) from 06:00 to 17:59 by the phone's local clock, Night (dark) otherwise.
+     It is re-checked every minute and when the app comes back to the foreground. A manual Day/Night choice stays until
+     you pick Auto again (Settings → Day / Night → Auto). First run of v10.4 switches existing installs to Auto once. */
+  const DAY_START = 6, DAY_END = 18;
+  const byClock = () => { const h = new Date().getHours(); return h >= DAY_START && h < DAY_END ? "light" : "dark"; };
+  try{ if(!localStorage.getItem("dabsy_theme_rt_v1")){ localStorage.setItem("dabsy_theme_rt_v1", "1"); memory.saveSettings({ theme: "auto" }); } }catch(_){}
+  const choice = () => { const t = memory.getSettings().theme; return t === "light" || t === "dark" ? t : "auto"; };
+  const resolve = c => c === "auto" ? byClock() : c;
 
   function apply(animate){
     const r = resolve(choice());
@@ -34,12 +40,14 @@
   function set(v){ memory.saveSettings({ theme: v === "light" || v === "auto" ? v : "dark" }); }
   /* v10.2 — one explicit Day / Night control. "day" = light, "night" = dark. "auto" (follow the phone) exists
      only as something the user picks; the default is night and nothing ever flips it from the clock by itself. */
-  const mode = () => { const c = choice(); return c === "light" ? "day" : c === "auto" ? "auto" : "night"; };
+  const mode = () => { const c = choice(); return c === "light" ? "day" : c === "dark" ? "night" : "auto"; };
   function setMode(m){ set(m === "day" ? "light" : m === "auto" ? "auto" : "dark"); }
   function toggle(){ setMode(resolve(choice()) === "light" ? "night" : "day"); }
 
   bus.on("settings:changed", () => apply(true));
   bus.on("memory:wiped", () => apply(true));        // "Forget everything" resets settings, so the theme follows
+  setInterval(() => { if(choice() === "auto") apply(true); }, 60000);
+  document.addEventListener("visibilitychange", () => { if(!document.hidden && choice() === "auto") apply(true); });
   if(mq){ const onChange = () => { if(choice() === "auto") apply(true); }; mq.addEventListener ? mq.addEventListener("change", onChange) : mq.addListener(onChange); }
   /* the Day / Night quick switch on the main screen (same control as Settings → Appearance) */
   const btn = document.getElementById("daynight-btn");

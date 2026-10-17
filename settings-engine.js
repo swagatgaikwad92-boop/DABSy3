@@ -146,8 +146,8 @@
 
     /* ---------- Day / Night (v10.2: one manual control; Auto only if you pick it) ---------- */
     const appearance = section("appearance", "Day / Night",
-      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Mode"), el("div", { class: "s" }, "Night is the default and stays until you change it. Day switches the whole app and your room to daylight. Auto follows your phone and only applies if you choose it. You can also tap the sun or moon at the top left of the main screen.")),
-        (() => { const seg = segmented("Day or Night", [["day", "☀ Day"], ["night", "☾ Night"], ["auto", "Auto"]], D.theme.mode(), v => D.theme.setMode(v));
+      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Mode"), el("div", { class: "s" }, "Auto follows the real time on your phone: Day from 6 am to 6 pm, Night otherwise. Choosing Day or Night yourself stays until you pick Auto again. You can also tap the sun or moon at the top left of the main screen.")),
+        (() => { const seg = segmented("Day or Night", [["day", "☀ Day"], ["night", "☾ Night"], ["auto", "Auto (real time)"]], D.theme.mode(), v => D.theme.setMode(v));
                  offs.push(bus.on("theme:changed", () => [...seg.children].forEach(b => { const on = b.dataset.v === D.theme.mode(); b.classList.toggle("on", on); b.setAttribute("aria-checked", String(on)); }))); return seg; })()));
 
     /* ---------- widgets ---------- */

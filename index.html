@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0f1318" />
 <meta name="color-scheme" content="dark light" />
 <script>/* v8: apply the saved theme before first paint (no dark/light flash) */
-(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
+(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t===undefined||t==="auto"){var h=new Date().getHours();t=h>=6&&h<18?"light":"dark"}if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
 </script>
 <meta name="description" content="D.A.B.S.y — your plush AI study companion and hub for your study apps." />
 <link rel="manifest" href="./manifest.json" />

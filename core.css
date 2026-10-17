@@ -137,7 +137,7 @@ body.cmd-open #creature-wrap{transform:translate(-50%,-50%) scale(.9) translateY
 
 /* ---- keyboard-aware layout (viewport-engine.js) ---- */
 :root{ --kb:0px; --kbs:0px; --vvh:100dvh; }
-#chat-area{ bottom:calc(5% + var(--sab)); transform:translate3d(0,calc(-1 * var(--kbs,0px)),0); transition:opacity var(--dur-med) var(--ease-spring), transform .26s cubic-bezier(.22,.8,.25,1); will-change:transform; }   /* v10.2: no animated `bottom` (it re-laid-out the dock every frame while the keyboard moved) */
+#chat-area{ bottom:calc(5% + var(--sab)); transform:translate3d(-50%,calc(-1 * var(--kbs,0px)),0);   /* keep the -50% horizontal centring: dropping it pushed the dock off-screen */ transition:opacity var(--dur-med) var(--ease-spring), transform .26s cubic-bezier(.22,.8,.25,1); will-change:transform; }   /* v10.2: no animated `bottom` (it re-laid-out the dock every frame while the keyboard moved) */
 /* v10.3: the dock rises with a GPU transform (never a layout change); --kbs is computed in viewport-engine.js */
 body.kb-open #creature-wrap{ transform:translate(-50%,-50%) scale(.7) translateY(-18vh); transition:transform .3s cubic-bezier(.22,.8,.25,1),opacity .4s var(--ease-soft),filter .4s var(--ease-soft); }
 body.kb-open #subtitle{ opacity:0; pointer-events:none; }

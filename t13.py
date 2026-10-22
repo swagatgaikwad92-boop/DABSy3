@@ -32,7 +32,7 @@ async def main():
       chk(f'auto at {hour}h -> {exp}',await pg.evaluate('DABSy.world.lightInfo().effective')==exp)
     await pg.reload(); await pg.wait_for_timeout(2500)
     # --- widgets
-    await pg.wait_for_timeout(4500)
+    await pg.evaluate('["clock","date","tasks","weather"].forEach(i=>DABSy.widgets.add(i))'); await pg.wait_for_timeout(4500)
     n=await pg.evaluate('document.querySelectorAll("#widgets .wg-card.in").length'); chk('widgets appear',n>=3,n)
     chk('clock shows time',await pg.evaluate('/\\d/.test(document.querySelector(".wg-clock .wg-big")?.textContent||"")'))
     chk('weather never fabricated',await pg.evaluate('(()=>{const t=document.querySelector(".wg-weather")?.textContent||"";return !/\\d°/.test(t)})()'))
@@ -52,7 +52,7 @@ async def main():
     await pg.evaluate('DABSy.app.closeCommand()')
     # --- planner
     say=lambda t:pg.evaluate('async(t)=>{const r=await DABSy.dayplan.handle(t);return r&&{text:r.text,ch:!!(r.opts&&r.opts.choices)}}',t)
-    r=await say('plan my day'); chk('empty -> asks what to do (not "add a task")',r and r['ch'] and 'add a task' not in r['text'].lower(),r)
+    r=await say('just plan my day'); chk('empty -> asks what to do (not "add a task")',r and r['ch'] and 'add a task' not in r['text'].lower(),r)
     r=await say('maths homework 1 hr, physics revision 45 min'); chk('typed list -> plan',r and 'draft' in r['text'].lower(),r)
     plan=await pg.evaluate('(()=>{const p=DABSy.dayplan.current();return {n:p.items.filter(i=>i.kind=="work").length,sheet:!!document.querySelector(".dp-sheet"),firstStart:p.items[0].start.toISOString()}})()')
     chk('plan has 2 work blocks and card shown',plan['n']>=2 and plan['sheet'],plan)
@@ -64,7 +64,7 @@ async def main():
     chk('accepted tasks genuinely saved',len(after)>=2 and all(a['d'] for a in after),after)
     # reject saves nothing
     n0=await pg.evaluate('DABSy.tasks.list().length')
-    await say('plan my day'); await pg.evaluate('(()=>{const b=document.querySelector(".dp-ghost");b&&b.click()})()'); await pg.wait_for_timeout(400)
+    await say('just plan my day'); await pg.evaluate('(()=>{const b=document.querySelector(".dp-ghost");b&&b.click()})()'); await pg.wait_for_timeout(400)
     chk('reject changes nothing',await pg.evaluate('DABSy.tasks.list().length')==n0)
     # with real tasks it plans immediately
     await pg.evaluate('DABSy.tasks.add({title:"Chemistry notes",durationMin:60,priority:"high"})')

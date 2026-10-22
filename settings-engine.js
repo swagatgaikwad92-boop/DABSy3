@@ -97,45 +97,57 @@
     if(!D.wallpaperThumbs){ const sc = document.createElement("script"); sc.src = "./wallpaper-thumbs.js"; sc.onload = () => paintWorld(); document.head.appendChild(sc); }
     function paintWorld(){
       worldBox.innerHTML = "";
-      const W = D.world, form = D.outfits.form(), info = W.lightInfo();
-      const grid = el("div", { class: "wd-grid wd-grid-2" });
-      const magic = el("button", { class: "wd-tile mw-tile" + (form === "magic" ? " on" : ""), type: "button", "aria-pressed": String(form === "magic"), "aria-label": "Magic World: DABSy lives in a cosy room",
-        onclick: () => { if(D.outfits.setForm("magic")) D.face.react("perk"); paintWorld(); paintWardrobe(); } },
-        el("img", { src: thumb("window-nook-night"), alt: "", loading: "lazy", onerror: ev => ev.target.remove() }), el("span", { class: "wd-name" }, "Magic World"));
-      const classic = el("button", { class: "wd-tile mw-tile classic" + (form === "minimal" ? " on" : ""), type: "button", "aria-pressed": String(form === "minimal"), "aria-label": "Classic black screen: just her eyes and bow tie",
-        onclick: () => { if(D.outfits.setForm("minimal")) D.face.react("perk"); paintWorld(); paintWardrobe(); } });
-      classic.innerHTML = D.outfits.previewForm() + '<span class="wd-name">Classic black screen</span>';
-      grid.append(magic, classic);
-      worldBox.append(grid);
-      if(form !== "magic"){ worldBox.append(el("p", { class: "hint" }, "Choose Magic World to see the room, day and night, and DABSy's wandering.")); return; }
-      const cur = W.habitatId();
+      const W = D.world, form = D.outfits.form(), info = W.lightInfo(), cur = W.habitatId(), magic = form === "magic";
+      const light = info.pref === "auto" ? W.autoLight() : info.pref;
       const wp = el("div", { class: "wp-grid", role: "radiogroup", "aria-label": "Wallpaper" });
       W.habitats().forEach(h => {
-        const tile = el("button", { type: "button", role: "radio", "aria-checked": String(h.id === cur), class: "wp-tile" + (h.id === cur ? " on" : ""), "aria-label": h.name + (h.hasDay && h.hasNight ? ", day and night" : h.hasDay ? ", day only" : ", night only"),
-          onclick: () => { W.setHabitat(h.id); paintWorld(); } },
-          el("span", { class: "wp-pics" }, h.hasDay ? el("img", { src: thumb(h.id + "-day"), alt: "", loading: "lazy" }) : null, h.hasNight ? el("img", { src: thumb(h.id + "-night"), alt: "", loading: "lazy" }) : null),
-          el("span", { class: "wd-name" }, h.name), el("span", { class: "wd-note" }, h.hasDay && h.hasNight ? "Day · Night" : h.hasDay ? "Day only" : "Night only"));
-        wp.append(tile);
+        const on = magic && h.id === cur, pic = (light === "day" && h.hasDay) || !h.hasNight ? "day" : "night";
+        wp.append(el("button", { type: "button", role: "radio", "aria-checked": String(on), class: "wp-tile" + (on ? " on" : ""), "aria-label": h.name + (h.hasDay && h.hasNight ? ", day and night versions" : h.hasDay ? ", day picture only" : ", night picture only"),
+          onclick: () => { W.setHabitat(h.id); if(!magic){ D.outfits.setForm("magic"); D.face.react("perk"); } paintWorld(); paintWardrobe(); } },
+          el("img", { src: thumb(h.id + "-" + pic), alt: "", loading: "lazy", draggable: "false" }),
+          el("span", { class: "wp-cap" }, el("b", { text: h.name }), el("small", { text: h.hasDay && h.hasNight ? "☀︎ day · ☾ night" : h.hasDay ? "☀︎ day only" : "☾ night only" }))));
       });
-      worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Wallpaper"), el("div", { class: "s" }, "Tap one to use it. Left is the day picture, right is the night one.")), wp));
+      const classic = el("button", { type: "button", role: "radio", "aria-checked": String(!magic), class: "wp-tile classic" + (!magic ? " on" : ""), "aria-label": "Classic black screen: just her eyes and bow tie",
+        onclick: () => { if(D.outfits.setForm("minimal")) D.face.react("perk"); paintWorld(); paintWardrobe(); } });
+      classic.innerHTML = D.outfits.previewForm() + '<span class="wp-cap"><b>Classic black</b><small>Just her eyes</small></span>';
+      wp.append(classic);
+      worldBox.append(wp);
+      if(!magic) return;
       const both = info.hasDay && info.hasNight;
       const lightOpts = [["day", "Day", info.hasDay ? null : "This wallpaper has no day picture."], ["night", "Night", info.hasNight ? null : "This wallpaper has no night picture."], ["auto", "Auto"]];
       const fmtH = h => ui.fmtTime(new Date(2000, 0, 1, Math.floor(h), Math.round((h % 1) * 60)));
       worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Time of day"),
-        el("div", { class: "s" }, both ? "Auto follows your clock: day from " + info.dayHours.map(fmtH).join(" to ") + ", night otherwise. It does not depend on your phone's dark mode. Showing: " + info.effective + "." : "This wallpaper only has a " + (info.hasDay ? "day" : "night") + " picture, so that is always shown. Pick another wallpaper to see both.")),
+        el("div", { class: "s" }, both ? "Auto follows your clock: day from " + info.dayHours.map(fmtH).join(" to ") + ", night otherwise (not your phone's dark mode). Showing: " + info.effective + "." : "This wallpaper only has a " + (info.hasDay ? "day" : "night") + " picture, so that one is always shown.")),
         segmented("Time of day", lightOpts, both ? info.pref : (info.hasDay ? "day" : "night"), v => { W.setLight(v); paintWorld(); })));
       worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Wandering"),
-        el("div", { class: "s" }, "How often DABSy strolls to other spots in the room. She stays put while you chat, study or use a panel, and when Reduce motion is on. Tap her while she is away and she walks home.")),
+        el("div", { class: "s" }, "How often DABSy strolls to other spots. She stays put while you chat, study or use a panel, and when Reduce motion is on. Tap her while she is away and she walks home.")),
         segmented("Wandering", [["off", "Off"], ["calm", "Calm"], ["lively", "Lively"]], W.roam(), v => W.setRoam(v))));
     }
     paintWorld();
     offs.push(bus.on("outfit:form", () => paintWorld()));
 
+    /* ---------- what I remember ---------- */
+    const memBox = el("div", {});
+    function paintMem(){
+      memBox.innerHTML = ""; const B = D.bmem; if(!B) return;
+      const items = B.list();
+      memBox.append(el("p", { class: "hint" }, "Things you told me, kept only on this phone. I use them so I don't ask twice. Remove any you like."));
+      if(!items.length) memBox.append(el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "s" }, "Nothing yet. Say “remember that I study best at night”, or just tell me about your routine."))));
+      items.forEach(f => memBox.append(el("div", { class: "row" }, el("div", { class: "grow" }, el("div", { class: "t", text: f.text }), el("div", { class: "s", text: (f.src === "told" ? "You told me" : "I noted") + " · " + ui.relTime(f.ts) })),
+        el("button", { class: "btn sm ghost", type: "button", "aria-label": "Forget: " + f.text, onclick: () => { B.forget(f.id); paintMem(); } }, "Forget"))));
+      const inp = el("input", { class: "field", type: "text", placeholder: "Tell me something to remember", "aria-label": "Something to remember", style: "flex:1;max-width:none;user-select:text;-webkit-user-select:text" });
+      const addIt = () => { if(inp.value.trim()){ B.remember(inp.value, { src: "told" }); inp.value = ""; paintMem(); } };
+      inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); addIt(); } });
+      memBox.append(el("div", { class: "row" }, inp, el("button", { class: "btn sm", type: "button", onclick: addIt }, "Add")));
+      if(items.length) memBox.append(el("div", { class: "popup-actions", style: "justify-content:flex-start" }, el("button", { class: "btn sm ghost", type: "button", onclick: () => { B.clear(); paintMem(); } }, "Forget everything I remember")));
+    }
+    paintMem();
+
     /* ---------- widgets ---------- */
     const wgBox = el("div", {});
     function paintWidgets(){
       wgBox.innerHTML = ""; const Wg = D.widgets; if(!Wg) return;
-      wgBox.append(switchRow("Floating widgets", "Clock, date, tasks, weather and calendar float around DABSy. They hide while you chat or study.", Wg.enabled(), v => { Wg.enable(v); paintWidgets(); }));
+      wgBox.append(switchRow("Floating widgets", "Nothing is on until you pick it. You can also use the button at the top left of the screen.", Wg.enabled(), v => { Wg.enable(v); paintWidgets(); }));
       if(!Wg.enabled()) return;
       const names = Wg.names(), on = new Set(Wg.list().map(i => i.id));
       Object.keys(names).forEach(id => wgBox.append(switchRow(names[id], null, on.has(id), v => { v ? Wg.add(id) : Wg.remove(id); paintWidgets(); })));
@@ -253,8 +265,9 @@
     body.append(
       section("ai", "DABSy AI", aiRow, el("div", { class: "popup-actions", style: "justify-content:flex-start" }, aiBtn), aiNote),
       appearance,
-      section("world", "Magic World", worldBox),
+      section("world", "Wallpaper", worldBox),
       section("widgets", "Widgets", wgBox),
+      section("memory", "What I remember", memBox),
       section("wardrobe", "Wardrobe", wardrobe),
       notifSection, studySection, voiceSection, a11y,
       section("connections", "Connections", conn),

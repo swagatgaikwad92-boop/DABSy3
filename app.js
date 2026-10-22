@@ -433,6 +433,14 @@
     // (egg detection is passive: it only watches, it never changes the reply)
     bus.emit("user:said", { text });
 
+    // butler memory: "remember that ...", "I wake up at 6", "I study best at night" -> kept on this device, shown to the student, forgettable
+    if(window.DABSy.bmem && !(window.DABSy.dayplan && window.DABSy.dayplan.hasPending())){
+      const told = /^\s*(please\s+)?remember\b/i.test(text);
+      const f = window.DABSy.bmem.learnFrom(text);
+      if(f && told){ const r = { text: `Noted. I'll remember that: ${f.text}.`, state: "HAPPY" }; memory.addSession("dabsy", r.text); say(r.text, r.state, { actions: [{ label: "Forget", onClick: () => { window.DABSy.bmem.forget(f.id); say("Forgotten.", "IDLE"); } }] }); return; }
+      if(f) ui.toast({ text: "Noted: " + f.text, timeout: 5000, actions: [{ label: "Forget", onClick: () => window.DABSy.bmem.forget(f.id) }] });
+    }
+
     if(window.DABSy.calIntel && window.DABSy.calIntel.hasPending()){      // answer to "which day?" / "add it? yes/no"
       const r = await window.DABSy.calIntel.answer(text);
       if(r){ memory.addSession("dabsy", r.text); say(r.text, r.state, r.opts); return; }

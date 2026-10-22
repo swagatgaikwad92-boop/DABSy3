@@ -36,7 +36,14 @@
   function dayWindow(){
     const cfg = memory.read("notify_settings_v1", null), q = D.config.notifications;
     const from = (cfg && cfg.quiet && cfg.quiet.from) || q.quietFrom, to = (cfg && cfg.quiet && cfg.quiet.to) || q.quietTo;
-    return { start: Math.max(toMin(to), 6 * 60), end: Math.min(toMin(from), 22 * 60) };
+    let start = Math.max(toMin(to), 6 * 60), end = Math.min(toMin(from), 22 * 60);
+    try{                                                  // routines the student told me (butler-memory.js)
+      const wake = D.bmem && D.bmem.get("wake"), sleep = D.bmem && D.bmem.get("sleep");
+      if(wake){ const w = toMin(wake) + 30; if(w >= 4 * 60 && w <= 12 * 60) start = w; }
+      if(sleep){ let sl = toMin(sleep); if(sl < 4 * 60) sl += 24 * 60; sl -= 60; if(sl >= 16 * 60 && sl <= 23 * 60 + 30) end = sl; }
+    }catch(e){}
+    if(end - start < 120){ start = 7 * 60; end = 22 * 60; }
+    return { start, end };
   }
 
   /* ---------------- gathering what exists ---------------- */
@@ -320,7 +327,7 @@
         if(it.kind === "break"){ group.append(el("div", { class: "dp-row brk" }, el("span", { class: "dp-time", text: fmt(it.start) }), el("span", { class: "dp-title", text: `${it.title} · ${it.durationMin} min` }))); return; }
         const first = it.part === 1, row = el("div", { class: "dp-row work p-" + (it.priority || "normal") });
         row.append(el("span", { class: "dp-time", text: fmt(it.start) }),
-          el("span", { class: "dp-title" }, el("b", { text: it.parts > 1 ? `${clean(it.title)} (${it.part}/${it.parts})` : clean(it.title) }),
+          el("span", { class: "dp-title" }, (() => { const bb = el("b", { text: it.parts > 1 ? `${clean(it.title)} (${it.part}/${it.parts})` : clean(it.title) }); const qq = p.spec.queue.find(x => x.qid === it.qid); if(first && qq && !qq.taskId){ bb.classList.add("dp-edit"); bb.setAttribute("role", "button"); bb.setAttribute("tabindex", "0"); bb.title = "Tap to rename"; bb.addEventListener("click", ev => { ev.stopPropagation(); const inp = el("input", { type: "text", class: "dp-rename", value: qq.title, "aria-label": "Rename", maxlength: "80" }); const commit = () => { const v = inp.value.trim(); if(v) qq.title = v.slice(0, 80); reflow(p); paint(p, sh); }; inp.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); commit(); } }); inp.addEventListener("blur", commit); bb.replaceWith(inp); inp.focus(); inp.select(); }); } return bb; })(),
             el("small", { text: ` ${hm(it.durationMin)}${it.why && first ? " · " + it.why : ""}` })));
         if(first){
           const q = p.spec.queue.find(x => x.qid === it.qid), idx = p.spec.queue.indexOf(q);
@@ -399,6 +406,7 @@
     const f = t.match(/\b(?:i\s*(?:have|got|'ve got|am free for|'m free for|have got)|free for|got|have)\s+(?:about |around |just |only |roughly )?((?:\d+(?:\.\d+)?|an?|one|half an?)\s*(?:hours?|hrs?|h|minutes?|mins?|m))\b/) || t.match(/\b(\d+\s*(?:minutes?|mins?|hours?|hrs?))\s+(?:free|spare|to spare|available)\b/);
     if(f && !/\b(exam|deadline|due)\b/.test(t)){ const mins = minutesFrom(f[1]); if(mins && mins >= 5 && mins <= 480) return { type: "free", minutes: mins }; }
     if(/^(?:so,? )?(?:what (?:should|can|do) i (?:do|work on|focus on|start)(?: next| now| first)?|what'?s next(?: for me)?|what next|what now|next action|what do i do now|where (?:do|should) i start|help me (?:start|begin|get started)|i'?m (?:bored|free now)|i don'?t know what to do)\b/.test(t)) return { type: "next" };
+    if(/\b(talk|chat|speak|discuss)\b.{0,25}\b(about )?(my|the)? ?(day|today)\b/.test(t) || /^how('?s| is) (my|the) day\b/.test(t)) return { type: "talkday" };
     if(/\b(show|open|see)\b.{0,12}\b(my )?(last |current )?plan\b/.test(t)) return { type: "show" };
     return null;
   }
@@ -408,7 +416,7 @@
   const needContext = (mode, extra) => {
     pending = Object.assign({ type: "ctx", mode }, extra || {});
     const lead = mode === "week" ? "I'll build your week around what you tell me." : mode === "free" ? `I can use those ${hm(extra.minutes)} well.` : mode === "next" ? "Your list is clear, so you're free to choose." : "I'll build today around what you tell me.";
-    return { text: `${lead} What do you need to get done, and roughly how long for each? For example: “maths homework 1 hr, physics revision 45 min”.`, state: "CURIOUS", opts: { choices: { mode: "single", options: ["30 min of study", "1 hour of homework", "Revision for an exam"], allowCustom: true } } };
+    return { text: `${lead} What do you need to get done, and roughly how long for each? For example: “maths homework 1 hr, gym 45 min, call mum”.`, state: "CURIOUS", opts: { choices: { mode: "single", options: ["30 min of study", "A workout", "Chores", "Time to rest"], allowCustom: true } } };
   };
   function planReply(p, lead){
     current = p;
@@ -420,18 +428,116 @@
     open(p);
     return { text: `${lead || "Here's a draft."} ${works.length ? `${works.length} block${works.length === 1 ? "" : "s"} · ${hm(works.reduce((a, b) => a + b.durationMin, 0))}.` : "Nothing fit."} Review it, then Accept, edit, or Reject.`, state: "HAPPY" };
   }
-  async function doDay(o){
-    const r = planDay(o);
-    if(r.empty){
-      // nothing to schedule: use what the student says next; if they already named things in this sentence, use those
-      return needContext("day", { tomorrow: !!o.tomorrow, part: o.part || null, freeMin: r.freeMin, fixedCount: r.fixed.length });
+  /* ---------- a conversation first, a plan second ----------
+     "plan my day" is not always "build a timetable now": the student may want to talk the day through, see what is on, or add
+     non-study things (rest, a workout, chores, friends). So she opens with a short, context-aware question; the choices change
+     with what she knows (tasks, time of day, what has been said); typing a free answer always works. */
+  let lastIntroAt = 0, talk = null;
+  const WANTS_NOW = /\b(just|quick(?:ly)?|straight ?away|right now|immediately|go ahead|asap|don'?t ask|no questions)\b/i;
+  function taskFacts(){
+    const now = new Date(), key = dk(now);
+    const sched = tasks.instancesForDate(key).filter(i => i.status === "pending" || i.status === "active").length;
+    return { waiting: candidates(now).length, sched };
+  }
+  function hourWord(){ const h = new Date().getHours(); return h < 12 ? "this morning" : h < 17 ? "this afternoon" : h < 21 ? "this evening" : "tonight"; }
+  function intro(o, raw){
+    const f = taskFacts(), when = o.tomorrow ? "tomorrow" : o.mode === "week" ? "this week" : "today";
+    pending = { type: "dayIntro", o };
+    const name = D.bmem && D.bmem.get("name");
+    const lead = name ? `Of course, ${name}.` : "Of course.";
+    let text, opts;
+    if(f.waiting || f.sched){
+      text = `${lead} I can see ${[f.waiting ? `${f.waiting} thing${f.waiting === 1 ? "" : "s"} waiting for a time` : "", f.sched ? `${f.sched} already scheduled ${o.tomorrow ? "" : "today"}`.trim() : ""].filter(Boolean).join(" and ")}. Shall I draft ${when} around that, or would you like to talk it through first?`;
+      opts = ["Draft it now", "Talk it through first", "Add something else first", "Just show what's on"];
+    }else{
+      text = `${lead} Nothing is lined up for ${when} yet, which gives us room. Would you like to talk about how ${when} should feel, or shall I sketch it from a few things you pick?`;
+      opts = ["Let's talk first", "Sketch it with me", "Just show what's on"];
     }
+    return { text, state: "CURIOUS", opts: { choices: { mode: "single", options: opts, allowCustom: true } } };
+  }
+  async function doDay(o, raw){
+    o = o || {};
+    if(!WANTS_NOW.test(raw || "") && Date.now() - lastIntroAt > 10 * 60000) return intro(o, raw);
+    return directDay(o);
+  }
+  async function directDay(o){
+    const r = planDay(o);
+    if(r.empty) return categoryPicker({ tomorrow: !!o.tomorrow, part: o.part || null });
     return planReply(r, r.kind === "day" && /tomorrow/i.test(r.title) ? "Here's a draft for tomorrow." : "Here's a draft built from your list and your free time.");
   }
-  async function doWeek(){
+  async function doWeek(raw){
+    if(!WANTS_NOW.test(raw || "") && Date.now() - lastIntroAt > 10 * 60000) return intro({ mode: "week" }, raw);
+    return directWeek();
+  }
+  async function directWeek(){
     const r = planWeek();
-    if(r.empty) return needContext("week");
+    if(r.empty) return categoryPicker({ mode: "week" });
     return planReply(r, "Here's a draft week.");
+  }
+
+  /* a day is more than study: pick what belongs in it (multi-select; typing your own is welcome) */
+  const CATS = { "Study": { t: "Study block", m: 60 }, "Homework": { t: "Homework", m: 60 }, "Workout": { t: "Workout", m: 45 }, "Chores": { t: "Chores", m: 30 }, "Errands": { t: "Errands", m: 45 },
+    "Rest": { t: "Rest and recharge", m: 30 }, "Meals": { t: "Cook / meal", m: 40 }, "Friends & family": { t: "Time with friends or family", m: 60 }, "Hobby": { t: "Hobby time", m: 45 }, "Reading": { t: "Reading", m: 30 } };
+  function categoryPicker(ctx){
+    pending = Object.assign({ type: "cats" }, ctx);
+    return { text: "What should it hold? Pick anything that belongs — it doesn't all have to be study — or tell me in your own words.", state: "CURIOUS", opts: { choices: { mode: "multi", options: Object.keys(CATS), allowCustom: true } } };
+  }
+  function planFromItems(p, items, lead){
+    const extra = items.map(i => Object.assign({ why: "You asked for it", isNew: true }, i));
+    let planR;
+    if(p.mode === "week"){ const now = new Date(), w = dayWindow(), days = []; for(let i = 0; i < 7; i++){ const key = dk(addDays(now, i)); let from = w.start; if(i === 0){ const nm = Math.ceil((minOf(now) + 5) / 5) * 5; if(nm >= w.end - 60) continue; from = Math.max(from, nm); } days.push({ key, from, to: w.end }); } planR = makePlan("week", "Your week", { days, queue: toQueue(extra.concat(candidates(now))), maxPerDay: 240 }); planR.assumptions.push("No more than about 4 hours of focus work per day."); }
+    else if(p.mode === "free") planR = planFree(p.minutes, extra);
+    else planR = planDay({ tomorrow: p.tomorrow, part: p.part, extra });
+    if(planR.empty) return { text: "I couldn't fit that into the time left. Try fewer things, or ask me to plan tomorrow.", state: "CURIOUS" };
+    if(items.some(i => i.generic)) planR.assumptions.unshift("Titles and lengths are general. Tap a new item's title to rename it, or use − / + to adjust.");
+    return planReply(planR, lead || "Here's a draft from what you told me.");
+  }
+
+  /* small talk about the day. Each turn she answers briefly (model if reachable, otherwise a gentle scripted question) and offers
+     choices that change with how far the talk has gone. She never saves anything while talking. */
+  const TALK_Q = ["How's the day treating you so far?", "What's the one thing you'd most like to get done?", "Anything you want to protect time for — rest, a workout, friends?", "How's your energy right now — fresh, or running low?"];
+  function startTalk(first, o){
+    talk = { turns: [], n: 0, o: o || {} };
+    pending = { type: "dayTalk" };
+    if(first) return talkTurn(first);
+    const who = D.bmem && D.bmem.lastDay && D.bmem.lastDay();
+    const line = who && Date.now() - who.at < 18 * 3600e3 ? `Last time we spoke you mentioned: ${who.text.toLowerCase().replace(/\.$/, "")}. How did that go?` : TALK_Q[0];
+    return { text: `Happy to. ${line}`, state: "CURIOUS", opts: { choices: { mode: "single", options: ["Plan it now", "Not now"], allowCustom: true } } };
+  }
+  async function talkTurn(text){
+    talk.turns.push(text); talk.n++;
+    try{ const learned = D.bmem && D.bmem.learnFrom(text); if(learned) ui.toast && ui.toast({ text: "Noted: " + learned.text, timeout: 5000, actions: [{ label: "Forget", onClick: () => D.bmem.forget(learned.id) }] }); }catch(e){}
+    let reply = "";
+    const ai = D.ai;
+    if(ai && ai.status() !== "limited" && ai.generate){
+      const ctx = contextLine(), mem = D.bmem ? D.bmem.prompt() : "";
+      const hist = talk.turns.slice(-4).map(t => "Student: " + t).join("\n");
+      const r = await Promise.race([ai.generate({ task: "chat", prompt: [
+        "You are having a short, warm conversation about the student's day. Do NOT build a schedule or save anything now.",
+        "Reply in 1-3 short sentences (under 45 words). Acknowledge what they said, then ask at most ONE gentle question that helps you understand the day (priorities, energy, commitments, things to protect such as rest, exercise, meals or friends). A student's day is not only study: never push study unless they bring it up.",
+        "If they sound done talking, say you can turn it into a plan whenever they like. No markdown, no emojis.",
+        ctx, mem, hist, "D.A.B.S.y:" ].filter(Boolean).join("\n") }), new Promise(res => setTimeout(() => res(null), 12000))]);
+      if(r && r.ok) reply = (ai.chat ? String(r.text) : r.text).replace(/^(d\.?a\.?b\.?s\.?y\.?\s*:)\s*/i, "").replace(/\*\*/g, "").trim();
+    }
+    if(!reply) reply = talk.n === 1 ? "I see. " + TALK_Q[1] : TALK_Q[Math.min(talk.n, TALK_Q.length - 1)];
+    // the choices change with the conversation: early -> keep going / plan; later -> offer to turn it into a plan or just stop
+    const mentioned = (await parseItemsSmartCheap(talk.turns.join(", "))).length;
+    const options = talk.n < 2 ? ["Plan it now", "Not now"] : mentioned ? ["Plan my day from this", "Keep talking", "Not now"] : ["Plan my day from this", "Keep talking", "Just show what's on", "Not now"];
+    return { text: reply, state: "IDLE", opts: { choices: { mode: "single", options, allowCustom: true } } };
+  }
+  async function parseItemsSmartCheap(text){ try{ return parseItems(text).filter(i => !/^(yes|no|ok|okay|fine|good|tired|busy|stressed|bored|not|nothing|nope|nah|hi|hello)\b/i.test(i.title) && i.title.split(" ").length <= 6 && /\d|\b(homework|study|revise|revision|workout|gym|run|clean|cook|call|read|write|practice|class|lecture|project|assignment|exam|test|errand|shop|meet|friend|chore|laundry)\b/i.test(i.title)); }catch(e){ return []; } }
+  async function endTalk(planIt){
+    const turns = talk ? talk.turns.slice() : []; const o = talk ? talk.o : {}; talk = null; pending = null;
+    if(turns.length){
+      try{ D.bmem && D.bmem.noteDay(turns.join(" · ")); }catch(e){}
+      D.bmem && D.bmem.extract(turns).then(fs => { if(fs && fs.length && ui.toast) fs.forEach(f => ui.toast({ text: "I'll remember: " + f.text, timeout: 7000, actions: [{ label: "Forget", onClick: () => D.bmem.forget(f.id) }] })); });
+    }
+    if(!planIt) return { text: "Of course. I'm here whenever you'd like to plan.", state: "IDLE" };
+    lastIntroAt = Date.now();
+    const items = turns.length ? (await parseItemsSmart(turns.join(", "))).filter(i => i.title.split(" ").length <= 7) : [];
+    const real = items.length ? await parseItemsSmartCheap(turns.join(", ")) : [];
+    if(real.length) return planFromItems({ tomorrow: !!o.tomorrow, part: o.part || null, mode: o.mode }, real, "From what you told me, here's a draft.");
+    return o.mode === "week" ? directWeek() : directDay(o);
   }
   async function doFree(minutes){
     const r = planFree(minutes);
@@ -551,17 +657,39 @@
       const out = await examFrom(p.subject, date, p.assumed ? "Without a date I planned for a week from now — easy to change later." : "");
       return out;
     }
+    if(p.type === "dayIntro"){
+      const o = p.o || {}; lastIntroAt = Date.now();
+      if(/^(just show|show|what'?s on|what is on|my schedule|overview)/i.test(t)){ pending = null; return D.butler && D.butler.overview ? D.butler.overview() : { text: "Nothing to show yet.", state: "IDLE" }; }
+      if(/^(draft|plan it|plan now|now|yes|yeah|yep|sure|go|go ahead|do it|ok|okay|please)\b/i.test(t) || /\bdraft it\b/i.test(t)){ pending = null; return o.mode === "week" ? directWeek() : directDay(o); }
+      if(/^(sketch|pick)/i.test(t)){ pending = null; return categoryPicker({ tomorrow: !!o.tomorrow, part: o.part || null, mode: o.mode }); }
+      if(/add something|something else|add more|add\b/i.test(t)){ pending = null; return needContext(o.mode === "week" ? "week" : "day", { tomorrow: !!o.tomorrow, part: o.part || null }); }
+      if(/^(not now|no|nope|nah|later|never ?mind|cancel)\b/i.test(t)){ pending = null; return { text: "No problem. Just say the word when you'd like to plan.", state: "IDLE" }; }
+      if(/^(let'?s )?(talk|chat|discuss)\b|talk it through|talk first|talk about/i.test(t)){ return startTalk(null, o); }
+      return startTalk(t, o);                               // anything else is simply the student talking about their day
+    }
+    if(p.type === "dayTalk"){
+      if(/^(not now|no|nope|nah|stop|that'?s all|done|enough|never ?mind)\b/i.test(t)) return endTalk(false);
+      if(/^(just show|show what|what'?s on)/i.test(t)){ await endTalk(false); return D.butler && D.butler.overview ? D.butler.overview() : null; }
+      if(/^(plan (it|my day|the day|this)|plan it now|plan my day from this|ok(ay)?,? plan|yes,? plan|draft (it|a plan)|make (it )?a plan|do it|go ahead|sure,? plan)\b/i.test(t) || /\b(plan|schedule|organi[sz]e|draft)\b.{0,20}\b(it|this|that|my day|the day)\b/i.test(t)) return endTalk(true);
+      if(/^keep (talking|chatting)/i.test(t)){ return { text: TALK_Q[Math.min((talk ? talk.n : 0) + 1, TALK_Q.length - 1)], state: "CURIOUS", opts: { choices: { mode: "single", options: ["Plan my day from this", "Not now"], allowCustom: true } } }; }
+      if(!talk) talk = { turns: [], n: 0, o: {} };
+      return talkTurn(t);
+    }
+    if(p.type === "cats"){
+      if(isNo(t)){ pending = null; return { text: "No problem. Ask me again whenever you're ready.", state: "IDLE" }; }
+      const picked = Object.keys(CATS).filter(k => new RegExp("\\b" + k.split(" ")[0].toLowerCase() + "\\b", "i").test(t));
+      const rest = t.split(/,/).map(x => x.trim()).filter(x => x && !Object.keys(CATS).some(k => k.toLowerCase() === x.toLowerCase())).join(", ");
+      const items = picked.map(k => ({ title: CATS[k].t, durationMin: CATS[k].m, priority: k === "Rest" ? "low" : "normal", subject: "", generic: true })).concat(rest ? await parseItemsSmart(rest) : []);
+      if(!items.length) return { text: "I didn't catch anything there. Tap a few, or type them, like “gym 45 min, call mum”.", state: "CURIOUS" };
+      pending = null; lastIntroAt = Date.now();
+      return planFromItems(p, items, "Here's a draft with what you picked.");
+    }
     if(p.type === "ctx"){
       if(isNo(t)){ pending = null; return { text: "No problem. Ask me again whenever you're ready.", state: "IDLE" }; }
       const items = await parseItemsSmart(t);
-      if(!items.length) return { text: "I didn't catch any tasks there. Try “maths homework 1 hr, physics revision 45 min”.", state: "CURIOUS" };
-      pending = null;
-      const extra = items.map(i => Object.assign({ why: "You asked for it", isNew: true }, i));
-      const planR = p.mode === "week" ? (() => { const now = new Date(), w = dayWindow(), days = []; for(let i = 0; i < 7; i++){ const key = dk(addDays(now, i)); let from = w.start; if(i === 0){ const nm = Math.ceil((minOf(now) + 5) / 5) * 5; if(nm >= w.end - 60) continue; from = Math.max(from, nm); } days.push({ key, from, to: w.end }); } const pl = makePlan("week", "Your week", { days, queue: toQueue(extra), maxPerDay: 240 }); pl.assumptions.push("No more than about 4 hours of focus work per day."); return pl; })()
-        : p.mode === "free" ? planFree(p.minutes, extra)
-        : planDay({ tomorrow: p.tomorrow, part: p.part, extra });
-      if(planR.empty) return { text: "I couldn't fit that into the time left. Try a shorter list, or ask me to plan tomorrow.", state: "CURIOUS" };
-      return planReply(planR, "Here's a draft from what you told me.");
+      if(!items.length) return { text: "I didn't catch any tasks there. Try “maths homework 1 hr, gym 45 min”.", state: "CURIOUS" };
+      pending = null; lastIntroAt = Date.now();
+      return planFromItems(p, items, "Here's a draft from what you told me.");
     }
     return null;
   }
@@ -571,14 +699,15 @@
     const t = String(text || "").trim(); if(!t) return null;
     if(pending){
       const fresh = detect(t);
-      if(fresh && fresh.type !== "remind"){ pending = null; }        // a new, clear request replaces my open question
+      if(fresh && fresh.type !== "remind" && !(pending.type === "dayTalk" && (fresh.type === "day" || fresh.type === "week")) && !(pending.type === "dayIntro" && (fresh.type === "day" || fresh.type === "week"))){ pending = null; talk = null; }        // a new, clear request replaces my open question
       else { const r = await answerPending(t); if(r) return r; if(!pending) return null; return null; }
     }
     const it = detect(t); if(!it) return null;
     try{
       switch(it.type){
-        case "day": return await doDay(it);
-        case "week": return await doWeek();
+        case "day": return await doDay(it, t);
+        case "week": return await doWeek(t);
+        case "talkday": return startTalk(null, {});
         case "free": return await doFree(it.minutes);
         case "next": return await doNext();
         case "exam": return await doExam(it);
@@ -603,5 +732,5 @@
     }catch(e){ return ""; }
   }
 
-  D.dayplan = { handle, detect, open: () => open(current), buildPlan: makePlan, schedule, contextLine, hasPending: () => !!pending, current: () => current, _planDay: planDay, _planFree: planFree, _planWeek: planWeek, _planExam: planExam, _parseItems: parseItems, _freeIntervals: freeIntervals };
+  D.dayplan = { handle, detect, open: () => open(current), buildPlan: makePlan, schedule, contextLine, hasPending: () => !!pending, inTalk: () => !!talk, current: () => current, _planDay: planDay, _planFree: planFree, _planWeek: planWeek, _planExam: planExam, _parseItems: parseItems, _freeIntervals: freeIntervals };
 })();

@@ -34,12 +34,9 @@
 
   /* ---------------- persisted state ---------------- */
   let st = memory.read(KEY, null);
-  function defaults(){
-    const items = [{ id: "clock", slot: 0 }, { id: "date", slot: 1 }, { id: "tasks", slot: 2 }, { id: "weather", slot: 3 }];
-    if(connected()) items.push({ id: "calendar", slot: 4 });
-    return { on: true, items };
-  }
-  if(!st || !Array.isArray(st.items)) st = defaults();
+  /* v11.2: nothing is on until the student chooses it. An arrangement saved by v11.1 was auto-filled, not chosen: start clean once. */
+  function defaults(){ return { v: 2, on: true, items: [] }; }
+  if(!st || !Array.isArray(st.items) || st.v !== 2){ const loc0 = st && st.loc; st = defaults(); if(loc0) st.loc = loc0; try{ memory.write(KEY, st); }catch(e){} }
   st.items = st.items.filter(i => DEFS[i.id] && Number.isInteger(i.slot) && i.slot >= 0 && i.slot < SLOTS);
   const save = () => { try{ memory.write(KEY, st); }catch(e){} };
 
@@ -48,7 +45,9 @@
   const slotEls = [];
   for(let i = 0; i < SLOTS; i++){ const s = el("div", { class: "wg-slot s" + i + (i >= 4 ? " r2" : ""), "data-slot": String(i) }); slotEls.push(s); root.append(s); }
   const bar = el("div", { id: "wg-bar", hidden: "", role: "toolbar", "aria-label": "Customise widgets" });
-  stage.append(root, bar);
+  const btn = el("button", { id: "wg-btn", type: "button", class: "icon-btn glass", "aria-label": "Widgets: choose what floats around DABSy", "aria-expanded": "false", html: '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="2"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><path d="M17 14v6M14 17h6"/></svg>' });
+  const panel = el("div", { id: "wg-panel", hidden: "", role: "dialog", "aria-label": "Choose widgets" });
+  stage.append(root, bar, btn, panel);
   const cards = {};                                          // id -> { card, body }
   let editing = false, introduced = false;
   const tall = () => window.matchMedia("(min-height: 720px)").matches;
@@ -285,13 +284,30 @@
   bus.on("settings:changed", () => { try{ D.theme && D.theme.refresh(); }catch(e){} });
   window.matchMedia("(min-height: 720px)").addEventListener && window.matchMedia("(min-height: 720px)").addEventListener("change", () => layout());
 
+  /* ---------------- the chooser (top-left button) ---------------- */
+  function paintPanel(){
+    panel.textContent = "";
+    panel.append(el("div", { class: "wg-pt", text: "Widgets" }), el("div", { class: "wg-ps", text: st.items.length ? "Choose what floats around DABSy." : "Nothing is on screen. Turn on what you'd like." }));
+    ORDER.forEach(id => {
+      const on = st.items.some(i => i.id === id), input = el("input", { type: "checkbox", "aria-label": DEFS[id].name });
+      input.checked = on;
+      input.addEventListener("change", () => { if(input.checked){ if(!add(id)){ input.checked = false; } } else remove(id); paintPanel(); });
+      panel.append(el("label", { class: "wg-prow" }, el("span", { class: "wg-pi", text: DEFS[id].ico }), el("span", { class: "wg-pn", text: DEFS[id].name }), el("span", { class: "switch" }, input, el("i"))));
+    });
+    panel.append(el("div", { class: "wg-pa" }, el("button", { type: "button", class: "wg-chip", disabled: st.items.length ? null : "", text: "Rearrange", onclick: () => { closePanel(); edit(); } }), el("button", { type: "button", class: "wg-chip", text: "Done", onclick: closePanel })));
+  }
+  function openPanel(){ if(!st.on){ st.on = true; save(); applyOn(); } paintPanel(); panel.hidden = false; btn.setAttribute("aria-expanded", "true"); introduced = true; Object.keys(cards).forEach(id => cards[id].card.classList.add("in")); }
+  function closePanel(){ panel.hidden = true; btn.setAttribute("aria-expanded", "false"); }
+  btn.addEventListener("click", ev => { ev.stopPropagation(); panel.hidden ? openPanel() : closePanel(); });
+  document.addEventListener("pointerdown", ev => { if(!panel.hidden && !panel.contains(ev.target) && !btn.contains(ev.target)) closePanel(); }, true);
+
   applyOn(); tick();
   if(loc()) fetchWeather(false).then(() => paint("weather"));
   // appear one by one after the wake-up animation and the greeting (boot.js removes body.booting ~300 ms after load)
   window.addEventListener("load", () => setTimeout(introduce, 4200));
 
   D.widgets = {
-    edit, done, isEditing: () => editing, add, remove, enable, enabled: () => st.on, refresh, askLocation,
+    openChooser: openPanel, edit, done, isEditing: () => editing, add, remove, enable, enabled: () => st.on, refresh, askLocation,
     list: () => st.items.map(i => ({ id: i.id, slot: i.slot })), available: () => ORDER.filter(id => !st.items.some(i => i.id === id)), names: () => Object.assign({}, ...ORDER.map(id => ({ [id]: DEFS[id].name }))),
     reset(){ st = defaults(); save(); layout(); },
   };

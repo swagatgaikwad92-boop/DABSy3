@@ -1,14 +1,5 @@
-# Integrations
-
-Drop these into the *other* apps' repos. They only work when the apps share an origin
-(all published under the same `https://you.github.io`). Different origins or different devices need a backend.
-
-| File | Goes into | What it does |
-|---|---|---|
-| `studyspace-adapter.js` | Study Space | Receives sessions DABSy prepared, acknowledges them, reports progress back |
-| `solvecount-adapter.js` | SolveCount | Publishes a counts-only summary for DABSy's SolveCount bubble |
-
-Ghibli Calendar already shares `DABSyCore` (`dabsy-core.js`), which DABSy uses directly once you switch the connection on.
-
-| `ghibli-calendar/dabsy-core.js` | Ghibli Calendar (replace its copy, bump its sw.js cache) | v2 sync: re-read on visible/focus/pageshow, tombstones, ack back to DABSy |
-| `study-space/cards-colour-patch.css` | Study Space (append to style.css) | Lively, readable note colours; softer dimmed state |
+# Magic World assets
+Character layers + room pictures derived from artwork you supplied (nothing redrawn).
+Rooms: room-night.webp (+ window-nook-day.webp), lakeside-day/night.webp, city-window-day.webp (no night version supplied). thumbs/ = picker previews.
+Each picture also has a root-level embedded copy (magic-assets.js / wp-*.js / wallpaper-thumbs.js) used if folders are not uploaded. Regenerate: python3 tools/embed-assets.py
+To add a wallpaper: drop the .webp here, add an entry in habitats-data.js (spots = where DABSy stands).

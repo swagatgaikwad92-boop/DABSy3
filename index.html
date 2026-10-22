@@ -7,7 +7,7 @@
 <meta name="theme-color" content="#0f1318" />
 <meta name="color-scheme" content="dark light" />
 <script>/* v8: apply the saved theme before first paint (no dark/light flash) */
-(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t===undefined||t==="auto"){var h=new Date().getHours();t=h>=6&&h<18?"light":"dark"}if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
+(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
 </script>
 <meta name="description" content="D.A.B.S.y — your plush AI study companion and hub for your study apps." />
 <link rel="manifest" href="./manifest.json" />
@@ -25,10 +25,9 @@
 <link rel="stylesheet" href="./projection.css" />
 <link rel="stylesheet" href="./theme.css" />
 <link rel="stylesheet" href="./banana.css" />
+  <link rel="stylesheet" href="./v11.css">
 <link rel="stylesheet" href="./soda.css" />
 <link rel="stylesheet" href="./magic.css" />
-<link rel="stylesheet" href="./widgets.css" />
-<link rel="stylesheet" href="./perf.css" />
 </head>
 <body>
 
@@ -42,11 +41,6 @@
     <button id="bell-btn" class="icon-btn glass" type="button" aria-label="Notifications">
       <span id="bell-icon"></span><i id="bell-dot" hidden></i>
     </button>
-
-    <!-- v10.2: manual Day / Night (never automatic unless chosen in Settings) -->
-    <button id="daynight-btn" class="icon-btn glass" type="button" aria-label="Switch between Day and Night"></button>
-    <button id="widgets-btn" class="icon-btn glass" type="button" aria-label="Widgets: add, remove or customise"></button>
-    <div id="widgets" aria-label="Widgets"></div>
 
     <!-- the creature -->
     <div id="creature-wrap">
@@ -123,6 +117,7 @@
   <script src="./voice-engine.js"></script>
   <script src="./ai-engine.js"></script>
   <script src="./calendar-intel.js"></script>
+  <script src="./butler.js"></script>
   <script src="./notify-engine.js"></script>
   <script src="./push-engine.js"></script>
 <script src="./briefing-engine.js"></script>
@@ -135,9 +130,7 @@
   <script src="./reactions.js"></script>
   <script src="./pwa-engine.js"></script>
   <script src="./stickers.js"></script>
-<script src="./habitat-scenes.js"></script>
 <script src="./habitats-data.js"></script>
-<script src="./widget-engine.js"></script>
 <script src="./world-engine.js"></script>
 <script src="./viewport-engine.js"></script>
 <script src="./app.js"></script>

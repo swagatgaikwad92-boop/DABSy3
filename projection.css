@@ -22,15 +22,15 @@ body.study-active #chat-area, body.study-active #subtitle, body.session-active #
   position: absolute; /* also the positioning context for #projection-pointer */
   right: 4%;
   left: 4%;
-  bottom: calc(3% + var(--sab));
-  top: clamp(132px, 19%, 190px);
+  bottom: 6%;
+  top: 16%;
   background: var(--glass);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius-panel);
   backdrop-filter: blur(24px) saturate(140%);
   -webkit-backdrop-filter: blur(24px) saturate(140%);
   box-shadow: var(--shadow-pop);
-  padding: 22px 20px 16px;
+  padding: 22px;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -44,33 +44,15 @@ body.study-active #chat-area, body.study-active #subtitle, body.session-active #
   line-height: 1.6;
   color: var(--ink);
 }
-
-/* ---------- v10.2: Study Mode is a flowing document, not a wall of cards ----------
-   No per-step boxes, backgrounds or borders. Spacing and type carry the structure. */
-#projection-content{ scroll-behavior:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain }
-.study-doc{ max-width:40rem; margin:0 auto; padding:2px 2px 28px }
-.study-title{ font-size:1.28rem; line-height:1.3; margin:0 0 14px; color:var(--ink); font-weight:700; letter-spacing:-.01em }
-.study-h{ font-size:.78rem; text-transform:uppercase; letter-spacing:.09em; color:var(--accent); margin:26px 0 6px; font-weight:700 }
-.study-doc p{ margin:0 0 14px; position:relative }
-.study-def strong{ color:var(--accent); font-weight:700 }
-.study-doc strong{ font-weight:700 } .study-doc code{ font-family:ui-monospace,Menlo,monospace; font-size:.92em; opacity:.92 }
-.study-doc .m{ font-family:Georgia,"Times New Roman",serif; font-style:italic }
-.study-formula{ text-align:center; font-family:Georgia,"Times New Roman",serif; font-size:1.22rem; margin:18px 0; padding:12px 0; color:var(--ink);
-  border-top:1px solid var(--glass-border); border-bottom:1px solid var(--glass-border); overflow-x:auto; position:relative }
-.study-list{ margin:0 0 16px; padding:0 0 0 1.25rem } .study-list li{ margin:0 0 10px; padding-left:2px; position:relative }
-.study-steps{ list-style:none; padding-left:0; counter-reset:st; border-left:2px solid var(--glass-border); margin-left:6px }
-.study-steps li{ counter-increment:st; padding-left:34px; margin-bottom:14px; transition:opacity .4s var(--ease-soft),transform .4s var(--ease-soft) }
-.study-steps li::before{ content:counter(st); position:absolute; left:-13px; top:1px; width:24px; height:24px; border-radius:50%; display:grid; place-items:center;
-  font-size:.78rem; font-weight:700; background:var(--panel-solid,#1b2230); color:var(--accent); border:1px solid var(--glass-border) }
-.study-steps li.pending{ display:none }
-.study-steps li:not(.pending){ animation:study-in .45s var(--ease-soft) both }
-@keyframes study-in{ from{ opacity:0; transform:translateY(8px) } to{ opacity:1; transform:none } }
-/* the paragraph being read: a thin accent bar in the margin, nothing else */
-.study-doc .reading::after{ content:""; position:absolute; left:-12px; top:.2em; bottom:.2em; width:3px; border-radius:3px; background:var(--accent-warm); opacity:.9 }
-.study-steps li.reading::after{ left:-1px }
-.study-more{ display:block; margin:4px auto 20px; padding:8px 16px; border-radius:999px; font-size:.85rem; font-weight:600; color:var(--accent); background:none; border:1px solid var(--glass-border) }
-.study-wait{ opacity:.8; margin:8px 0 }
-@media (prefers-reduced-motion:reduce){ .study-steps li:not(.pending){ animation:none } }
+#projection-content h3{ font-size: 1rem; margin: 0 0 6px; color: var(--accent); }
+#projection-content .step{
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: var(--glass-strong);
+  border-radius: 14px;
+  border-left: 3px solid var(--accent-2);
+}
+#projection-content .step.highlight{ border-left-color: var(--accent-warm); background: rgba(255,211,154,0.08); }
 
 #projection-close{
   align-self: center;
@@ -97,32 +79,3 @@ body.study-active #chat-area, body.study-active #subtitle, body.session-active #
 #projection-content .word{ transition: color 120ms, opacity 120ms; opacity: 0.72; }
 #projection-content .word.active{ color: var(--accent-warm); opacity: 1; font-weight: 600; }
 
-
-/* ---------- v10.3: Study Mode answers sit on a real liquid-glass surface (same material as the widgets) ----------
-   translucent tinted body + backdrop blur/saturation + fine reflective rim + specular highlight + soft shadow. */
-#projection-surface{
-  background:linear-gradient(150deg,rgba(255,255,255,.20),rgba(255,255,255,.05) 46%,rgba(255,255,255,.12)),rgba(20,22,50,.52) !important;
-  -webkit-backdrop-filter:blur(22px) saturate(175%) brightness(1.04) !important; backdrop-filter:blur(22px) saturate(175%) brightness(1.04) !important;
-  border:1px solid rgba(255,255,255,.26) !important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),inset 0 -18px 34px rgba(255,255,255,.04),0 18px 48px rgba(8,10,30,.38) !important;
-  isolation:isolate; overflow:hidden;
-}
-#projection-surface::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:0;
-  background:radial-gradient(120% 46% at 14% -6%,rgba(255,255,255,.42),rgba(255,255,255,.06) 48%,transparent 64%),radial-gradient(70% 40% at 96% 108%,rgba(170,190,255,.20),transparent 70%)}
-#projection-surface::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:1.5px;pointer-events:none;z-index:2;
-  background:linear-gradient(140deg,rgba(255,255,255,.8),rgba(255,255,255,.04) 38%,rgba(255,255,255,0) 62%,rgba(255,255,255,.4));
-  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
-#projection-surface > *{position:relative;z-index:1}
-#projection-content{color:var(--ink)}
-:root[data-theme="light"] #projection-surface{
-  background:linear-gradient(150deg,rgba(255,255,255,.55),rgba(255,255,255,.18) 48%,rgba(255,255,255,.35)),rgba(255,252,246,.55) !important;
-  border-color:rgba(255,255,255,.85) !important;
-  box-shadow:inset 0 1px 0 #fff,inset 0 -14px 26px rgba(255,255,255,.2),0 16px 40px rgba(70,64,100,.22) !important}
-:root[data-theme="light"] #projection-content{color:#262a3b}
-:root[data-theme="light"] .study-formula{border-color:rgba(60,60,100,.18)}
-body.lite-gfx #projection-surface{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;background:rgba(24,26,56,.88) !important}
-:root[data-theme="light"] body.lite-gfx #projection-surface{background:rgba(255,252,246,.94) !important}
-
-/* the step being read: highlight its number badge (a margin bar would collide with the badge) */
-.study-steps li.reading::after{display:none}
-.study-steps li.reading::before{background:var(--accent);color:#fff;border-color:var(--accent)}

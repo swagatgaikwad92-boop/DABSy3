@@ -1,25 +1,10 @@
-# v10.3 tests
-- Worker (`node tests/worker-test.mjs`, mock Gemini): 24/24. Covers models/thinking, 503 retry once with fallback, bounded to 2 calls, daily quota not retried, Retry-After honoured/refused, 400/403/404 handling, no key leakage, streaming chunks + thought text excluded, mid-stream failure not retried, client cancel propagates, origin check, rate limit.
-- App + Worker (`tests/t15.py`, mock Gemini timing SIMULATED): streaming 12/12, errors/duplicates/study stream 5/5, bounded history + keyboard 4/4.
-- Regression: t11 quick 24/24, t12 13/13, t13 14/14, t14 7/7.
-- Not run: real Gemini, physical Android, Cloudflare deployment, load/rate-limit under real traffic; t11 full (360x640 matrix) not rerun after v10.3.
-- Note: during development one Worker test failed because my mock errored before the first chunk could be read; I fixed the mock timing, not the Worker.
+# v11 tests (Playwright + Chromium, 390x780 touch emulation, sandbox without internet)
+- t11 (butler + reply card): 13/13 passed — priority/rename/complete verified by read-back; delete asks first, Keep leaves it, confirmed delete verified; unknown names not invented; overview; "hello" not hijacked; action buttons and choice chips render.
+- t12 (chat path with a MOCKED AI endpoint): 7/7 passed — plain question answered, Explain more re-asks, provider-failure text is never shown as speech, auto-retry then Retry button.
+- Regression: t3 (calendar/sync) all pass, t5 (Study Space launch) pass, t7 (Classic default/fallback) pass, t2 (Magic World) all pass except "no console errors", which fails only because the sandbox has no internet (ERR_TUNNEL_CONNECTION_FAILED for external fetches).
+- NOT tested: the live dabsy-brain Worker, real Gemini/Claude answers, Hindi/Marathi quality from a real model, voice input, push notifications, any real phone or Android browser, Cloudflare deploy of backend/worker.js, the Ghibli/Study Space repositories. Language detection was unit-checked in Node only.
 
-# v10.2 tests (Playwright/Chromium headless, local server, touch emulation, no internet) — `tests/t11.py t12.py t13.py t14.py`
-
-| Area | Result |
-|---|---|
-| Wallpaper: 5 tiles, tap each room applies + selected state, persists after reload, Black screen returns/persists | PASS |
-| Broken wallpaper picture refused | NOT VERIFIED (my test was unreliable: image was cached; the code path returns false on load failure) |
-| Day/Night: button switches theme + room, persists after reload, back to Night, Settings has Day/Night/Auto (Night default) | PASS |
-| Seating: all 4 rooms x day/night x 390x844 and 360x640: feet on home spot (within 3 px), body fully on screen | PASS (32/32) |
-| Keyboard (EMULATED by overriding visualViewport height, not a real keyboard): dock above keyboard, focus kept, 2 style writes, closes cleanly, listeners guarded | PASS (emulation only) |
-| Study Mode: no `.step` cards, structure parsed, no card backgrounds, progressive steps then all revealed, companion above explanation (8 px of her transparent box margin overlaps; her body does not), returns to spot | PASS (AI stubbed; speech off) |
-| Widgets: 6 types via sheet, no overlaps, double-tap anim + single sheet, shape/size live, remove/restore, persistence, weather setup state, hidden during chat | PASS (classic 360x640 fits only 2 of 6; the rest are refused with a message) |
-| Tutorial: offer on first launch, 9 new topics, remembered, not repeated, replay keeps prefs, cards fit 360x640 | PASS |
-| Old suites t2/t3/t7/t10 | PASS except t2 "no console errors" (offline sandbox name-resolution, same as before) |
-
-**NOT tested:** real Android keyboard/frame rates, GitHub Pages deployment, weather with real location + network, speech-driven reading, sheen effect (headless runs lite-gfx), service-worker upgrade.
+---
 
 # v10.1 repair tests (Playwright/Chromium, local server, no internet) — `tests/t7.py t8.py t9.py t10.py`
 

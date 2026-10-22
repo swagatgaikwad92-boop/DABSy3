@@ -139,6 +139,3 @@ body[data-form="magic"] .r-dizzy{animation-name:mw-dizzy}
 body.mw-loading #creature-wrap{visibility:hidden}
 /* settings tile: if the room picture can't load, a calm night gradient stands in (the tile stays labelled) */
 .wd-tile.mw-tile:not(.classic){background:linear-gradient(180deg,#141a3d,#2a2350 60%,#3b2b3f)}
-
-/* v10.2: every room now has its own real day and night picture (no colour grading is applied). */
-#world[data-light="day"] .w-dim{background:rgba(255,248,236,.34)}

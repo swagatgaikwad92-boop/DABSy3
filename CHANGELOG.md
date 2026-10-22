@@ -1,29 +1,10 @@
-# DABSy v10.4.0 — dock off-screen fix + real-time Day/Night
-- **Bug:** the chat dock/chips slid off the right edge. Cause: my v10.3 keyboard change replaced `transform: translateX(-50%)` (what centres the dock) with a vertical-only transform. Fixed in `core.css` (`translate3d(-50%, …)`). Tested at 360×780: dock is centred and fully on screen with chat open, predicted keyboard and real keyboard.
-- **Day/Night = real time:** Auto now follows the phone's clock (Day 06:00–17:59, Night otherwise), re-checked every minute and on returning to the app. Existing installs are switched to Auto once. The sun/moon button and Settings → Day / Night still let you force Day or Night until you pick Auto again. Files: `theme-engine.js`, `index.html` (pre-paint script), `settings-engine.js`.
-- Tests: `tests/t16.py` 14/14; t12 13/13; t13 14/14. `tests/t11.py` still asserts the old "Night default" and is out of date.
+# DABSy v11.0.0 — conversation quality, butler, reply card, safer errors
 
----
-
-# DABSy v10.3.0 — Turbo AI + three user bugs
-- **Widgets "not available":** added an always-visible widgets button (top left, next to Day/Night) and, on first run only, a Time & date widget is added so the feature is visible. Settings → Widgets still works.
-- **Study Mode glass:** the answer surface is now real liquid glass (translucent tint, blur, rim, highlight), day and night.
-- **Keyboard smoothness:** the chat dock now rises with a GPU transform and starts the instant you tap the input (predicted height, then corrected from the real one and remembered); DABSy makes ONE 0.3 s move instead of three. Keyboard tested by emulation only.
-- **AI:** see docs/TURBO-AI-DEPLOY.md. New `backend/dabsy-brain.js` (streaming, bounded retry, honest errors, current Gemini models), streaming + honest errors + bounded history in `ai-engine.js`, one AI request per chat message (`calendar-intel.js`), streamed replies in the subtitle and Study Mode. Tests: `tests/worker-test.mjs` (24/24, mock Gemini), `tests/t15.py` (20/20, mock Worker).
-
----
-
-# DABSy v10.2.0 (+ supplied day/night wallpapers) — wallpapers, manual Day/Night, habitat seating, keyboard perf, flowing Study Mode, glass widgets, tutorial
-
-**Wallpapers supplied by you** are now real day AND night rooms: Moonlit window nook, Study desk, Lakeside (the daylight grade is gone). Cosy bed stays as an illustrated room. Files: `assets/magic/{room,desk,lake}-{day,night}.webp`, embedded in `magic-assets.js` (1.2 MB, loaded only when a wallpaper is on). Spots for the new rooms were placed by eye from your pictures; check them on your phone.
-**1. Wallpaper selection.** I could NOT reproduce "cannot select" in headless Chromium: the old Magic World tile did switch. Real fragilities found and fixed: only ONE picture existed (so "choosing" looked like nothing happened), the settings sheet covered the result, a failed image silently flipped back to Classic, and the world kept its own light/roam prefs. Now: Settings → Wallpaper has Black screen + 4 rooms (3 new illustrated rooms, each with real day and night pictures, plus the supplied photo room). Tap applies immediately, a tick + aria-checked marks it, it persists, a failed picture is refused with a message (selection never silently changes), Black screen is one tap. Files: `habitat-scenes.js` (new), `habitats-data.js`, `world-engine.js`, `settings-engine.js`.
-**2. Day/Night.** One control (`DABSy.theme.setMode("day"|"night"|"auto")`) drives interface AND room. Top-left sun/moon button + Settings → Day / Night. Default Night; Auto only if chosen; the clock is never read otherwise. The photo room has no day artwork: its Day is a static daylight grade (labelled as such). `theme-engine.js`, `perf.css`.
-**3. Seating.** Spots are derived from object geometry in `habitat-scenes.js` (pillow top, desk top, sill top). Wandering now defaults to OFF (it was the random sitting); it can visit the room's other real objects if enabled. Switching wallpaper re-seats her. In Study Mode she tucks to a compact spot above the explanation.
-**4. Keyboard lag — causes:** visualViewport `scroll` listener (fires constantly), `--vvh` rewritten every tick, smooth `scrollIntoView` on every change, an animated `bottom` on the chat dock, duplicate world listener, and blur/glow/breathing running during the transition. Fix: `viewport-engine.js` (single rAF reader, 4 px quantised, no scroll listener, once-only guard), `kb-moving` window pausing decorative work (`perf.css`), no `bottom` transition (`core.css`).
-**5. Study Mode.** `study-engine.js` parses the answer into heading / definition / formula / paragraph / list and draws plain typography (`projection.css`); no per-step boxes. Only real procedures (3+ numbered steps) reveal progressively; "Show all steps".
-**6. Widgets.** `widget-engine.js`, `widgets.css`: Time & date, Weather (Open-Meteo, needs location + network, setup state otherwise), Today's to-dos, Today's study, Up next, Focus. Shapes rounded/pill/circle/blob/leaf, sizes S/M/L, tints, drag, add/remove/restore, persistence, double-tap liquid-glass response.
-**7. Tutorial.** 9 new steps with small pictures; first launch once; Replay from Settings → Help & Tutorial.
-Version 10.2.0, cache `dabsy-v10.2.0`. Hard refresh / reinstall may be needed to replace the old service-worker cache.
+- AI: plain chat takes a fast path (short 1-3 sentence replies; "Explain more" asks the model again, never truncates; Study Mode allows long answers). Language follows the latest message (English / Hindi / Marathi / Hinglish), an explicit request wins, one language per reply. Complex requests (30+ words) show an editable "What I understood" with Use / Edit / Change. Provider failures (timeout, bad reply, "Gemini request failed" arriving as a 200 reply) are detected, retried once quietly, then shown as a friendly line with Retry. Nothing is invented.
+- Reply card: text plus optional buttons / choice chips. Chips appear only when they save effort (confirmations, real ambiguity). Typing always works and continues the same conversation. Replies stay visible above the keyboard instead of hiding.
+- Butler (butler.js): complete, prioritise, rename, move and delete tasks (and Ghibli events when connected) by plain language; "plan my day" overview with overlap/overload warnings. Delete ALWAYS asks first. Every change is read back before DABSy says "done". Undo for reversible edits.
+- Backend (optional): 20 s provider timeout, error mapping (timeout/empty-reply), per-request token cap, .dev.vars.example.
+- Files: butler.js, v11.css (new); ai-engine.js, app.js, calendar-intel.js, index.html, sw.js, dabsy-config.js (11.0.0), backend/worker.js.
 
 ---
 

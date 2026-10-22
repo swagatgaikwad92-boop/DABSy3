@@ -1,0 +1,46 @@
+DABSy v11.0.0 — IMPLEMENTATION REPORT
+=====================================
+Honest status. "Tested" means actually run in headless Chromium with touch emulation; nothing was run on a physical phone.
+
+FEATURES
+- Fast chat path, short replies, Explain more, Study Mode long answers (ai-engine.js, app.js)
+- Language mirroring: English / Hindi / Marathi / Hinglish; explicit request wins; session language kept
+- "What I understood" preview for requests of 30+ words (Use / Edit / Change)
+- Reply card with optional buttons and choice chips; typing always works; reply stays above keyboard (v11.css)
+- Butler (butler.js): complete / priority / rename / move / delete / "plan my day"; confirmation before delete; read-back verification; Undo
+- Friendly provider errors with one quiet retry and a Retry button
+- Backend worker: timeout, token cap, empty-reply and error mapping (backend/worker.js)
+
+KNOWN-ISSUE LIST (J) — status
+- Images failing: v10.1 fix (images embedded in magic-assets.js, Classic fallback). Root cause is an INFERENCE (flat upload skipped assets/ folder); live site not inspected. Locally: no broken images (t7).
+- Wallpaper selection / environment choice: only one room exists, no day art supplied. NOT built; Auto uses the real clock and falls back to night. No dead controls shown.
+- Day/night by local time: implemented in v10; Day art absent so night is shown (tested t2).
+- Random positions: Magic World roams by design (Calm/Lively/Off); Classic never moves. Tap brings her home.
+- Keyboard lag/hidden reply: reply now stays visible above the dock; real-keyboard smoothness NOT verified on a device.
+- Dull cards: Banana Milk x Aoi Soda palette (v10.1), screenshot-checked.
+- Widgets: not added (no functional widget was specified); none shown.
+- Study answers glass: reply card has a glass background; the study projection surface was not redesigned.
+- Study Space black bar: UNVERIFIED hypothesis (Android Custom Tab tinting from theme_color). cards-colour-patch.css and notes are in integrations/ and must be applied in the Study Space repo.
+- Calendar sync delay: fixed on DABSy side (acks, reconcile, verified saves; t3). Needs integrations/ghibli-calendar/dabsy-core.js deployed to the Ghibli repo with its service-worker cache bumped.
+- "Gemini request failed": a provider failure returned as a normal reply is now detected and never shown as DABSy's speech (tested with a mocked endpoint). The real cause lives in the unseen dabsy-brain Worker; check its logs / API key / model name.
+- Slow responses: chat no longer goes through the heavy JSON intent prompt. Real latency not measured.
+
+NOT DONE / LIMITATIONS
+- Streaming: the live contract is one request {message} -> {reply}; streaming would need a Worker change. Not implemented.
+- Drag-to-position: conflicts with the stroke/hold gestures; not implemented. No random relocation exists in Classic.
+- Reminders: browser notifications and push depend on the browser/OS and the optional backend; not verified on a phone. Calendar writes go to Ghibli Calendar only (same-origin storage).
+- Live AI quality, Hindi/Marathi output quality, voice, push: untested.
+
+FILES NEW/CHANGED IN v11
+butler.js, v11.css, ai-engine.js, app.js, calendar-intel.js, index.html, sw.js, dabsy-config.js, backend/worker.js, backend/.dev.vars.example, .env.example, tests/t11.py, tests/t12.py, docs.
+
+TESTS: see TEST-RESULTS.md (t11 13/13, t12 7/7 with mocked AI, regression suites pass; t2 console-error check fails only for sandbox network).
+
+ENVIRONMENT VARIABLES (backend only; secrets never in the frontend)
+ANTHROPIC_API_KEY or GEMINI_API_KEY, ALLOWED_ORIGINS, optional BRAVE_API_KEY, AI_MODEL. See .env.example (placeholders only).
+
+DEPLOY
+1. Upload ALL files and folders of the frontend ZIP to your GitHub Pages repo (keep folder structure; magic-assets.js works even if folders are skipped).
+2. Open the site once online, then reload (service worker cache is dabsy-v11.0.0).
+3. Optional: deploy backend/ (see backend/BACKEND.md) with `wrangler secret put` for keys.
+4. Copy integrations/ghibli-calendar/dabsy-core.js into the Ghibli repo and bump its sw.js cache.

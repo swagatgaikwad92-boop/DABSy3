@@ -30,30 +30,20 @@
    Only ONE timer is ever pending (idle/dwell), one arrival timer while
    moving, one auto-light timer. Nothing runs while the app is hidden.
 
-   v10.2
-     · wallpapers: setHabitat(id) switches the room (and DABSy's resting spots with it); the choice is persisted.
-     · Day / Night is ONE control owned by theme-engine (DABSy.theme). The room follows the interface theme;
-       the device clock is never consulted unless the user explicitly chose "Auto".
-     · roaming defaults to OFF: DABSy rests on her home object (pillow / desk / sill). Strolling to other real
-       objects in the room is an opt-in setting.
-
    Public API  DABSy.world
      active() state() isAway() returnHome() snapshot()
-     setHabitat(id)  habitatId()  habitats()  setRoam("off"|"calm"|"lively")
-     setLight(v) (kept for compatibility: forwards to DABSy.theme)  lightInfo()  roam()  habitat()
+     setLight("auto"|"day"|"night")  setRoam("off"|"calm"|"lively")
+     lightInfo()  roam()  habitat()
    ============================================================ */
 (function(){
   "use strict";
   const D = window.DABSy, bus = D.bus, ui = D.ui, memory = D.memory, DATA = D.worldData;
   const el = ui.el;
   const PREF_KEY = "world_v1";
-  const DEFAULTS = { roam: "off", habitat: "window-nook", v: 2 };
+  const DEFAULTS = { light: "auto", roam: "calm" };
   let prefs = Object.assign({}, DEFAULTS, memory.read(PREF_KEY, {}));
-  // v10.2 migration: earlier versions defaulted to "calm" roaming (she sat on random spots) and kept their own light pref
-  if(prefs.v !== 2){ prefs.roam = "off"; prefs.v = 2; }
-  delete prefs.light;
-  if(!["off", "calm", "lively"].includes(prefs.roam)) prefs.roam = "off";
-  if(!DATA.habitats.some(h => h.id === prefs.habitat)) prefs.habitat = DEFAULTS.habitat;
+  if(!["auto", "day", "night"].includes(prefs.light)) prefs.light = "auto";
+  if(!["off", "calm", "lively"].includes(prefs.roam)) prefs.roam = "calm";
 
   const stage = document.getElementById("stage");
   const wrap = document.getElementById("creature-wrap");
@@ -76,9 +66,9 @@
 
   const ST = { HOME: "IDLE_AT_HOME", CHOOSE: "CHOOSING_DESTINATION", MOVE: "MOVING_TO_DESTINATION", DEST: "IDLE_AT_DESTINATION", BACK: "RETURNING_HOME", BUSY: "INTERACTING", REST: "RESTING" };
 
-  let active = false, state = ST.HOME, habitat = DATA.habitats.find(h => h.id === prefs.habitat) || DATA.habitats[0];
+  let active = false, state = ST.HOME, habitat = DATA.habitats[0];
   let curSpot = null, target = null, attend = false, attendFrom = null, resting = false;
-  let timer = 0, moveTimer = 0, lastInteract = 0, hops = 0, touching = false, raf = 0;
+  let timer = 0, moveTimer = 0, lightTimer = 0, lastInteract = 0, hops = 0, touching = false, raf = 0;
   let L = { W: 0, H: 0, sceneW: 0, sceneH: 0, ox: 0, oy: 0, box: 160 };
   let worldEl = null, sceneEl = null, shownVariant = null;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -91,33 +81,40 @@
      light (day / night)
      ============================================================ */
   function hasVariant(n){ return !!habitat.variants[n]; }
-  // the room follows the interface Day/Night control (DABSy.theme). It never reads the clock itself.
-  function wantedLight(){ return D.theme && D.theme.resolved && D.theme.resolved() === "light" ? "day" : "night"; }
+  function autoLight(){
+    const [a, b] = habitat.dayHours || [6.5, 18.5], n = new Date(), h = n.getHours() + n.getMinutes() / 60;
+    return h >= a && h < b ? "day" : "night";
+  }
   function effectiveLight(){
-    const want = wantedLight();
+    const want = prefs.light === "auto" ? autoLight() : prefs.light;
     if(hasVariant(want)) return want;
     return hasVariant("night") ? "night" : (hasVariant("day") ? "day" : null);
   }
-  function lightInfo(){ return { pref: D.theme ? D.theme.mode() : "night", effective: effectiveLight(), hasDay: hasVariant("day"), hasNight: hasVariant("night"), dayIsGrade: !!(habitat.variants.day && habitat.variants.day.grade) }; }
-  function variantSrc(v){
-    const base = v.from ? habitat.variants[v.from] : v, src = base.src;
-    return /^data:/.test(src) ? src : assetUrl(src.split("/").pop());
+  function lightInfo(){
+    return { pref: prefs.light, effective: effectiveLight(), hasDay: hasVariant("day"), hasNight: hasVariant("night"),
+             autoWould: autoLight(), dayHours: habitat.dayHours };
+  }
+  function scheduleAutoLight(){
+    clearTimeout(lightTimer);
+    if(!active || prefs.light !== "auto" || !(hasVariant("day") && hasVariant("night"))) return;   // nothing to switch between
+    const [a, b] = habitat.dayHours, n = new Date(), h = n.getHours() + n.getMinutes() / 60;
+    const next = [a, b].map(t => (t - h + 24) % 24).filter(d => d > 0.0005).sort((x, y) => x - y)[0];
+    lightTimer = setTimeout(() => { paintVariant(true); scheduleAutoLight(); }, Math.max(1000, next * 3600000 + 500));
   }
   function paintVariant(animate){
     if(!worldEl) return;
     const name = effectiveLight(); if(!name || name === shownVariant) { paintLights(); return; }
     const v = habitat.variants[name];
     const img = new Image(); img.className = "w-bg"; img.alt = ""; img.decoding = "async"; img.draggable = false; img.dataset.variant = name;
-    if(v.grade) img.dataset.grade = v.grade;
     img.setAttribute("aria-hidden", "true");
     const show = () => {
       const old = [...sceneEl.querySelectorAll(".w-bg")].filter(n => n !== img);
       requestAnimationFrame(() => { img.classList.add("on"); old.forEach(o => o.classList.remove("on")); setTimeout(() => old.forEach(o => o.remove()), animate && !reduced() ? 1000 : 0); });
-      shownVariant = name; worldEl.classList.add("ready"); worldEl.dataset.light = name; worldEl.dataset.habitat = habitat.id; document.body.dataset.light = name; document.body.dataset.habitat = habitat.id;
+      shownVariant = name; worldEl.classList.add("ready"); worldEl.dataset.light = name; document.body.dataset.light = name;
       paintLights(); bus.emit("world:light", { light: name });
     };
-    img.onload = show; img.onerror = () => { worldEl.classList.add("ready"); bus.emit("world:error", { habitat: habitat.id }); };
-    img.src = variantSrc(v);
+    img.onload = show; img.onerror = () => { worldEl.classList.add("ready"); };
+    img.src = assetUrl(v.src.split("/").pop());
     sceneEl.insertBefore(img, sceneEl.firstChild);
     if(img.complete && img.naturalWidth) show();
   }
@@ -170,31 +167,12 @@
     const base = screenOf(attendFrom || homeSpot());
     const chat = document.getElementById("chat-area"), sub = document.getElementById("subtitle");
     let limit = L.H - 8;
-    if(chat && chat.offsetHeight){
-      // computed from the (possibly predicted) keyboard height, NOT from the dock's current on-screen position, which is mid-transition
-      const vp = D.viewport, gap = vp ? vp.chatBottomGap() : L.H * .05;
-      limit = Math.min(limit, L.H - gap - chat.offsetHeight - 10);
-    }
+    if(chat){ const r = chat.getBoundingClientRect(); if(r.height) limit = Math.min(limit, r.top - 10); }
     if(sub && sub.classList.contains("visible") && !document.body.classList.contains("kb-open")){ const r = sub.getBoundingClientRect(); if(r.height) limit = Math.min(limit, r.top - 8); }
     const bodyH = L.box * 1.1 * BODY_H_FRAC, avail = limit - TOP_SAFE;
     let s = Math.min(base.s, .92);
     if(bodyH * s > avail) s = Math.max(.42, avail / bodyH);
     return { fx: base.fx, fy: Math.max(TOP_SAFE + bodyH * s, Math.min(base.fy, limit)), s, id: "attend" };
-  }
-
-  /* top edge (screen px) of the highest place DABSy rests / may visit: widgets stay above this line */
-  function restTop(){
-    if(!active) return null;
-    const bodyPx = .81 * L.box, spots = prefs.roam === "off" ? [homeSpot()] : habitat.spots.filter(sp => !screenOf(sp).off);
-    return Math.min(...spots.map(sp => { const p = screenOf(sp); return p.fy - (bodyPx + L.box * .09) * p.s; }));
-  }
-  /* ---- Study Mode / Study Block: she shrinks to a compact companion at the top, above the explanation ---- */
-  let companion = false;
-  function companionTarget(){
-    const surf = document.getElementById("projection-surface"), sr = surf && surf.getBoundingClientRect();
-    const feetY = sr && sr.height ? sr.top - 4 : 150, bodyH = L.box * 1.1 * BODY_H_FRAC;
-    const s = clamp((feetY - 54) / bodyH, .3, .5);
-    return { fx: L.W / 2, fy: feetY, s, id: "companion" };
   }
 
   /* ============================================================
@@ -230,7 +208,7 @@
     face.classList.remove("walking");
     if(sceneEl) sceneEl.style.setProperty("--w-cam", "0px");
     try{ D.face.settle(); }catch(e){}
-    if(p.id === "attend" || p.id === "companion") return;
+    if(p.id === "attend") return;
     curSpot = spotById(p.id) || curSpot;
     const home = curSpot && curSpot.id === homeSpot().id;
     if(!reduced() && !attend) bus.emit("face:react", { name: "nod" });
@@ -305,28 +283,19 @@
   function syncOverlays(){
     if(!active) return;
     const c = document.body.classList;
-    const wantCompanion = c.contains("study-active") || c.contains("session-active");
-    if(wantCompanion && !companion){
-      companion = true; if(!attend) attendFrom = attendFrom || curSpot || homeSpot();
-      attend = true; clearTimeout(timer); clearTimeout(moveTimer); face.classList.remove("walking"); setState(ST.BUSY);
-      requestAnimationFrame(() => travel(companionTarget(), { speed: 260, minS: .5, maxS: 1.2, camera: false }));
-      return;
-    }
-    if(companion && !wantCompanion){ companion = false; attend = false; /* fall through to restore */ if(attendFrom){ const back = attendFrom; attendFrom = null; curSpot = back; target = back; setState(back.id === homeSpot().id ? ST.HOME : ST.DEST); travel(screenOf(back), { speed: 260, minS: .5, maxS: 1.2, camera: false }); } return; }
-    if(companion){ applyPos(companionTarget(), reduced() ? .2 : .3); return; }
     const wantAttend = c.contains("cmd-open") || c.contains("kb-open");
     if(wantAttend && !attend){
       attend = true; attendFrom = curSpot || homeSpot();
       clearTimeout(timer); clearTimeout(moveTimer); face.classList.remove("walking");
       setState(ST.BUSY);
-      travel(attendTarget(), { speed: 900, minS: .3, maxS: .34, camera: false });
+      travel(attendTarget(), { speed: 240, minS: .6, maxS: 1.4, camera: false });
     } else if(wantAttend && attend){
-      applyPos(attendTarget(), reduced() ? .2 : .3);
+      applyPos(attendTarget(), reduced() ? .2 : .5);
     } else if(!wantAttend && attend){
       attend = false; const back = attendFrom || homeSpot(); attendFrom = null;
       curSpot = back; target = back;
       setState(back.id === homeSpot().id ? ST.HOME : ST.DEST);
-      travel(screenOf(back), { speed: 700, minS: .34, maxS: .5, camera: false });
+      travel(screenOf(back), { speed: 240, minS: .6, maxS: 1.4, camera: false });
     } else if(blocked()){
       clearTimeout(timer); timer = 0;
       if(state === ST.HOME || state === ST.DEST) { /* stay put until resume() */ }
@@ -338,7 +307,7 @@
   function relayout(){
     raf = 0; if(!active) return;
     computeLayout();
-    const p = companion ? companionTarget() : attend ? attendTarget() : screenOf((state === ST.MOVE || state === ST.BACK) && target ? target : (curSpot || homeSpot()));
+    const p = attend ? attendTarget() : screenOf((state === ST.MOVE || state === ST.BACK) && target ? target : (curSpot || homeSpot()));
     clearTimeout(moveTimer); face.classList.remove("walking");
     applyPos(p, 0);                                                      // snap: no glide across a changed screen shape
     void wrap.offsetWidth;
@@ -362,18 +331,13 @@
       i.src = assetUrl(file);
     });
   }
-  /* a habitat's own picture: the built-in illustrated rooms are data: pictures (instant); the supplied photo is a file */
-  async function ensureHabitat(h){
-    const files = Object.values(h.variants).filter(v => v && v.src && !/^data:/.test(v.src)).map(v => v.src.split("/").pop());
-    await Promise.all(files.map(preload)); return true;
-  }
   async function ensureAssets(){
     if(assetsState === "ready") return true;
     assetsState = "loading"; assetsErr = "";
     try{
       if(!D.worldAssets){ try{ await loadScript("./magic-assets.js"); }catch(e){ /* fall through: the folder route may still work */ } }
-      await Promise.all(Object.values(CH.files).map(preload));
-      await ensureHabitat(habitat);
+      const files = Object.values(CH.files).concat(habitat.variants.night ? [habitat.variants.night.src.split("/").pop()] : []);
+      await Promise.all(files.map(preload));
       assetsState = "ready"; return true;
     }catch(e){ assetsState = "failed"; assetsErr = String(e && e.message || e); return false; }
   }
@@ -412,14 +376,14 @@
     curSpot = homeSpot(); target = curSpot; attend = false; resting = false; hops = 0; lastInteract = Date.now() - 4000;
     applyPos(screenOf(curSpot), 0); void wrap.offsetWidth;
     state = ST.HOME; document.body.dataset.worldState = state; document.body.classList.remove("mw-away");
-    paintVariant(false);
+    paintVariant(false); scheduleAutoLight();
     obs.observe(document.body, { attributes: true, attributeFilter: ["class"] });
     syncOverlays();
     schedule();
   }
   function exit(){
     if(!active) return;
-    active = false; clearTimeout(timer); clearTimeout(moveTimer); obs.disconnect();
+    active = false; clearTimeout(timer); clearTimeout(moveTimer); clearTimeout(lightTimer); obs.disconnect();
     face.classList.remove("walking"); document.body.classList.remove("mw-away"); delete document.body.dataset.worldState;
     wrap.style.translate = ""; wrap.style.scale = ""; wrap.style.removeProperty("--mw-dur"); wrap.style.removeProperty("--mw-box");
     face.setAttribute("aria-label", baseLabel);
@@ -445,26 +409,10 @@
 
   /* ---- user preferences ---- */
   function save(){ memory.write(PREF_KEY, prefs); }
-  function setLight(v){                           // compatibility: Day / Night is owned by the theme engine
-    if(!["auto", "day", "night"].includes(v) || !D.theme) return false;
-    D.theme.setMode(v); return true;
-  }
-  /* wallpaper: switch the room. DABSy's resting spots are the new room's, so she is re-seated (no glide across rooms). */
-  async function setHabitat(id){
-    const h = DATA.habitats.find(x => x.id === id); if(!h) return false;
-    if(h.id === prefs.habitat && active && shownVariant) return true;
-    try{ await ensureHabitat(h); }catch(e){ return false; }      // a broken picture is reported, never silently selected
-    prefs.habitat = h.id; save(); habitat = h;
-    if(active){
-      clearTimeout(timer); clearTimeout(moveTimer); face.classList.remove("walking");
-      shownVariant = null; sceneEl.querySelectorAll(".w-bg,.w-light").forEach(n => n.remove());
-      curSpot = homeSpot(); target = curSpot; hops = 0; attend = false; attendFrom = null;
-      computeLayout(); applyPos(screenOf(curSpot), 0); void wrap.offsetWidth;
-      state = ST.HOME; document.body.dataset.worldState = state; document.body.classList.remove("mw-away");
-      paintVariant(false); syncOverlays(); schedule();
-    }
-    bus.emit("world:habitat", { id: h.id }); bus.emit("world:prefs", { ...prefs });
-    return true;
+  function setLight(v){
+    if(!["auto", "day", "night"].includes(v)) return false;
+    prefs.light = v; save(); paintVariant(true); scheduleAutoLight();
+    bus.emit("world:prefs", { ...prefs }); return true;
   }
   function setRoam(v){
     if(!["off", "calm", "lively"].includes(v)) return false;
@@ -487,31 +435,28 @@
     if(to === "SLEEPY" && !resting){ resting = true; clearTimeout(timer); timer = 0; if(!attend){ if(atHome()) setState(ST.REST); else goHome(false); } }
     else if(to !== "SLEEPY" && resting){ resting = false; if(state === ST.REST) setState(ST.HOME); resume(); }
   });
-  bus.on("memory:wiped", () => { prefs = Object.assign({}, DEFAULTS); save(); if(active){ shownVariant = null; paintVariant(false); } });
+  bus.on("memory:wiped", () => { prefs = Object.assign({}, DEFAULTS); save(); if(active){ paintVariant(false); scheduleAutoLight(); } });
   window.addEventListener("resize", onResize);
   window.addEventListener("orientationchange", () => setTimeout(onResize, 260));
-  // the viewport engine announces ONCE when the keyboard has finished moving (no per-frame listener here)
-  document.addEventListener("dabsy:kb", () => { if(active && attend && !companion) applyPos(attendTarget(), reduced() ? .2 : .3); });
-  document.addEventListener("dabsy:kbsettled", () => { if(active && attend && !companion) applyPos(attendTarget(), .15); });
-  bus.on("theme:changed", () => { if(active) paintVariant(true); });
+  if(window.visualViewport) window.visualViewport.addEventListener("resize", () => { if(attend) { clearTimeout(syncT); syncT = setTimeout(() => { if(attend) applyPos(attendTarget(), reduced() ? .2 : .45); }, 120); } });
   document.addEventListener("visibilitychange", () => {
     if(!active) return;
     if(document.hidden){ clearTimeout(timer); timer = 0; face.classList.remove("walking"); }
     else {
       if(state === ST.MOVE || state === ST.BACK){ arrived(target || homeSpot()); }          // a transition may not have run in the background: land her where she was going
       else resume();
-      paintVariant(false);
+      scheduleAutoLight(); paintVariant(false);
     }
   });
 
   /* ---- public ---- */
   function snapshot(){
     return { active, state, away: isAway(), attend, resting, spot: curSpot && curSpot.id, home: homeSpot().id, light: effectiveLight(), prefs: { ...prefs },
-      layout: { ...L }, spots: habitat.spots.map(s => ({ id: s.id, ...screenOf(s) })), feet: active ? currentFeet() : null, timers: { idle: !!timer, move: !!moveTimer } , habitat: habitat.id };
+      layout: { ...L }, spots: habitat.spots.map(s => ({ id: s.id, ...screenOf(s) })), feet: active ? currentFeet() : null, timers: { idle: !!timer, move: !!moveTimer, light: !!lightTimer } };
   }
   D.world = {
     active: () => active, state: () => state, isAway, returnHome, snapshot, setLight, setRoam, lightInfo,
-    roam: () => prefs.roam, restTop, habitat: () => habitat, habitatId: () => prefs.habitat, habitats: () => DATA.habitats, setHabitat, relayout: onResize,
+    roam: () => prefs.roam, habitat: () => habitat, relayout: onResize,
     assets: () => ({ state: assetsState, error: assetsErr, embedded: !!D.worldAssets }), assetUrl,
     /* for tests and the settings preview only */
     _goto(id){ const sp = spotById(id); if(!active || !sp) return false; clearTimeout(timer); target = sp; hops = 1; setState(sp.id === homeSpot().id ? ST.BACK : ST.MOVE); travel(screenOf(sp), { speed: 240, minS: .5, maxS: 1.2 }); return true; },

@@ -1,0 +1,22 @@
+/* v11 — reply card (text + Expand/Retry/Use buttons + choice chips), readable glass, keyboard-aware */
+:root #subtitle{ max-height:min(40vh,calc(var(--vvh) - 200px)); background:var(--subtitle-bg); -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+:root #subtitle.long{ text-align:left; font-size:.97rem; line-height:1.55; padding:14px 18px; }
+:root #subtitle .sub-text{ white-space:pre-line; overflow-wrap:anywhere; }
+:root #subtitle .sub-actions,:root #subtitle .sub-choices{ display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:10px; }
+:root #subtitle.long .sub-actions,:root #subtitle.long .sub-choices{ justify-content:flex-start; }
+:root #subtitle button{
+  font:inherit; font-size:.88rem; min-height:40px; padding:8px 16px; border-radius:999px; cursor:pointer;
+  color:var(--ink); background:rgba(255,255,255,.08); border:1px solid var(--glass-border);
+  transition:background .15s, transform .12s; -webkit-tap-highlight-color:transparent;
+}
+:root #subtitle button:active{ transform:scale(.97); }
+:root #subtitle button[aria-pressed="true"]{ background:rgba(139,233,255,.22); border-color:rgba(139,233,255,.7); }
+:root #subtitle button.primary{ background:#f7e7a8; color:#2b2540; border-color:transparent; font-weight:600; }
+:root #subtitle button:disabled{ opacity:.5; cursor:default; }
+:root #subtitle button:focus-visible{ outline:2px solid #8be9ff; outline-offset:2px; }
+:root #subtitle .sub-hint{ flex-basis:100%; font-size:.76rem; opacity:.65; text-align:center; }
+:root[data-theme="light"] #subtitle button{ background:rgba(40,32,80,.06); }
+/* keep the answer visible above the typing dock instead of hiding it */
+:root body.kb-open #subtitle{ opacity:1; pointer-events:auto; bottom:calc(var(--kb) + 78px); max-height:calc(var(--vvh) - 150px); }
+:root body.kb-open #subtitle:not(.visible){ opacity:0; pointer-events:none; }
+@media (prefers-reduced-motion:reduce){ :root #subtitle,:root #subtitle button{ transition:none; } }

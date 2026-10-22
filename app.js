@@ -25,14 +25,57 @@
 
   /* ---------------- subtitle (stays until you triple-tap it away) ---------------- */
   let subTaps = 0, subTimer = null;
-  function showSubtitle(text){
-    subtitle.textContent = text; subtitle.classList.add("visible");
+  /* A reply is a small floating card: the text, plus — only when the reply intentionally carries them — actions.
+     opts.actions : [{ label, primary?, onClick }]            buttons (Explain more, Retry, Use / Edit / Change, Yes / No …)
+     opts.choices : { mode: "single"|"multi", options:[..], allowCustom }   tap a choice OR just type; both continue the same conversation */
+  function showSubtitle(text, opts){
+    opts = opts || {};
+    subtitle.textContent = "";
+    const body = document.createElement("div"); body.className = "sub-text"; body.textContent = text;
+    subtitle.append(body);
+    subtitle.classList.toggle("long", String(text).length > 170);
+    subtitle.classList.toggle("has-actions", !!((opts.actions && opts.actions.length) || opts.choices));
+    if(opts.choices) subtitle.append(renderChoices(opts.choices));
+    if(opts.actions && opts.actions.length) subtitle.append(renderActions(opts.actions));
+    subtitle.classList.add("visible");
+    subtitle.scrollTop = 0;
     // tell screen readers which language this line is in (Hindi/Marathi are read badly with lang="en")
     const L = memory.getSettings().replyLang;
-    subtitle.lang = /[\u0900-\u097F]/.test(text) ? (L === "mr" ? "mr" : "hi") : "en";
+    subtitle.lang = /[\u0900-\u097F]/.test(text) ? (L === "mr" || (ai.detectLang && ai.detectLang(text) === "mr") ? "mr" : "hi") : "en";
+  }
+  function renderActions(list){
+    const row = document.createElement("div"); row.className = "sub-actions";
+    list.forEach(a => {
+      const b = document.createElement("button"); b.type = "button"; b.textContent = a.label; if(a.primary) b.className = "primary";
+      b.addEventListener("click", ev => { ev.stopPropagation(); if(a.once !== false) row.querySelectorAll("button").forEach(x => { x.disabled = true; }); try{ a.onClick && a.onClick(); }catch(e){ console.error(e); } });
+      row.append(b);
+    });
+    return row;
+  }
+  function renderChoices(c){
+    const wrap = document.createElement("div"); wrap.className = "sub-choices"; wrap.setAttribute("role", c.mode === "multi" ? "group" : "radiogroup");
+    const picked = new Set();
+    const send = vals => { wrap.querySelectorAll("button").forEach(x => { x.disabled = true; }); handleUserUtterance(vals.join(", ")); };
+    c.options.forEach(opt => {
+      const label = typeof opt === "string" ? opt : opt.label;
+      const b = document.createElement("button"); b.type = "button"; b.textContent = label;
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", ev => {
+        ev.stopPropagation();
+        if(c.mode === "multi"){ if(picked.has(label)){ picked.delete(label); b.setAttribute("aria-pressed", "false"); } else { picked.add(label); b.setAttribute("aria-pressed", "true"); } done.hidden = picked.size === 0; }
+        else send([typeof opt === "string" ? opt : (opt.value || opt.label)]);
+      });
+      wrap.append(b);
+    });
+    const done = document.createElement("button"); done.type = "button"; done.className = "primary"; done.textContent = "Done"; done.hidden = true;
+    done.addEventListener("click", ev => { ev.stopPropagation(); send([...picked]); });
+    if(c.mode === "multi") wrap.append(done);
+    if(c.allowCustom !== false){ const h = document.createElement("span"); h.className = "sub-hint"; h.textContent = "or just type your answer"; wrap.append(h); }
+    return wrap;
   }
   function hideSubtitle(){ subtitle.classList.remove("visible"); }
-  subtitle.addEventListener("pointerdown", () => {
+  subtitle.addEventListener("pointerdown", e => {
+    if(e.target.closest && e.target.closest(".sub-actions,.sub-choices")) return;      // pressing a button is not a dismiss tap
     subTaps++; clearTimeout(subTimer); subTimer = setTimeout(() => { subTaps = 0; }, 600);
     if(subTaps >= 3){ subTaps = 0; hideSubtitle(); }
   });
@@ -366,7 +409,7 @@
   let utteranceBusy = false;
   async function handleUserUtterance(text){
     if(utteranceBusy) return;
-    utteranceBusy = true; subtitle.classList.remove("live");
+    utteranceBusy = true;
     textInput.readOnly = true;        // not "disabled": that drops focus and closes the phone keyboard after every send
     try{ await processUtterance(text); }
     finally{
@@ -374,9 +417,11 @@
       if(chatArea.classList.contains("visible") && document.activeElement !== textInput) textInput.focus({ preventScroll: true });
     }
   }
-  async function processUtterance(text){
+  async function processUtterance(text, o){
+    o = o || {};
+    lastUserText = text;
     showSubtitle(text);
-    memory.addSession("user", text);
+    if(!o.retry) memory.addSession("user", text);
     window.DABSy.pet && window.DABSy.pet.markInteraction();
     director.dispatch("AI_THINKING");
     armDockTimer();
@@ -386,7 +431,7 @@
 
     if(window.DABSy.calIntel && window.DABSy.calIntel.hasPending()){      // answer to "which day?" / "add it? yes/no"
       const r = await window.DABSy.calIntel.answer(text);
-      if(r){ memory.addSession("dabsy", r.text); say(r.text, r.state); return; }
+      if(r){ memory.addSession("dabsy", r.text); say(r.text, r.state, r.opts); return; }
     }
     if(pendingCategoryQuestion){
       const cat = DABSyCore.matchCategoryFromText(text);
@@ -430,14 +475,17 @@
 
     if(await localCommand(text)) { director.dispatch("DABSY_REPLY", { speakText: null }); return; }
 
+    if(window.DABSy.butler){                            // natural-language task operations (complete / edit / prioritise / move / delete-with-confirmation / today)
+      const b = await window.DABSy.butler.handle(text).catch(e => { console.error(e); return null; });
+      if(b){ memory.addSession("dabsy", b.text); memory.addHistory({ type: "chat", user: text, reply: b.text }); say(b.text, b.state, b.opts); return; }
+    }
     if(window.DABSy.calIntel){                          // commitments with a day/time -> classified, dated, saved and verified
       const cal = await window.DABSy.calIntel.handle(text).catch(e => { console.error(e); return null; });
-      if(cal){ memory.addSession("dabsy", cal.text); memory.addHistory({ type: "chat", user: text, reply: cal.text }); say(cal.text, cal.state); return; }
+      if(cal){ memory.addSession("dabsy", cal.text); memory.addHistory({ type: "chat", user: text, reply: cal.text }); say(cal.text, cal.state, cal.opts); return; }
     }
-    // v10.3: while the answer is still being written, show it in the subtitle as it arrives (real streaming from the Worker;
-    // an older Worker that doesn't stream just shows the finished answer as before)
-    let streamedAny = false;
-    const result = await ai.parseIntent(text, { onPartial: partial => { streamedAny = true; subtitle.classList.add("live"); showSubtitle(partial); } });
+    if(await maybeRefine(text)) return;
+    if(ai.isPlainChat(text)){ await chatReply(text); return; }          // fast path: one compact call, plain text back
+    const result = await ai.parseIntent(text);
     if(result.reply) memory.addSession("dabsy", result.reply);
     memory.addHistory({ type: "chat", user: text, reply: result.reply || result.type });
 
@@ -458,32 +506,66 @@
     }
     if(result.type === "schedule_add" && result.schedule){ await handleScheduleAdd(result); return; }
     if(result.type === "schedule_remove" && result.schedule){
-      const title = result.schedule.title || "";
-      let handled = false;
-      if(DABSyCore.isCalendarConnected()){
-        const ev = findBestCoreEventMatch(title);
-        if(ev){ DABSyCore.deleteCalendarEvent(ev.id); handled = true; }
-        if(!handled){ const tk = findBestCoreTaskMatch(title); if(tk){ DABSyCore.deleteTask(tk.id); handled = true; } }
-      }
-      const mine = tasks.list().filter(t => t.title.toLowerCase().includes(title.toLowerCase()) && title);
-      if(mine.length){ mine.forEach(t => tasks.remove(t.id)); handled = true; }
-      say(handled ? (result.reply || `Okay, I removed "${title}".`) : `I couldn't find anything called "${title}".`, handled ? result.state : "CONFUSED");
-      return;
+      // never delete on a guess: butler finds the matches and asks first
+      const r = window.DABSy.butler ? await window.DABSy.butler.removeFlow(result.schedule.title || "") : null;
+      if(r){ say(r.text, r.state, r.opts); return; }
     }
     if(result.limited){ director.dispatch("CONFUSED_BEAT", { speakText: result.reply }); return; }
+    if(result.failed){ say(result.reply, "CONFUSED", { actions: retryAction(text) }); return; }
     say(result.reply, result.state);
   }
 
-  function say(text, state){
+  let nextReplyOpts = null;
+  function say(text, state, opts){
+    nextReplyOpts = opts ? { text, opts } : null;        // consumed by the "dabsy:say" carrying this exact line (the director may delay it)
+    const mine = nextReplyOpts;
     director.dispatch("DABSY_REPLY", { speakText: text, finalState: state === "CONFUSED" ? "IDLE" : (state || null) });
     if(state === "CONFUSED") director.dispatch("CONFUSED_BEAT", { speakText: null });
+    setTimeout(() => { if(nextReplyOpts === mine) nextReplyOpts = null; }, 4000);
   }
 
   bus.on("dabsy:say", ({ text }) => {
-    showSubtitle(text);
+    const o = nextReplyOpts && nextReplyOpts.text === text ? nextReplyOpts.opts : null; if(o) nextReplyOpts = null;
+    showSubtitle(text, o || undefined);
     memory.addSession("dabsy", text);
     window.DABSy.voice.speak(text);
   });
+
+  /* ---------------- chat replies: concise by default, "Explain more" on demand, Retry on failure ---------------- */
+  let lastUserText = "", skipRefine = false;
+  const studyMode = () => document.body.classList.contains("session-active") || document.body.classList.contains("study-active");
+  const wordCount = s => String(s).trim().split(/\s+/).filter(Boolean).length;
+  const INFO_Q = /^\s*(what|why|how|who|when|where|which|explain|define|difference|meaning|can you explain|tell me about|kya|kaise|kyu|kyun|kay|kasa|क्या|क्यों|कैसे|काय|कसे)\b/i;
+  function retryAction(text){ return [{ label: "Retry", primary: true, onClick: () => { director.dispatch("AI_THINKING"); processUtterance(text, { retry: true }); } }]; }
+  async function chatReply(text){
+    const study = studyMode();
+    const r = await ai.chat(text, { study });
+    if(!r.ok){ say(r.text, "CONFUSED", { actions: ai.status() === "limited" && r.error === "no-proxy" ? null : retryAction(text) }); return; }
+    memory.addSession("dabsy", r.text); memory.addHistory({ type: "chat", user: text, reply: r.text });
+    const canExpand = !study && (wordCount(r.text) >= 18 || (INFO_Q.test(text) && wordCount(r.text) >= 8));
+    say(r.text, "IDLE", canExpand ? { actions: [{ label: "Explain more", onClick: () => expandReply(text, r.text) }] } : null);
+  }
+  async function expandReply(question, answer){
+    director.dispatch("AI_THINKING");
+    const r = await ai.expand(question, answer);
+    if(!r.ok){ say(r.text, "CONFUSED", { actions: [{ label: "Try again", primary: true, onClick: () => expandReply(question, answer) }] }); return; }
+    memory.addSession("dabsy", r.text);
+    say(r.text, "IDLE");
+  }
+  // long or multi-part request -> restate it and let the student confirm / edit / change (never for simple messages)
+  async function maybeRefine(text){
+    if(skipRefine){ skipRefine = false; return false; }
+    if(wordCount(text) < 30 || ai.status() === "limited") return false;
+    const p = await ai.refine(text);
+    if(!p) return false;
+    const lead = "What I understood: ";
+    say(lead + p.understood, "CURIOUS", { actions: [
+      { label: "Use", primary: true, onClick: () => { skipRefine = true; handleUserUtterance(p.understood); } },
+      { label: "Edit", onClick: () => { textInput.value = p.understood; openCommand(); setTimeout(() => textInput.focus(), 60); } },
+      { label: "Change", onClick: () => { textInput.value = ""; openCommand(); setTimeout(() => textInput.focus(), 60); } },
+    ] });
+    return true;
+  }
 
   /* ---------------- bell + notification centre ---------------- */
   const bell = document.getElementById("bell-btn");
@@ -521,5 +603,5 @@
 
   /* ---------------- install button + AI status are surfaced in Settings ---------------- */
 
-  window.DABSy.app = { say, showSubtitle, hideSubtitle, openCommand, closeCommand, handleUserUtterance, openCenter, nextLine };
+  window.DABSy.app = { say, showSubtitle, lastText: () => lastUserText, hideSubtitle, openCommand, closeCommand, handleUserUtterance, openCenter, nextLine };
 })();

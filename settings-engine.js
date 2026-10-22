@@ -93,23 +93,37 @@
 
     /* ---------- MAGIC WORLD ---------- */
     const worldBox = el("div", {});
+    function thumb(id){ return (D.wallpaperThumbs && D.wallpaperThumbs[id]) || "./assets/magic/thumbs/" + id + ".webp"; }
+    if(!D.wallpaperThumbs){ const sc = document.createElement("script"); sc.src = "./wallpaper-thumbs.js"; sc.onload = () => paintWorld(); document.head.appendChild(sc); }
     function paintWorld(){
       worldBox.innerHTML = "";
       const W = D.world, form = D.outfits.form(), info = W.lightInfo();
       const grid = el("div", { class: "wd-grid wd-grid-2" });
       const magic = el("button", { class: "wd-tile mw-tile" + (form === "magic" ? " on" : ""), type: "button", "aria-pressed": String(form === "magic"), "aria-label": "Magic World: DABSy lives in a cosy room",
         onclick: () => { if(D.outfits.setForm("magic")) D.face.react("perk"); paintWorld(); paintWardrobe(); } },
-        el("img", { src: (D.world && D.world.assetUrl ? D.world.assetUrl("room-night.webp") : D.worldData.habitats[0].variants.night.src), alt: "", loading: "lazy", onerror: ev => ev.target.remove() }), el("span", { class: "wd-name" }, "Magic World"));
+        el("img", { src: thumb("window-nook-night"), alt: "", loading: "lazy", onerror: ev => ev.target.remove() }), el("span", { class: "wd-name" }, "Magic World"));
       const classic = el("button", { class: "wd-tile mw-tile classic" + (form === "minimal" ? " on" : ""), type: "button", "aria-pressed": String(form === "minimal"), "aria-label": "Classic black screen: just her eyes and bow tie",
         onclick: () => { if(D.outfits.setForm("minimal")) D.face.react("perk"); paintWorld(); paintWardrobe(); } });
       classic.innerHTML = D.outfits.previewForm() + '<span class="wd-name">Classic black screen</span>';
       grid.append(magic, classic);
       worldBox.append(grid);
       if(form !== "magic"){ worldBox.append(el("p", { class: "hint" }, "Choose Magic World to see the room, day and night, and DABSy's wandering.")); return; }
-      const lightOpts = [["day", "Day", info.hasDay ? null : "Daytime artwork for this room hasn't been added yet."], ["night", "Night"], ["auto", "Auto"]];
+      const cur = W.habitatId();
+      const wp = el("div", { class: "wp-grid", role: "radiogroup", "aria-label": "Wallpaper" });
+      W.habitats().forEach(h => {
+        const tile = el("button", { type: "button", role: "radio", "aria-checked": String(h.id === cur), class: "wp-tile" + (h.id === cur ? " on" : ""), "aria-label": h.name + (h.hasDay && h.hasNight ? ", day and night" : h.hasDay ? ", day only" : ", night only"),
+          onclick: () => { W.setHabitat(h.id); paintWorld(); } },
+          el("span", { class: "wp-pics" }, h.hasDay ? el("img", { src: thumb(h.id + "-day"), alt: "", loading: "lazy" }) : null, h.hasNight ? el("img", { src: thumb(h.id + "-night"), alt: "", loading: "lazy" }) : null),
+          el("span", { class: "wd-name" }, h.name), el("span", { class: "wd-note" }, h.hasDay && h.hasNight ? "Day · Night" : h.hasDay ? "Day only" : "Night only"));
+        wp.append(tile);
+      });
+      worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Wallpaper"), el("div", { class: "s" }, "Tap one to use it. Left is the day picture, right is the night one.")), wp));
+      const both = info.hasDay && info.hasNight;
+      const lightOpts = [["day", "Day", info.hasDay ? null : "This wallpaper has no day picture."], ["night", "Night", info.hasNight ? null : "This wallpaper has no night picture."], ["auto", "Auto"]];
+      const fmtH = h => ui.fmtTime(new Date(2000, 0, 1, Math.floor(h), Math.round((h % 1) * 60)));
       worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Time of day"),
-        el("div", { class: "s" }, info.hasDay ? "Auto follows your phone's clock (day " + info.dayHours.map(h => ui.fmtTime(new Date(2000, 0, 1, Math.floor(h), Math.round((h % 1) * 60)))).join(" to ") + "). Day or Night stays until you change it." : "Only the night artwork is installed for this room, so Night is always shown. Day and Auto will switch as soon as daytime artwork is added.")),
-        segmented("Time of day", lightOpts, info.hasDay ? info.pref : "night", v => { W.setLight(v); paintWorld(); })));
+        el("div", { class: "s" }, both ? "Auto follows your clock: day from " + info.dayHours.map(fmtH).join(" to ") + ", night otherwise. It does not depend on your phone's dark mode. Showing: " + info.effective + "." : "This wallpaper only has a " + (info.hasDay ? "day" : "night") + " picture, so that is always shown. Pick another wallpaper to see both.")),
+        segmented("Time of day", lightOpts, both ? info.pref : (info.hasDay ? "day" : "night"), v => { W.setLight(v); paintWorld(); })));
       worldBox.append(el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Wandering"),
         el("div", { class: "s" }, "How often DABSy strolls to other spots in the room. She stays put while you chat, study or use a panel, and when Reduce motion is on. Tap her while she is away and she walks home.")),
         segmented("Wandering", [["off", "Off"], ["calm", "Calm"], ["lively", "Lively"]], W.roam(), v => W.setRoam(v))));
@@ -117,9 +131,23 @@
     paintWorld();
     offs.push(bus.on("outfit:form", () => paintWorld()));
 
+    /* ---------- widgets ---------- */
+    const wgBox = el("div", {});
+    function paintWidgets(){
+      wgBox.innerHTML = ""; const Wg = D.widgets; if(!Wg) return;
+      wgBox.append(switchRow("Floating widgets", "Clock, date, tasks, weather and calendar float around DABSy. They hide while you chat or study.", Wg.enabled(), v => { Wg.enable(v); paintWidgets(); }));
+      if(!Wg.enabled()) return;
+      const names = Wg.names(), on = new Set(Wg.list().map(i => i.id));
+      Object.keys(names).forEach(id => wgBox.append(switchRow(names[id], null, on.has(id), v => { v ? Wg.add(id) : Wg.remove(id); paintWidgets(); })));
+      wgBox.append(el("div", { class: "popup-actions", style: "justify-content:flex-start" }, el("button", { class: "btn sm", type: "button", onclick: () => { sh.close(); setTimeout(() => Wg.edit(), 300); } }, "Rearrange on screen"),
+        el("button", { class: "btn sm ghost", type: "button", onclick: () => { Wg.reset(); paintWidgets(); } }, "Reset")));
+      wgBox.append(el("p", { class: "hint" }, "Weather uses your approximate location (kept on this device) and the free Open-Meteo service. You can also press and hold any widget to rearrange."));
+    }
+    paintWidgets();
+
     /* ---------- appearance (interface theme; independent of the character look) ---------- */
     const appearance = section("appearance", "Appearance",
-      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Theme"), el("div", { class: "s" }, "Dark is the default. Light is a soft ivory theme. Auto follows your phone. This is separate from the character look (Magic World / Classic), so any combination works.")),
+      el("div", { class: "row col" }, el("div", { class: "grow" }, el("div", { class: "t" }, "Theme"), el("div", { class: "s" }, "Dark is the default. Light is a soft ivory theme. Auto follows the time of day on your clock (light by day, dark at night), not your phone's own dark mode. This is separate from the character look (Magic World / Classic), so any combination works.")),
         segmented("Theme", [["dark", "Dark"], ["light", "Light"], ["auto", "Auto"]], D.theme.get(), v => D.theme.set(v))));
 
     /* ---------- notifications ---------- */
@@ -226,6 +254,7 @@
       section("ai", "DABSy AI", aiRow, el("div", { class: "popup-actions", style: "justify-content:flex-start" }, aiBtn), aiNote),
       appearance,
       section("world", "Magic World", worldBox),
+      section("widgets", "Widgets", wgBox),
       section("wardrobe", "Wardrobe", wardrobe),
       notifSection, studySection, voiceSection, a11y,
       section("connections", "Connections", conn),

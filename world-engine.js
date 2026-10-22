@@ -40,10 +40,11 @@
   const D = window.DABSy, bus = D.bus, ui = D.ui, memory = D.memory, DATA = D.worldData;
   const el = ui.el;
   const PREF_KEY = "world_v1";
-  const DEFAULTS = { light: "auto", roam: "calm" };
+  const DEFAULTS = { light: "auto", roam: "calm", habitat: DATA.habitats[0].id };
   let prefs = Object.assign({}, DEFAULTS, memory.read(PREF_KEY, {}));
   if(!["auto", "day", "night"].includes(prefs.light)) prefs.light = "auto";
   if(!["off", "calm", "lively"].includes(prefs.roam)) prefs.roam = "calm";
+  if(!DATA.habitats.some(h => h.id === prefs.habitat)) prefs.habitat = DATA.habitats[0].id;   // an unknown / removed wallpaper id falls back to the first room
 
   const stage = document.getElementById("stage");
   const wrap = document.getElementById("creature-wrap");
@@ -66,11 +67,11 @@
 
   const ST = { HOME: "IDLE_AT_HOME", CHOOSE: "CHOOSING_DESTINATION", MOVE: "MOVING_TO_DESTINATION", DEST: "IDLE_AT_DESTINATION", BACK: "RETURNING_HOME", BUSY: "INTERACTING", REST: "RESTING" };
 
-  let active = false, state = ST.HOME, habitat = DATA.habitats[0];
+  let active = false, state = ST.HOME, habitat = DATA.habitats.find(h => h.id === prefs.habitat) || DATA.habitats[0];
   let curSpot = null, target = null, attend = false, attendFrom = null, resting = false;
   let timer = 0, moveTimer = 0, lightTimer = 0, lastInteract = 0, hops = 0, touching = false, raf = 0;
   let L = { W: 0, H: 0, sceneW: 0, sceneH: 0, ox: 0, oy: 0, box: 160 };
-  let worldEl = null, sceneEl = null, shownVariant = null;
+  let worldEl = null, sceneEl = null, shownVariant = null, paintToken = 0;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const reduced = () => ui.reducedMotion();
@@ -80,7 +81,7 @@
   /* ============================================================
      light (day / night)
      ============================================================ */
-  function hasVariant(n){ return !!habitat.variants[n]; }
+  function hasVariant(n){ return !!(n && habitat.variants[n]); }
   function autoLight(){
     const [a, b] = habitat.dayHours || [6.5, 18.5], n = new Date(), h = n.getHours() + n.getMinutes() / 60;
     return h >= a && h < b ? "day" : "night";
@@ -91,7 +92,7 @@
     return hasVariant("night") ? "night" : (hasVariant("day") ? "day" : null);
   }
   function lightInfo(){
-    return { pref: prefs.light, effective: effectiveLight(), hasDay: hasVariant("day"), hasNight: hasVariant("night"),
+    return { pref: prefs.light, effective: effectiveLight(), hasDay: hasVariant("day"), hasNight: hasVariant("night"), habitat: habitat.id,
              autoWould: autoLight(), dayHours: habitat.dayHours };
   }
   function scheduleAutoLight(){
@@ -104,19 +105,28 @@
   function paintVariant(animate){
     if(!worldEl) return;
     const name = effectiveLight(); if(!name || name === shownVariant) { paintLights(); return; }
-    const v = habitat.variants[name];
-    const img = new Image(); img.className = "w-bg"; img.alt = ""; img.decoding = "async"; img.draggable = false; img.dataset.variant = name;
-    img.setAttribute("aria-hidden", "true");
-    const show = () => {
-      const old = [...sceneEl.querySelectorAll(".w-bg")].filter(n => n !== img);
-      requestAnimationFrame(() => { img.classList.add("on"); old.forEach(o => o.classList.remove("on")); setTimeout(() => old.forEach(o => o.remove()), animate && !reduced() ? 1000 : 0); });
-      shownVariant = name; worldEl.classList.add("ready"); worldEl.dataset.light = name; document.body.dataset.light = name;
-      paintLights(); bus.emit("world:light", { light: name });
-    };
-    img.onload = show; img.onerror = () => { worldEl.classList.add("ready"); };
-    img.src = assetUrl(v.src.split("/").pop());
-    sceneEl.insertBefore(img, sceneEl.firstChild);
-    if(img.complete && img.naturalWidth) show();
+    const v = habitat.variants[name], file = v.src.split("/").pop(), hid = habitat.id;
+    const my = ++paintToken;
+    preload(file).then(() => {
+      if(!worldEl || my !== paintToken || hid !== habitat.id) return;           // a newer wallpaper / time-of-day request replaced this one
+      const img = new Image(); img.className = "w-bg"; img.alt = ""; img.decoding = "async"; img.draggable = false; img.dataset.variant = name;
+      img.setAttribute("aria-hidden", "true");
+      const show = () => {
+        if(!worldEl || my !== paintToken) { img.remove(); return; }
+        const old = [...sceneEl.querySelectorAll(".w-bg")].filter(n => n !== img);
+        requestAnimationFrame(() => { img.classList.add("on"); old.forEach(o => o.classList.remove("on")); setTimeout(() => old.forEach(o => o.remove()), animate && !reduced() ? 1000 : 0); });
+        shownVariant = name; worldEl.classList.add("ready"); worldEl.dataset.light = name; document.body.dataset.light = name;
+        paintLights(); bus.emit("world:light", { light: name, habitat: hid });
+      };
+      img.onload = show; img.onerror = () => { worldEl && worldEl.classList.add("ready"); };
+      img.src = assetUrl(file);
+      sceneEl.insertBefore(img, sceneEl.firstChild);
+      if(img.complete && img.naturalWidth) show();
+    }).catch(err => {
+      console.warn("[Magic World] wallpaper unavailable:", file, err && err.message);
+      if(worldEl) worldEl.classList.add("ready");
+      bus.emit("world:error", { file, habitat: hid });
+    });
   }
   function paintLights(){
     if(!sceneEl) return;
@@ -320,24 +330,42 @@
      DOM: scene + character layers (built only while Magic World is on)
      ============================================================ */
   /* ---- artwork: embedded bundle first (always deploys with the root files), the assets/ folder as a second route ---- */
-  const assetUrl = f => (D.worldAssets && D.worldAssets[f]) || (DATA.assets + f);
+  const resolved = {};                                          // file -> url that actually loaded (folder image, or the embedded copy)
+  const assetUrl = f => resolved[f] || (D.worldAssets && D.worldAssets[f]) || (DATA.assets + f);
   let assetsState = "idle", assetsErr = "";                        // idle | loading | ready | failed
   function loadScript(src){ return new Promise((res, rej) => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = () => rej(new Error("could not load " + src)); document.head.appendChild(s); }); }
-  function preload(file){
+  function probe(url, ms){
     return new Promise((res, rej) => {
-      const i = new Image(); const t = setTimeout(() => rej(new Error("timed out: " + file)), 9000);
+      const i = new Image(); const t = setTimeout(() => rej(new Error("timed out: " + url)), ms || 9000);
       i.onload = () => { clearTimeout(t); (i.decode ? i.decode().catch(() => {}) : Promise.resolve()).then(res); };
-      i.onerror = () => { clearTimeout(t); rej(new Error("failed: " + file)); };
-      i.src = assetUrl(file);
+      i.onerror = () => { clearTimeout(t); rej(new Error("failed: " + url)); };
+      i.src = url;
     });
+  }
+  /* A picture is tried from its place in assets/magic/ first (cheap, cached). If that cannot be fetched (for example a flat upload
+     that skipped the folders), the embedded copy shipped in the project root (wp-<name>.js) is loaded instead. Nothing is invented. */
+  const inflight = {};
+  function preload(file){
+    if(resolved[file]) return Promise.resolve(resolved[file]);
+    if(inflight[file]) return inflight[file];
+    inflight[file] = (async () => {
+      if(D.worldAssets && D.worldAssets[file]){ await probe(D.worldAssets[file]); return (resolved[file] = D.worldAssets[file]); }
+      try{ await probe(DATA.assets + file); return (resolved[file] = DATA.assets + file); }catch(e){ /* fall through to the embedded copy */ }
+      const js = "./wp-" + file.replace(/\.webp$/, "") + ".js";
+      await loadScript(js);
+      if(!(D.worldAssets && D.worldAssets[file])) throw new Error("missing: " + file);
+      await probe(D.worldAssets[file]); return (resolved[file] = D.worldAssets[file]);
+    })();
+    inflight[file].catch(() => { delete inflight[file]; });
+    return inflight[file];
   }
   async function ensureAssets(){
     if(assetsState === "ready") return true;
     assetsState = "loading"; assetsErr = "";
     try{
       if(!D.worldAssets){ try{ await loadScript("./magic-assets.js"); }catch(e){ /* fall through: the folder route may still work */ } }
-      const files = Object.values(CH.files).concat(habitat.variants.night ? [habitat.variants.night.src.split("/").pop()] : []);
-      await Promise.all(files.map(preload));
+      const light = effectiveLight(), first = light && habitat.variants[light] ? [habitat.variants[light].src.split("/").pop()] : [];
+      await Promise.all(Object.values(CH.files).concat(first).map(preload));
       assetsState = "ready"; return true;
     }catch(e){ assetsState = "failed"; assetsErr = String(e && e.message || e); return false; }
   }
@@ -365,7 +393,7 @@
     worldEl.append(sceneEl, el("div", { class: "w-shade" }), el("div", { class: "w-dim" }));
     stage.insertBefore(worldEl, stage.firstChild);
   }
-  function destroyScene(){ if(worldEl){ worldEl.remove(); worldEl = sceneEl = null; shownVariant = null; delete document.body.dataset.light; } }
+  function destroyScene(){ if(worldEl){ worldEl.remove(); worldEl = sceneEl = null; shownVariant = null; paintToken++; delete document.body.dataset.light; } }
 
   /* ============================================================
      on / off
@@ -414,6 +442,22 @@
     prefs.light = v; save(); paintVariant(true); scheduleAutoLight();
     bus.emit("world:prefs", { ...prefs }); return true;
   }
+  /* wallpaper (habitat) choice: persists in world_v1 so it survives a refresh */
+  function switchHabitat(){
+    shownVariant = null; paintToken++; computeLayout();
+    clearTimeout(timer); timer = 0; clearTimeout(moveTimer); face.classList.remove("walking");
+    curSpot = homeSpot(); target = curSpot; hops = 0;
+    if(attend){ attendFrom = curSpot; applyPos(attendTarget(), .3); }
+    else { applyPos(screenOf(curSpot), 0); state = ST.HOME; document.body.dataset.worldState = state; document.body.classList.remove("mw-away"); }
+    paintVariant(true); scheduleAutoLight(); if(!attend) schedule();
+  }
+  function setHabitat(id){
+    const h = DATA.habitats.find(x => x.id === id); if(!h) return false;
+    if(h.id === habitat.id && prefs.habitat === h.id) return true;
+    habitat = h; prefs.habitat = h.id; save();
+    if(active) switchHabitat();
+    bus.emit("world:prefs", { ...prefs }); return true;
+  }
   function setRoam(v){
     if(!["off", "calm", "lively"].includes(v)) return false;
     prefs.roam = v; save(); clearTimeout(timer); timer = 0;
@@ -435,7 +479,7 @@
     if(to === "SLEEPY" && !resting){ resting = true; clearTimeout(timer); timer = 0; if(!attend){ if(atHome()) setState(ST.REST); else goHome(false); } }
     else if(to !== "SLEEPY" && resting){ resting = false; if(state === ST.REST) setState(ST.HOME); resume(); }
   });
-  bus.on("memory:wiped", () => { prefs = Object.assign({}, DEFAULTS); save(); if(active){ paintVariant(false); scheduleAutoLight(); } });
+  bus.on("memory:wiped", () => { prefs = Object.assign({}, DEFAULTS); save(); habitat = DATA.habitats[0]; if(active){ switchHabitat(); } });
   window.addEventListener("resize", onResize);
   window.addEventListener("orientationchange", () => setTimeout(onResize, 260));
   if(window.visualViewport) window.visualViewport.addEventListener("resize", () => { if(attend) { clearTimeout(syncT); syncT = setTimeout(() => { if(attend) applyPos(attendTarget(), reduced() ? .2 : .45); }, 120); } });
@@ -455,7 +499,9 @@
       layout: { ...L }, spots: habitat.spots.map(s => ({ id: s.id, ...screenOf(s) })), feet: active ? currentFeet() : null, timers: { idle: !!timer, move: !!moveTimer, light: !!lightTimer } };
   }
   D.world = {
-    active: () => active, state: () => state, isAway, returnHome, snapshot, setLight, setRoam, lightInfo,
+    active: () => active, state: () => state, isAway, returnHome, snapshot, setLight, setRoam, lightInfo, setHabitat,
+    habitatId: () => habitat.id, autoLight: () => autoLight(),
+    habitats: () => DATA.habitats.map(h => ({ id: h.id, name: h.name, hasDay: !!h.variants.day, hasNight: !!h.variants.night })),
     roam: () => prefs.roam, habitat: () => habitat, relayout: onResize,
     assets: () => ({ state: assetsState, error: assetsErr, embedded: !!D.worldAssets }), assetUrl,
     /* for tests and the settings preview only */

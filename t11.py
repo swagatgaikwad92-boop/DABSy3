@@ -20,7 +20,7 @@ async def main():
     r=await say('mark maths homework done'); chk('complete',await pg.evaluate('(id)=>DABSy.tasks.get(id).status',ids[0])=='done',str(r))
     r=await say('delete unicorn parade'); chk('unknown not invented','couldn' in r['text'],str(r))
     r=await say('move maths homework to friday 6 pm'); print(r)
-    r=await say('plan my day'); chk('overview answers',bool(r and r['text']),str(r))
+    r=await say('how busy am I today'); chk('overview answers',bool(r and r['text']),str(r))
     chk('hello not hijacked',await say('hello how are you')==None)
     # reply card UI
     await pg.evaluate('DABSy.app.say("Short answer.","HAPPY",{actions:[{label:"Explain more",primary:true,onClick(){}}]})'); await pg.wait_for_timeout(600)

@@ -59,3 +59,6 @@ Version 10.0.0, service-worker cache `dabsy-v10.0.0`.
 - New receiver `DS_init` in `app.js`: video -> existing YouTube player, PDF -> existing PDF viewer (fetched direct, or via optional proxy), plan sticky note, acks, de-duplication, error dialogs with "Open original".
 - Fixed a pre-existing freeze: showing 4+ toasts at once caused an infinite loop in the toast code.
 - `index.html`: optional `resource-proxy` meta. `sw.js`: cache version bumped.
+
+## 11.1.0
+Keyboard-lag fix, real day planner + butler actions (dayplan-engine.js), 5 wallpapers with day/night, clock-based auto light/theme, floating widgets with customisation, butler persona. See V11.1_REPORT.md.

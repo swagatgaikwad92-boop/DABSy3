@@ -1,0 +1,33 @@
+/* dayplan.css — the plan card (a bottom sheet). Uses the app's own tokens so it follows dark / light. */
+.dp-sheet .sheet-body{padding-bottom:18px}
+.dp-sum{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:2px 0 8px}
+.dp-sum-main{font-weight:650;font-size:1.02rem;color:var(--ink)}
+.dp-sum-sub{font-size:.86rem;color:var(--ink-dim);white-space:nowrap}
+.dp-assume{margin:0 0 10px;padding:0 0 0 18px;font-size:.78rem;line-height:1.45;color:var(--ink-faint)}
+.dp-day h3{margin:14px 0 6px;font-size:.8rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-dim);font-weight:600}
+.dp-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:9px 10px;margin:0 0 6px;border-radius:14px;border:1px solid var(--glass-border);background:rgba(255,255,255,.06);min-height:48px}
+.dp-row.work{border-left:3px solid rgba(139,233,255,.75)}
+.dp-row.work.p-high{border-left-color:#ffb86b}
+.dp-row.work.p-low{border-left-color:rgba(190,170,255,.7)}
+.dp-row.brk{background:transparent;border-style:dashed;min-height:34px;padding:5px 10px;color:var(--ink-faint);font-size:.8rem}
+.dp-row.fixed{background:transparent;color:var(--ink-dim);font-size:.86rem}
+.dp-time{flex:0 0 4.4em;font-size:.8rem;color:var(--ink-dim);font-variant-numeric:tabular-nums}
+.dp-title{flex:1 1 0;min-width:9em;overflow-wrap:anywhere;font-size:.93rem;line-height:1.3;color:var(--ink)}
+.dp-title small{color:var(--ink-faint);font-size:.76rem}
+.dp-ctl{display:flex;gap:6px;flex:1 0 100%;justify-content:flex-end}
+.dp-btn{min-width:34px;min-height:34px;padding:0 8px;border-radius:10px;border:1px solid var(--glass-border);background:rgba(255,255,255,.08);color:var(--ink);font-size:.95rem;line-height:1;-webkit-tap-highlight-color:transparent}
+.dp-btn:active{transform:scale(.94)}
+.dp-btn:disabled{opacity:.3}
+.dp-over{margin:10px 0 4px;padding:10px 12px;border-radius:14px;background:rgba(255,184,107,.12);border:1px solid rgba(255,184,107,.4);font-size:.84rem;color:var(--ink)}
+.dp-over-sub{margin-top:4px;color:var(--ink-dim);font-size:.78rem}
+.dp-add{display:flex;gap:8px;margin:12px 0 4px}
+.dp-add input{flex:1;min-width:0;min-height:42px;padding:0 14px;border-radius:999px;border:1px solid var(--glass-border);background:rgba(255,255,255,.07);color:var(--ink);font-size:16px;user-select:text;-webkit-user-select:text}
+.dp-add .dp-btn{padding:0 16px;border-radius:999px;min-height:42px}
+.dp-foot{display:flex;gap:10px;margin-top:14px}
+.dp-main{flex:1;min-height:48px;border-radius:999px;background:#f7e7a8;color:#2b2540;font-weight:650;border:none}
+.dp-main:disabled{opacity:.45}
+.dp-ghost{min-height:48px;padding:0 22px;border-radius:999px;border:1px solid var(--glass-border);background:transparent;color:var(--ink)}
+.dp-main:active,.dp-ghost:active{transform:scale(.97)}
+.dp-note{margin:10px 0 0;text-align:center;font-size:.74rem;color:var(--ink-faint)}
+:root[data-theme="light"] .dp-row{background:rgba(40,32,80,.04)}
+:root[data-theme="light"] .dp-btn,:root[data-theme="light"] .dp-add input{background:rgba(40,32,80,.05)}

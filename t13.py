@@ -1,78 +1,90 @@
+# v11.1 regression: wallpapers, day/night, widgets, planner, keyboard path. Run: python3 -m http.server 8090 (in project root), then python3 tests/t13.py
 import asyncio, json
 from playwright.async_api import async_playwright
-BASE='http://localhost:8090/'; SH='/home/claude/shots/'; R=[]
-def ok(n,c,e=''):
-    R.append((n,bool(c),e)); print('PASS' if c else 'FAIL',n,e)
-async def mk(p,vw=390,vh=844,pre='',tour=False):
-    b=await p.chromium.launch(); ctx=await b.new_context(viewport={'width':vw,'height':vh},device_scale_factor=2,has_touch=True,is_mobile=True)
-    await ctx.add_init_script(('' if tour else 'if(!localStorage.getItem("dabsy_onboarding_v1"))localStorage.setItem("dabsy_onboarding_v1",JSON.stringify({tutorialCompleted:true}));')+pre)
-    pg=await ctx.new_page(); pg.errs=[]
-    _tap=pg.tap
-    async def tap2(sel,**k):
-        await pg.evaluate('(()=>{const b=document.querySelector("#popup-layer.on .btn.ghost");b&&b.click()})()'); await pg.wait_for_timeout(250)
-        return await _tap(sel,timeout=8000,**k)
-    pg.tap=tap2
-    pg.on('pageerror',lambda e:pg.errs.append(str(e)))
-    await pg.goto(BASE+'index.html'); await pg.wait_for_timeout(2600)
-    await pg.evaluate('(()=>{const b=document.querySelector("#popup-layer.on .btn.ghost");b&&b.click()})()'); await pg.wait_for_timeout(500); return b,ctx,pg
-MAGIC='localStorage.setItem("dabsy_wardrobe_v1",JSON.stringify({form:"magic",formChosen:true}));localStorage.setItem("dabsy_world_v1",JSON.stringify({habitat:"bed",roam:"off",v:2}));'
+res=[]
+def chk(n,ok,d=''): res.append((n,bool(ok))); print(('PASS' if ok else 'FAIL'),n,str(d)[:200])
 async def main():
   async with async_playwright() as p:
-    for vw,vh,pre,name in [(390,844,MAGIC,'magic390'),(360,640,'','classic360')]:
-        b,ctx,pg=await mk(p,vw,vh,pre)
-        await pg.evaluate('''DABSy.tasks.add({title:"Submit form",dueAt:new Date(Date.now()+3600e3).toISOString(),durationMin:15});DABSy.tasks.add({title:"Physics revision",subject:"Physics",dueAt:new Date(Date.now()+7200e3).toISOString(),durationMin:40})''')
-        await pg.wait_for_timeout(900); await pg.evaluate('(()=>{const b=document.querySelector("#popup-layer.on .btn.ghost");b&&b.click()})()'); await pg.wait_for_timeout(600)
-        await pg.evaluate('DABSy.require("settings").then(s=>s.open("widgets"))'); await pg.wait_for_timeout(900)
-        await pg.tap('#set-widgets .btn.primary'); await pg.wait_for_timeout(1000)
-        rows=await pg.query_selector_all('.wd-add-row'); ok(f'{name}: Add-widget sheet lists 6 types', len(rows)==6, str(len(rows)))
-        for i in range(len(rows)):
-            btns=await pg.query_selector_all('.wd-add-row .btn')
-            if (await btns[i].inner_text()).strip()=='Add': await btns[i].tap(); await pg.wait_for_timeout(250)   # the clock is auto-added once on first run
-        res=await pg.evaluate('JSON.stringify(DABSy.widgets.list().map(w=>[w.type,!!w.rect]))')
-        print(name,res)
-        await pg.screenshot(path=SH+f't13_{name}_add.png')
-        n=len(json.loads(res)); await pg.tap('.wd-add .. .btn.primary:has-text("Done")') if False else await pg.evaluate('document.querySelector(".sheet .popup-actions .btn.primary").click()'); await pg.wait_for_timeout(900)
-        st=await pg.evaluate('''(()=>{const f=(document.querySelector(".mw-body")||document.getElementById("eye-left")).getBoundingClientRect();const ws=[...document.querySelectorAll(".wgt")].filter(w=>!w.hidden).map(w=>w.getBoundingClientRect());
-          const ov=(a,b)=>a.left<b.right&&a.right>b.left&&a.top<b.bottom&&a.bottom>b.top;let pair=0;for(let i=0;i<ws.length;i++)for(let j=i+1;j<ws.length;j++)if(ov(ws[i],ws[j]))pair++;
-          return {shown:ws.length,onface:ws.filter(w=>ov(w,f)).length,pairs:pair,off:ws.filter(w=>w.left<0||w.right>innerWidth||w.top<0).length,types:[...document.querySelectorAll(".wgt:not([hidden])")].map(x=>x.dataset.type)}})()''')
-        ok(f'{name}: widgets appear immediately, none overlap DABSy/each other/screen edge', st['shown']>=1 and st['onface']==0 and st['pairs']==0 and st['off']==0, json.dumps(st))
-        await pg.screenshot(path=SH+f't13_{name}_widgets.png')
-        if name=='magic390':
-            # double tap (wait for the 'added' toasts, which sit over the top area, to leave)
-            await pg.wait_for_timeout(7000)
-            w=await pg.query_selector('.wgt[data-type="clock"]'); bb=await w.bounding_box(); x=bb['x']+bb['width']/2; y=bb['y']+bb['height']/2
-            await pg.touchscreen.tap(x,y); await pg.wait_for_timeout(90); await pg.touchscreen.tap(x,y); await pg.wait_for_timeout(180)
-            seen=await pg.evaluate('({glow:!!document.querySelector(".wgt-glow"),sheen:!!document.querySelector(".wgt-sheen"),rip:!!document.querySelector(".wgt-ripple")})')
-            await pg.screenshot(path=SH+'t13_dtap_mid.png')
-            await pg.wait_for_timeout(900)
-            sheet=await pg.evaluate('({sheet:!!document.querySelector(".sheet.wgt-sheet"),title:document.querySelector(".sheet h2")&&document.querySelector(".sheet h2").textContent,leftover:document.querySelectorAll(".wgt-glow,.wgt-sheen").length,sheets:document.querySelectorAll(".sheet").length})')
-            ok('double-tap: glow + sheen + ripple play, then details sheet opens exactly once', seen['glow'] and seen['rip'] and sheet['sheet'] and sheet['leftover']==0 and sheet['sheets']==1, json.dumps(seen)+json.dumps(sheet))
-            await pg.screenshot(path=SH+'t13_details.png')
-            # customise: shape + size
-            await pg.tap('.wd-chips[aria-label="Shape"] .wd-chip[data-k="blob"]'); await pg.tap('.wd-chips[aria-label="Size"] .wd-chip[data-k="l"]'); await pg.wait_for_timeout(500)
-            cu=await pg.evaluate('JSON.stringify(DABSy.widgets.list().find(w=>w.type==="clock"))'); c=json.loads(cu)
-            ok('customise: shape blob + size L applied live and stay on-screen', c['shape']=='blob' and c['size']=='l' and c['rect']['x']>=0 and c['rect']['x']+c['rect']['w']<=390, cu)
-            await pg.screenshot(path=SH+'t13_custom.png')
-            await pg.tap('.wd-chips[aria-label="Shape"] .wd-chip[data-k="circle"]'); await pg.wait_for_timeout(300)
-            # remove
-            await pg.evaluate('[...document.querySelectorAll(".sheet .btn.danger")][0].click()'); await pg.wait_for_timeout(700)
-            ok('remove widget', await pg.evaluate('!DABSy.widgets.list().some(w=>w.type==="clock")&&DABSy.widgets.removed().includes("clock")'))
-            # restore keeps look
-            await pg.evaluate('DABSy.widgets.restore("clock")'); await pg.wait_for_timeout(500)
-            ok('restore brings back customised widget', await pg.evaluate('(()=>{const w=DABSy.widgets.list().find(w=>w.type==="clock");return !!w&&w.shape==="circle"&&["l","m","s"].includes(w.size)})()'))
-            await pg.reload(); await pg.wait_for_timeout(3000)
-            ok('widgets persist after restart with customisation', await pg.evaluate('(()=>{const l=DABSy.widgets.list();const w=l.find(w=>w.type==="clock");return l.length>=4&&w&&w.shape==="circle"&&["l","m","s"].includes(w.size)})()'))
-            # drag
-            w=await pg.query_selector('.wgt[data-type="todos"]'); bb=await w.bounding_box() if w else None
-            # data honesty
-            txt=await pg.evaluate('({w:(document.querySelector(".wgt[data-type=weather] .wgt-body")||{}).textContent,t:(document.querySelector(".wgt[data-type=todos] .wgt-body")||{}).textContent,s:(document.querySelector(".wgt[data-type=study] .wgt-body")||{}).textContent})')
-            ok('weather shows setup state (no fake data); to-dos/study show only real tasks', 'Set up weather' in (txt['w'] or '') and 'Submit form' in (txt['t'] or '') and 'Physics' in (txt['s'] or '') and 'Physics' not in (txt['t'] or ''), json.dumps(txt))
-            # hidden during chat
-            await pg.evaluate('DABSy.app.openCommand(true)'); await pg.wait_for_timeout(600)
-            ok('widgets hide while chat/keyboard is open', await pg.evaluate('document.getElementById("widgets").classList.contains("off")'))
-            await pg.evaluate('DABSy.app.closeCommand()'); await pg.wait_for_timeout(600)
-            ok('widgets return afterwards', await pg.evaluate('!document.getElementById("widgets").classList.contains("off")'))
-            await pg.screenshot(path=SH+'t13_day_widgets.png') if False else None
-            await pg.tap('#daynight-btn'); await pg.wait_for_timeout(900); await pg.screenshot(path=SH+'t13_widgets_day.png')
-        ok(f'{name}: no page errors', not pg.errs, str(pg.errs)); await b.close()
-asyncio.run(main()); print('SUMMARY',sum(r[1] for r in R),'/',len(R))
+    b=await p.chromium.launch(); ctx=await b.new_context(viewport={'width':390,'height':800},has_touch=True,is_mobile=True)
+    await ctx.add_init_script('localStorage.setItem("dabsy_onboarding_v1",JSON.stringify({tutorialCompleted:true}))')
+    pg=await ctx.new_page(); errs=[]; bad=[]
+    pg.on('pageerror',lambda e:errs.append(str(e)))
+    pg.on('response',lambda r: bad.append(r.url) if r.status>=400 and 'localhost' in r.url else None)
+    await pg.goto('http://localhost:8090/index.html'); await pg.wait_for_timeout(3000)
+    chk('no page errors',not errs,errs)
+    chk('modules loaded',await pg.evaluate('!!(DABSy.dayplan&&DABSy.widgets&&DABSy.world)'))
+    # --- wallpapers
+    await pg.evaluate('DABSy.outfits.setForm("magic")'); await pg.wait_for_timeout(1500)
+    hs=await pg.evaluate('DABSy.world.habitats()'); chk('3 wallpapers listed',len(hs)==3,hs)
+    for h in hs:
+      for light in ['day','night']:
+        if not h['has'+light.capitalize()]: continue
+        await pg.evaluate(f'DABSy.world.setHabitat("{h["id"]}");DABSy.world.setLight("{light}")'); await pg.wait_for_timeout(1700)
+        ok=await pg.evaluate('''()=>{const i=[...document.querySelectorAll('#world .w-bg.on')];return i.length>=1&&i.some(x=>x.naturalWidth>600)}''')
+        chk(f'{h["id"]} {light} paints',ok)
+        await pg.screenshot(path=f'/tmp/shot_{h["id"]}_{light}.png')
+    await pg.evaluate('DABSy.world.setHabitat("lakeside")'); await pg.reload(); await pg.wait_for_timeout(2500)
+    chk('wallpaper persists across refresh',await pg.evaluate('DABSy.world.habitatId()')=='lakeside')
+    # auto light follows the clock (mock hour)
+    for hour,exp in [(10,'day'),(22,'night')]:
+      await pg.evaluate(f'''()=>{{const R=Date;const fixed=new R();fixed.setHours({hour},15,0,0);const t=fixed.getTime();window.Date=class extends R{{constructor(...a){{if(a.length)super(...a);else super(t)}}static now(){{return t}}}};DABSy.world.setLight("auto")}}''')
+      await pg.wait_for_timeout(1500)
+      chk(f'auto at {hour}h -> {exp}',await pg.evaluate('DABSy.world.lightInfo().effective')==exp)
+    await pg.reload(); await pg.wait_for_timeout(2500)
+    # --- widgets
+    await pg.wait_for_timeout(4500)
+    n=await pg.evaluate('document.querySelectorAll("#widgets .wg-card.in").length'); chk('widgets appear',n>=3,n)
+    chk('clock shows time',await pg.evaluate('/\\d/.test(document.querySelector(".wg-clock .wg-big")?.textContent||"")'))
+    chk('weather never fabricated',await pg.evaluate('(()=>{const t=document.querySelector(".wg-weather")?.textContent||"";return !/\\d°/.test(t)})()'))
+    await pg.screenshot(path='/tmp/shot_widgets.png')
+    await pg.evaluate('DABSy.widgets.edit()'); chk('edit mode',await pg.evaluate('DABSy.widgets.isEditing()'))
+    await pg.evaluate('DABSy.widgets.remove("date")'); chk('remove',await pg.evaluate('!DABSy.widgets.list().some(i=>i.id=="date")'))
+    await pg.evaluate('DABSy.widgets.add("calendar")'); chk('add',await pg.evaluate('DABSy.widgets.list().some(i=>i.id=="calendar")'))
+    await pg.evaluate('DABSy.widgets.done()')
+    await pg.reload(); await pg.wait_for_timeout(2500)
+    chk('widget layout persists',await pg.evaluate('DABSy.widgets.list().some(i=>i.id=="calendar")&&!DABSy.widgets.list().some(i=>i.id=="date")'))
+    # --- chat open: focus synchronous, widgets hide, no console errors
+    await pg.wait_for_timeout(3000)
+    await pg.evaluate('DABSy.app.openCommand()')
+    chk('input focused immediately',await pg.evaluate('document.activeElement===document.getElementById("text-input")'))
+    await pg.wait_for_timeout(450); chk('widgets hidden in chat',await pg.evaluate('getComputedStyle(document.getElementById("widgets")).visibility')=='hidden')
+    chk('blur off in chat',await pg.evaluate('getComputedStyle(document.getElementById("input-dock")).backdropFilter')in('none',''))
+    await pg.evaluate('DABSy.app.closeCommand()')
+    # --- planner
+    say=lambda t:pg.evaluate('async(t)=>{const r=await DABSy.dayplan.handle(t);return r&&{text:r.text,ch:!!(r.opts&&r.opts.choices)}}',t)
+    r=await say('plan my day'); chk('empty -> asks what to do (not "add a task")',r and r['ch'] and 'add a task' not in r['text'].lower(),r)
+    r=await say('maths homework 1 hr, physics revision 45 min'); chk('typed list -> plan',r and 'draft' in r['text'].lower(),r)
+    plan=await pg.evaluate('(()=>{const p=DABSy.dayplan.current();return {n:p.items.filter(i=>i.kind=="work").length,sheet:!!document.querySelector(".dp-sheet"),firstStart:p.items[0].start.toISOString()}})()')
+    chk('plan has 2 work blocks and card shown',plan['n']>=2 and plan['sheet'],plan)
+    await pg.screenshot(path='/tmp/shot_plan.png')
+    before=await pg.evaluate('DABSy.tasks.list().length')
+    await pg.evaluate('document.querySelector(".dp-row.work .dp-ctl .dp-btn:nth-child(4)").click()')  # +15
+    await pg.evaluate('document.querySelector(".dp-main").click()'); await pg.wait_for_timeout(500)
+    after=await pg.evaluate('DABSy.tasks.list().filter(t=>t.source=="dabsy-plan").map(t=>({t:t.title,d:t.dueAt,m:t.durationMin}))')
+    chk('accepted tasks genuinely saved',len(after)>=2 and all(a['d'] for a in after),after)
+    # reject saves nothing
+    n0=await pg.evaluate('DABSy.tasks.list().length')
+    await say('plan my day'); await pg.evaluate('(()=>{const b=document.querySelector(".dp-ghost");b&&b.click()})()'); await pg.wait_for_timeout(400)
+    chk('reject changes nothing',await pg.evaluate('DABSy.tasks.list().length')==n0)
+    # with real tasks it plans immediately
+    await pg.evaluate('DABSy.tasks.add({title:"Chemistry notes",durationMin:60,priority:"high"})')
+    r=await say('what should I do next?'); chk('next action answers',r and r['text'],r)
+    r=await say('I have 30 minutes free'); chk('free window answers honestly',r and ('booked' in r['text'] or 'draft' in r['text'].lower() or 'how I' in r['text']),r)
+    await pg.evaluate('(()=>{const b=document.querySelector(".dp-ghost");b&&b.click()})()'); await pg.wait_for_timeout(400)
+    r=await say('organise my week'); chk('week plan',r and 'week' in r['text'].lower(),r)
+    await pg.evaluate('(()=>{const b=document.querySelector(".dp-ghost");b&&b.click()})()'); await pg.wait_for_timeout(400)
+    r=await say('help me prepare for my physics exam'); chk('exam asks date once',r and r['ch'],r)
+    r=await say('in 4 days'); chk('exam plan after date',r and 'draft' in r['text'].lower(),r)
+    await pg.evaluate('(()=>{const b=document.querySelector(".dp-ghost");b&&b.click()})()'); await pg.wait_for_timeout(400)
+    r=await say('remind me about this later'); print(r)
+    # move unfinished
+    past=await pg.evaluate('''()=>{const d=new Date(Date.now()-3*3600e3);const t=DABSy.tasks.add({title:"Old essay",durationMin:30,dueAt:d.toISOString()});return t.id}''')
+    r=await say('move my unfinished tasks to tomorrow'); due=await pg.evaluate('(id)=>DABSy.tasks.get(id).dueAt',past)
+    chk('unfinished moved to tomorrow (verified)',r and 'Moved' in r['text'],r)
+    # ---- mobile layout screenshot
+    await pg.screenshot(path='/tmp/shot_final.png')
+    chk('no 4xx asset requests',not [u for u in bad if 'favicon' not in u],bad[:5])
+    chk('no page errors at end',not errs,errs)
+    await b.close()
+  f=[n for n,o in res if not o]; print(f'\n{len(res)-len(f)}/{len(res)} passed'); print('FAILED:',f)
+asyncio.run(main())

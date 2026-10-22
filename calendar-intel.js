@@ -220,27 +220,31 @@
       return { text: `${cap(p.intent === "reminder" ? "reminder" : p.intent)} noted for ${p.dateLabel || p.date}${t ? " and saved to your DABSy tasks" : ""}. Ghibli Calendar isn't connected, so it isn't on the calendar — turn it on in Settings → Apps if you'd like that.`, state: "HAPPY" };
     }
     if(c.level === "read") return { text: `I understood "${p.title}" (${describe(p)}), but I only have permission to read your calendar. Switch Calendar to Suggest or Automatic in Settings and I'll add it.`, state: "CURIOUS" };
-    if(c.level === "suggest"){ pending = { p, awaiting: "confirm" }; return { text: `Add "${p.title}" to Ghibli Calendar as ${describe(p)}? (yes / no)`, state: "CURIOUS" }; }
+    if(c.level === "suggest"){ pending = { p, awaiting: "confirm" }; return { text: `Add "${p.title}" to Ghibli Calendar as ${describe(p)}?`, state: "CURIOUS", opts: { choices: { mode: "single", options: ["Yes, add it", "No"] } } }; }
     const conflicts = p.startTime ? Core.findConflicts(p.date, { startTime: p.startTime, endTime: p.endTime }) : [];
     const r = await save(p);
     if(D.bus) D.bus.emit("schedule:changed");
     return { text: r.text + (conflicts.length && r.ok && !r.duplicate ? ` Heads up: that overlaps "${conflicts[0].title}".` : ""), state: r.ok ? "HAPPY" : "CONFUSED" };
   }
 
-  // returns { text, state } when it handled the utterance, otherwise null (legacy flows continue)
+  // a clarification gets tap-choices only when the question really is a two-way choice; typing always works too
+  function askChoices(ask){
+    const m = /today or next (\w+)/i.exec(ask || "");
+    if(m) return { choices: { mode: "single", options: ["Today", "Next " + m[1]] } };
+    if(/already passed today/i.test(ask || "")) return { choices: { mode: "single", options: ["Yes, tomorrow", "No"] } };
+    return null;
+  }
+
+  // returns { text, state, opts? } when it handled the utterance, otherwise null (legacy flows continue)
   async function handle(text, now){
     let p = interpret(text, now);
     if(p && p.recurring) return null;
-    // v10.3: the AI refinement used to run for EVERY message that the rules did not recognise, so an ordinary chat message cost
-    // two sequential AI requests (this one, then the chat reply). It now only runs when the text carries a scheduling cue.
-    const CUE = /\b(\d{1,2}(:\d{2})?\s*(am|pm)|\d{1,2}:\d{2}|today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday|next week|this week|noon|midnight|morning|evening|o'?clock|exam|test|quiz|meeting|lecture|class|deadline|submission|submit|due|appointment|remind)\b/i;
-    if(!p && !CUE.test(String(text))) return null;
     if(!p || p.confidence === "low" || (!p.date && !p.ask)){
       const refined = await refineWithAI(text, p, now).catch(() => p);
       if(refined) p = refined;
     }
     if(!p || p.recurring || !p.title) return null;
-    if(p.ask || !p.date){ pending = { p, awaiting: "date" }; return { text: p.ask || "Which day should I put it on?", state: "CURIOUS" }; }
+    if(p.ask || !p.date){ pending = { p, awaiting: "date" }; return { text: p.ask || "Which day should I put it on?", state: "CURIOUS", opts: askChoices(p.ask) }; }
     return route(p);
   }
 
@@ -257,7 +261,7 @@
     let d = resolveDate(t, now);
     if(!d.date && /\b(yes|yeah|yep|sure|ok|okay)\b/i.test(t) && /tomorrow/i.test(p.ask || "")) d = resolveDate("tomorrow", now);
     if(!d.date && /\btoday\b/.test(t.toLowerCase())) d = resolveDate("today", now);
-    if(!d.date){ if(d.ask){ return { text: d.ask, state: "CURIOUS" }; } pending = null; return null; }   // not an answer: drop the question, handle normally
+    if(!d.date){ if(d.ask){ return { text: d.ask, state: "CURIOUS", opts: askChoices(d.ask) }; } pending = null; return null; }   // not an answer: drop the question, handle normally
     pending = null;
     const filled = Object.assign({}, p, { date: d.date, dateLabel: d.label, ask: null });
     return route(filled);

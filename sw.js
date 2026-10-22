@@ -8,7 +8,7 @@
    picked up on the next load while the app still opens offline.
    AI proxy calls and other origins are never cached.
    ============================================================ */
-const CACHE_VERSION = "dabsy-v11.0.0";
+const CACHE_VERSION = "dabsy-v11.1.0";
 const SCOPE = self.registration.scope;
 
 const SHELL_FILES = ["./",
@@ -36,6 +36,20 @@ const SHELL_FILES = ["./",
   "./world-engine.js",
   "./calendar-intel.js",
   "./butler.js",
+  "./dayplan-engine.js",
+  "./dayplan.css",
+  "./widget-engine.js",
+  "./widgets.css",
+  "./wallpaper-thumbs.js",
+  "./wp-window-nook-day.js",
+  "./wp-lakeside-night.js",
+  "./wp-lakeside-day.js",
+  "./wp-city-window-day.js",
+  "./assets/magic/window-nook-day.webp",
+  "./assets/magic/lakeside-night.webp",
+  "./assets/magic/lakeside-day.webp",
+  "./assets/magic/city-window-day.webp",
+  "./assets/magic/room-night.webp",
   "./magic.css",
   "./magic-assets.js",
   "./banana.css",

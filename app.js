@@ -106,10 +106,13 @@
   let focusTimer = null;
   function openCommand(focus){
     if(document.body.classList.contains("sheet-open") || document.body.classList.contains("eco-open")) return;
-    buildChips();
+    if(!chatArea.classList.contains("visible")) buildChips();        // no DOM rebuild when the dock is already open
     chatArea.classList.add("visible"); document.body.classList.add("cmd-open"); armDockTimer();
     clearTimeout(focusTimer);
-    if(focus !== false) focusTimer = setTimeout(() => { if(chatArea.classList.contains("visible")) textInput.focus({ preventScroll: true }); }, 340);   // after the double-tap window, so a double-tap never flashes the keyboard
+    // v11.1: focus INSIDE the tap's own task. Android only raises the keyboard promptly when focus() runs within the user gesture;
+    // the old 340 ms setTimeout made the keyboard start late and then compete with the dock / creature animations.
+    // (An eye tap emits face:tap at once and a second quick tap is a double-tap, which closes the dock again: see interaction-engine.js.)
+    if(focus !== false) textInput.focus({ preventScroll: true });
   }
   function closeCommand(){ clearTimeout(focusTimer); chatArea.classList.remove("visible"); document.body.classList.remove("cmd-open"); textInput.blur(); }   // a pending focus must not re-open the keyboard after a double-tap
   textInput.addEventListener("input", armDockTimer);
@@ -392,6 +395,7 @@
     const t = text.toLowerCase().trim();
     if(window.DABSy.easter && window.DABSy.easter.handleText(text)) return true;
     if(/^(what'?s|what is) next|what do i have|what'?s on|what next/.test(t)){ say(nextLine(), "IDLE"); return true; }
+    if(/\b(customi[sz]e|edit|rearrange|arrange|move|change)\b.*\bwidgets?\b/.test(t) && window.DABSy.widgets){ window.DABSy.widgets.edit(); say("Drag a widget to move it, tap ✕ to remove one, and add more from the bar. Tap Done when you're happy.", "HAPPY"); return true; }
     if(/\b(open|show|go to)\b.*\b(settings|preferences)\b/.test(t) || t === "settings"){ window.DABSy.require("settings").then(s => s.open()); return true; }
     if(/\b(open|show)\b.*\b(apps|bubbles|ecosystem|study space|calendar|solvecount)\b/.test(t) || t === "open apps"){ window.DABSy.ecosystem.open(); return true; }
     if(/\b(notifications?|inbox|alerts)\b/.test(t) && /\b(open|show|check|my)\b/.test(t)){ openCenter(); return true; }
@@ -473,6 +477,10 @@
       return;
     }
 
+    if(window.DABSy.dayplan){                           // v11.1: planning, next action, free-time plans, exam prep, move-unfinished, remind-later (+ answers to its own questions)
+      const dp = await window.DABSy.dayplan.handle(text).catch(e => { console.error(e); return null; });
+      if(dp){ memory.addSession("dabsy", dp.text); memory.addHistory({ type: "chat", user: text, reply: dp.text }); say(dp.text, dp.state, dp.opts); return; }
+    }
     if(await localCommand(text)) { director.dispatch("DABSY_REPLY", { speakText: null }); return; }
 
     if(window.DABSy.butler){                            // natural-language task operations (complete / edit / prioritise / move / delete-with-confirmation / today)

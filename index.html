@@ -7,9 +7,9 @@
 <meta name="theme-color" content="#0f1318" />
 <meta name="color-scheme" content="dark light" />
 <script>/* v8: apply the saved theme before first paint (no dark/light flash) */
-(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto")t=matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
+(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto"){var n=new Date(),hh=n.getHours()+n.getMinutes()/60;t=(hh>=6.5&&hh<18.5)?"light":"dark";}if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
 </script>
-<meta name="description" content="D.A.B.S.y — your plush AI study companion and hub for your study apps." />
+<meta name="description" content="D.A.B.S.y — your digital desk pet and personal student butler." />
 <link rel="manifest" href="./manifest.json" />
 <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
 <link rel="icon" href="./icon-192.png" />
@@ -28,6 +28,8 @@
   <link rel="stylesheet" href="./v11.css">
 <link rel="stylesheet" href="./soda.css" />
 <link rel="stylesheet" href="./magic.css" />
+<link rel="stylesheet" href="./widgets.css" />
+<link rel="stylesheet" href="./dayplan.css" />
 </head>
 <body>
 
@@ -118,6 +120,7 @@
   <script src="./ai-engine.js"></script>
   <script src="./calendar-intel.js"></script>
   <script src="./butler.js"></script>
+  <script src="./dayplan-engine.js"></script>
   <script src="./notify-engine.js"></script>
   <script src="./push-engine.js"></script>
 <script src="./briefing-engine.js"></script>
@@ -133,6 +136,7 @@
 <script src="./habitats-data.js"></script>
 <script src="./world-engine.js"></script>
 <script src="./viewport-engine.js"></script>
+<script src="./widget-engine.js"></script>
 <script src="./app.js"></script>
   <script src="./boot.js"></script>
 </body>

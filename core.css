@@ -137,7 +137,7 @@ body.cmd-open #creature-wrap{transform:translate(-50%,-50%) scale(.9) translateY
 
 /* ---- keyboard-aware layout (viewport-engine.js) ---- */
 :root{ --kb:0px; --vvh:100dvh; }
-#chat-area{ bottom:calc(5% + var(--sab) + var(--kb)); transition:opacity var(--dur-med) var(--ease-spring), bottom .18s var(--ease-soft); }
+#chat-area{ bottom:calc(5% + var(--sab) + var(--kb)); transition:opacity var(--dur-med) var(--ease-spring); contain:layout style; }   /* no transition on bottom: animating it re-lays-out every frame while the keyboard is also animating */
 body.kb-open #chat-area{ bottom:calc(8px + var(--kb)); }          /* sit directly on top of the keyboard (kb already includes safe area) */
 body.kb-open #creature-wrap{ transform:translate(-50%,-50%) scale(.7) translateY(-18vh); }
 body.kb-open #subtitle{ opacity:0; pointer-events:none; }

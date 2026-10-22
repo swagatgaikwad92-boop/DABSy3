@@ -20,3 +20,28 @@
 :root body.kb-open #subtitle{ opacity:1; pointer-events:auto; bottom:calc(var(--kb) + 78px); max-height:calc(var(--vvh) - 150px); }
 :root body.kb-open #subtitle:not(.visible){ opacity:0; pointer-events:none; }
 @media (prefers-reduced-motion:reduce){ :root #subtitle,:root #subtitle button{ transition:none; } }
+
+/* ===== v11.1 — chat / keyboard performance =====
+   While the chat dock is open the phone is already busy animating its keyboard. Everything that is expensive and not needed
+   to read or type is switched off for that time, and comes back when the dock closes:
+     - backdrop-filter blur (re-blurs the picture behind every frame that anything behind it moves)
+     - ambient loops (breathing, eye glow, lamp glow)
+   The glass surfaces get their solid "dock" background instead, so text stays readable. */
+body.cmd-open #input-dock,
+body.cmd-open #cmd-chips button,
+body.cmd-open #subtitle,
+body.cmd-open .glass,
+body.kb-open #input-dock,
+body.kb-open #subtitle,
+body.kb-open .glass{ -webkit-backdrop-filter:none!important; backdrop-filter:none!important; }
+body.cmd-open #input-dock,
+body.cmd-open #cmd-chips button,
+body.cmd-open #subtitle,
+body.kb-open #input-dock,
+body.kb-open #subtitle{ background:var(--surface-dock)!important; }
+body.cmd-open #face .cr-sway,
+body.cmd-open #face .eye-glow,
+body.cmd-open .w-light,
+body.cmd-open .mini-face i,
+body.cmd-open .wg-card{ animation-play-state:paused!important; }
+body.cmd-open #atmosphere{ transition:none; }

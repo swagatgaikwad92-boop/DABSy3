@@ -7,7 +7,7 @@
                  measured against the supplied full-character image (eyes drawn
                  at 0.60x, bow at 0.32x). See assets/magic/README.md.
      habitats    one entry per supplied room. Each has:
-                   variants  { night:{src,...}, day:null }   null = that artwork
+                   variants  { night:{src,...}|null, day:{src,...}|null }   null = that artwork
                              was NOT supplied. The engine never fakes one (no CSS
                              colour filter); the Day control stays honest.
                    focus     which part of the picture stays visible when a
@@ -39,7 +39,7 @@
     habitats: [
       {
         id: "window-nook",
-        name: "Moonlit window nook",
+        name: "Window nook",
         w: 704, h: 1520,
         variants: {
           night: {
@@ -51,9 +51,9 @@
               { x: .212, y: .705, r: .10, c: "255,190,110", a: .22, d: -4.1 },
             ],
           },
-          day: null,                    // no daytime artwork was supplied for this room
+          day: { src: A + "window-nook-day.webp" },        // supplied in v11.1 (the sunrise version of the same room)
         },
-        dayHours: [6.5, 18.5],          // what "Auto" treats as daytime (local clock), used only if a day variant exists
+        dayHours: [6.5, 18.5],          // what "Auto" treats as daytime (local clock)
         focus: { x: .5, y: .80 },
         baseBodyFrac: .30,              // DABSy's body is ~30 % of the picture's width at scale 1
         spots: [
@@ -62,6 +62,43 @@
           { id: "rug",      label: "the rug by the slippers", x: .170, y: .962, s: 1.04 },
           { id: "desk",     label: "the desk",             x: .585, y: .806, s: .72 },
           { id: "sill",     label: "the window sill",      x: .755, y: .742, s: .60 },
+        ],
+      },
+      {
+        id: "lakeside",
+        name: "Lakeside",
+        w: 704, h: 1520,
+        variants: {
+          night: { src: A + "lakeside-night.webp" },       // moonlit lake with fireflies
+          day:   { src: A + "lakeside-day.webp" },         // the same lake in daylight
+        },
+        dayHours: [6.5, 18.5],
+        focus: { x: .5, y: .80 },
+        baseBodyFrac: .30,
+        spots: [
+          { id: "path",    label: "the sunny path",        x: .620, y: .935, s: 1.00, home: true },
+          { id: "flowers", label: "the flower bed",        x: .200, y: .930, s: .98 },
+          { id: "shore",   label: "the water's edge",      x: .880, y: .900, s: .92 },
+          { id: "slab",    label: "the big flat rock",     x: .600, y: .722, s: .66 },
+          { id: "block",   label: "the top of the rock",   x: .490, y: .685, s: .56 },
+        ],
+      },
+      {
+        id: "city-window",
+        name: "City window",
+        w: 704, h: 1520,
+        variants: {
+          night: null,                                     // no night version of this picture was supplied
+          day:   { src: A + "city-window-day.webp" },
+        },
+        dayHours: [6.5, 18.5],
+        focus: { x: .5, y: .80 },
+        baseBodyFrac: .30,
+        spots: [
+          { id: "cushion", label: "the pink cushion",     x: .520, y: .875, s: 1.00, home: true },
+          { id: "rug",     label: "the fluffy rug",       x: .200, y: .975, s: 1.04 },
+          { id: "sill",    label: "the window desk",      x: .600, y: .765, s: .66 },
+          { id: "notes",   label: "the open notebook",    x: .300, y: .765, s: .62 },
         ],
       },
     ],

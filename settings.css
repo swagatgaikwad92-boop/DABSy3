@@ -27,3 +27,10 @@
 .tie-sw{width:38px;height:38px;border-radius:50%;background:var(--sw);border:2px solid var(--glass-border);position:relative;flex-shrink:0}
 .tie-sw.on{box-shadow:0 0 0 2px var(--bg),0 0 0 4px var(--accent)}
 .tie-sw:active{transform:scale(.92)}
+
+.wp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+.wp-tile{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 6px 8px;border-radius:18px;background:var(--glass);border:1px solid var(--glass-border);text-align:center}
+.wp-tile.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.wp-pics{display:flex;width:100%;aspect-ratio:3/3.2;border-radius:12px;overflow:hidden;margin-bottom:4px}
+.wp-pics img{flex:1 1 0;min-width:0;height:100%;object-fit:cover;object-position:50% 80%}
+.wp-pics img+img{border-left:1px solid rgba(255,255,255,.5)}

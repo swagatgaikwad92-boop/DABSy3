@@ -10,7 +10,7 @@
      rename     "rename maths homework to algebra worksheet"
      move       "move physics revision to tomorrow 6 pm"
      delete     "delete the chemistry reminder"   -> ASKS FIRST (Delete / Keep)
-     overview   "plan my day" / "how busy am I today"   (conflicts + overload warnings, nothing invented)
+     overview   "how busy am I today"   (conflicts + overload warnings, nothing invented). "plan my day" lives in dayplan-engine.js
 
    Reversible changes (complete, priority, rename, move) show an Undo button. Deleting always asks first.
    Targets are tasks (DABSy's own) and, when Ghibli Calendar is connected, its events.
@@ -173,7 +173,7 @@
     }
 
     let m;
-    if(/\b(plan (my|the) (day|evening|afternoon|morning)|how (busy|packed|full|loaded)|am i (free|overbooked|overloaded|busy)|daily overview|overview of (my|the) day)\b/i.test(t)) return overview();
+    if(/\b(how (busy|packed|full|loaded)|am i (free|overbooked|overloaded|busy)|daily overview|overview of (my|the) day)\b/i.test(t)) return overview();      // "plan my day" itself is handled by dayplan-engine.js
 
     if((m = t.match(/^(?:please\s+)?(?:mark|set)\s+(.+?)\s+(?:as\s+)?(?:done|complete[d]?|finished)\b/i)) ||
        (m = t.match(/^(?:i(?:'ve| have)?\s+)?(?:just\s+)?(?:finished|completed|done with)\s+(.+)/i)) ||

@@ -1,0 +1,134 @@
+/* App shell: scene, views, dock. */
+.app {
+  position: fixed; top: 0; bottom: 0; left: 0; right: 0;
+  margin: 0 auto; width: 100%; max-width: var(--app-max);
+  height: var(--vvh, auto);
+  overflow: hidden; isolation: isolate; background: var(--ink-900);
+}
+@media (min-width: 640px) {
+  body { background: radial-gradient(120% 80% at 50% 0%, #161a44 0%, #07060f 62%); }
+  .app { top: 14px; bottom: 14px; border-radius: 38px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(196, 214, 255, 0.12); }
+}
+
+/* ---- scene ---- */
+.scene, .scrim { position: absolute; inset: 0; pointer-events: none; }
+.scene { z-index: 0; background: var(--ink-850); }
+.scene__layer {
+  position: absolute; inset: 0; background-size: cover; background-position: 50% 40%;
+  opacity: 0; transition: opacity 900ms ease; will-change: opacity;
+}
+.scene__layer.is-on { opacity: 1; }
+.scrim {
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgba(7, 6, 20, 0.34) 0%, rgba(7, 6, 20, 0.10) 28%, rgba(7, 6, 20, 0.46) 62%, rgba(7, 6, 20, 0.82) 100%);
+}
+.scrim::after {
+  content: ''; position: absolute; inset: 0; background: rgba(6, 5, 18, 0.5);
+  opacity: 0; transition: opacity var(--t-slow) var(--ease);
+}
+.app[data-view='chat'] .scrim::after { opacity: 1; }
+.app[data-study='1'] .scrim::after { background: rgba(14, 10, 40, 0.5); }
+
+/* ---- views ---- */
+.view {
+  position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column;
+  padding-top: max(env(safe-area-inset-top), 8px);
+  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), visibility 0s linear var(--t-med);
+}
+.view--home { padding-left: 0; padding-right: 0; }
+.app[data-view='chat'] .view--home { opacity: 0; visibility: hidden; pointer-events: none; }
+.app[data-view='home'] .view--chat { opacity: 0; visibility: hidden; pointer-events: none; }
+.app[data-view='home'] .chat-card { transform: translateY(26px) scale(0.985); }
+.view--chat { padding: max(env(safe-area-inset-top), 8px) 12px calc(var(--dock-h) + 8px); }
+.app[data-view='chat'] .view--chat, .app[data-view='home'] .view--home { transition-delay: 0s; }
+.app[data-view='chat'] .view--chat { transition: opacity var(--t-med) var(--ease) 140ms, transform var(--t-med) var(--ease) 140ms, visibility 0s; }
+.app[data-view='home'] .view--home { transition: opacity var(--t-med) var(--ease) 120ms, visibility 0s; }
+
+/* ---- home ---- */
+.topbar { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 0 20px; height: 48px; }
+.wordmark { font-family: var(--font-display); font-size: 17px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--cyan-100); opacity: 0.9; }
+.stage { flex: none; height: var(--stage-h); position: relative; display: grid; place-items: center; padding-bottom: 28px; }
+.anchor { width: var(--home-w); aspect-ratio: 970 / 1028; pointer-events: none; }
+.anchor--chat { width: var(--chat-w); align-self: center; flex: none; margin-bottom: -4px; }
+.whisper {
+  position: absolute; left: 50%; bottom: 0; transform: translateX(-50%); max-width: calc(100% - 40px);
+  padding: 7px 16px; border-radius: 999px; font-size: var(--fs-sm); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.widgets {
+  flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+  padding: 8px 14px calc(var(--dock-h) + 20px); scroll-padding-bottom: 120px;
+}
+
+/* ---- dock / composer ---- */
+.dock {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 4;
+  padding: 8px 12px max(env(safe-area-inset-bottom), 12px);
+  pointer-events: none;
+}
+.composer {
+  pointer-events: auto; display: flex; align-items: flex-end; gap: 4px; padding: 5px 5px 5px 6px;
+  border-radius: 28px; min-height: 56px; transition: border-color var(--t-fast), box-shadow var(--t-fast);
+}
+.composer:focus-within { border-color: rgba(168, 233, 255, 0.45); box-shadow: inset 0 1px 0 var(--glass-hi), 0 0 0 3px rgba(168, 233, 255, 0.1), var(--shadow-glass); }
+.composer__input {
+  flex: 1; min-width: 0; resize: none; background: transparent; border: 0; outline: none; color: var(--text);
+  font-size: 16px; line-height: 22px; padding: 11px 6px; max-height: 132px; overflow-y: auto;
+}
+.composer__input::placeholder { color: var(--text-3); }
+.composer .icon-btn { height: 46px; width: 46px; }
+.send {
+  width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; flex: none;
+  background: var(--cyan-300); color: var(--accent-ink); transition: transform var(--t-fast), opacity var(--t-fast), background var(--t-fast);
+}
+.send:active { transform: scale(0.92); }
+.send[data-mode='stop'] { background: var(--lav-300); }
+.send[disabled] { opacity: 0.32; pointer-events: none; }
+
+/* ---- sheets ---- */
+.sheet-root { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+.sheet-backdrop { position: absolute; inset: 0; background: rgba(4, 3, 14, 0.55); opacity: 0; transition: opacity var(--t-med) var(--ease); pointer-events: auto; }
+.sheet {
+  position: absolute; left: 0; right: 0; bottom: 0; max-height: 90%; display: flex; flex-direction: column; pointer-events: auto;
+  border-radius: var(--r-xl) var(--r-xl) 0 0; transform: translateY(102%); transition: transform var(--t-slow) var(--ease-out);
+  padding-bottom: env(safe-area-inset-bottom); background: rgba(10, 11, 30, 0.985);
+}
+.sheet.is-open { transform: none; }
+.sheet-backdrop.is-open { opacity: 1; }
+.sheet__grab { flex: none; padding: 10px 0 2px; display: grid; place-items: center; touch-action: none; cursor: grab; }
+.sheet__grab::before { content: ''; width: 38px; height: 4px; border-radius: 4px; background: rgba(220, 230, 255, 0.3); }
+.sheet__head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 2px 8px 6px 22px; }
+.sheet__title { font-family: var(--font-display); font-size: 22px; font-weight: 500; }
+.sheet__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 18px 22px; -webkit-overflow-scrolling: touch; }
+
+.section { margin-top: 22px; }
+.section:first-child { margin-top: 6px; }
+.section > .eyebrow { margin-bottom: 10px; display: block; }
+.row { display: flex; align-items: center; gap: 12px; min-height: 48px; }
+.row--between { justify-content: space-between; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* ---- toast ---- */
+.toasts { position: absolute; left: 12px; right: 12px; bottom: calc(var(--dock-h) + 12px); z-index: 12; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.toast {
+  pointer-events: auto; display: flex; align-items: center; gap: 12px; padding: 10px 10px 10px 16px; border-radius: 999px;
+  max-width: 100%; font-size: var(--fs-sm); animation: toast-in var(--t-med) var(--ease-out);
+}
+.toast--bad { border-color: rgba(255, 155, 176, 0.4); }
+.toast button { color: var(--cyan-300); font-weight: 700; min-height: 32px; padding: 0 10px; border-radius: 999px; }
+@keyframes toast-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+
+.boot { position: absolute; inset: 0; z-index: 20; background: var(--ink-900); display: grid; place-items: center; transition: opacity 400ms ease; }
+.boot.is-done { opacity: 0; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .view, .sheet, .sheet-backdrop, .scene__layer { transition-duration: 1ms !important; transition-delay: 0s !important; }
+}
+.app[data-motion='reduced'] .view, .app[data-motion='reduced'] .sheet, .app[data-motion='reduced'] .sheet-backdrop,
+.app[data-motion='reduced'] .scene__layer { transition-duration: 1ms !important; transition-delay: 0s !important; }
+
+/* soften the hand-off between scrolling widgets and the dock */
+.widgets {
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - var(--dock-h) - 26px), transparent calc(100% - var(--dock-h) + 6px));
+  mask-image: linear-gradient(to bottom, transparent 0, #000 10px, #000 calc(100% - var(--dock-h) - 26px), transparent calc(100% - var(--dock-h) + 6px));
+}

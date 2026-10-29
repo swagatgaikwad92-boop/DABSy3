@@ -1,0 +1,20 @@
+{
+  "name": "dabsy-v3",
+  "version": "3.0.0",
+  "private": true,
+  "description": "DABSy V3 — an animated digital companion (chat, butler, study, widgets).",
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "dev": "node scripts/serve.mjs",
+    "build": "node scripts/build.mjs",
+    "lint": "eslint .",
+    "test": "node --test \"tests/unit/*.test.mjs\"",
+    "test:e2e": "node tests/e2e/run.mjs",
+    "check": "npm run lint && npm run test && npm run build && npm run test:e2e"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "eslint": "^9.0.0"
+  }
+}

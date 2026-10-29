@@ -1,0 +1,105 @@
+/* DABSy: layered character. Everything animates transform/opacity only. */
+.dabsy-layer { position: absolute; inset: 0; z-index: 3; pointer-events: none; }
+.dabsy {
+  position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: auto;
+  -webkit-user-select: none; user-select: none; touch-action: manipulation; cursor: pointer;
+  transition: opacity 500ms ease; contain: layout style;
+}
+.dabsy[data-ready='0'] { opacity: 0; }
+
+.dabsy__tilt, .dabsy__float, .dabsy__squash { position: relative; transform-origin: 50% 100%; }
+.dabsy__tilt { transition: transform 420ms var(--ease); }
+.dabsy__squash { aspect-ratio: 970 / 1028; }
+.dabsy__body { display: block; width: 100%; height: 100%; pointer-events: none; -webkit-user-drag: none; }
+
+.dabsy__eyes { position: absolute; inset: 0; transition: transform 320ms var(--ease); pointer-events: none; }
+.dabsy__eye {
+  position: absolute; pointer-events: none; -webkit-user-drag: none; transform-origin: 50% 55%;
+  transform: scale(var(--ex, 1), calc(var(--ey, 1) * var(--blink, 1)));
+  transition: transform 130ms ease-out;
+}
+.dabsy__eye--l { left: 24.54%; top: 32.88%; width: 20.62%; }
+.dabsy__eye--r { left: 55.98%; top: 32.88%; width: 20.5%; }
+.dabsy__bow { position: absolute; left: 38.66%; top: 65.37%; width: 24.23%; pointer-events: none; -webkit-user-drag: none; transform-origin: 50% 50%; }
+.dabsy[data-blink='1'] .dabsy__eye { --blink: 0.08; }
+
+.dabsy__shadow {
+  position: absolute; left: 14%; right: 14%; bottom: -5%; height: 9%; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.42), transparent); pointer-events: none;
+}
+
+.dabsy__spark, .dabsy__mark { position: absolute; opacity: 0; pointer-events: none; }
+.dabsy__spark { width: 7%; aspect-ratio: 1; border-radius: 50%; background: var(--cyan-100); box-shadow: 0 0 12px 2px rgba(168, 233, 255, 0.8); }
+.dabsy__spark--1 { left: 8%; top: 22%; }
+.dabsy__spark--2 { right: 6%; top: 14%; width: 5%; }
+.dabsy__spark--3 { left: 52%; top: -2%; width: 4%; }
+.dabsy__mark {
+  right: 4%; top: -6%; font-family: var(--font-display); font-weight: 600; font-size: 54px; line-height: 1;
+  color: var(--lav-200); text-shadow: 0 0 16px rgba(191, 185, 255, 0.7);
+}
+
+/* ---- idle: slow float + breathing ---- */
+.dabsy[data-state='idle'] .dabsy__float { animation: d-float 4.8s ease-in-out infinite; }
+.dabsy[data-state='idle'] .dabsy__squash:not(.is-pulse) { animation: d-breathe 4.8s ease-in-out infinite; }
+.dabsy[data-state='idle'] .dabsy__shadow { animation: d-shadow 4.8s ease-in-out infinite; }
+
+/* ---- listening: eyes open wider, small lean in ---- */
+.dabsy[data-state='listening'] { --ex: 1.06; --ey: 1.06; }
+.dabsy[data-state='listening'] .dabsy__tilt { transform: rotate(2.4deg); }
+.dabsy[data-state='listening'] .dabsy__float { animation: d-float 3.2s ease-in-out infinite; }
+
+/* ---- thinking: eyes drift side to side, gentle sway, bow wiggle ---- */
+.dabsy[data-state='thinking'] { --ey: 0.94; }
+.dabsy[data-state='thinking'] .dabsy__eyes { animation: d-look 2.6s ease-in-out infinite; }
+.dabsy[data-state='thinking'] .dabsy__float { animation: d-sway 1.9s ease-in-out infinite; }
+.dabsy[data-state='thinking'] .dabsy__bow { animation: d-wiggle 1.3s ease-in-out infinite; }
+
+/* ---- answering: attentive, soft nods on new text ---- */
+.dabsy[data-state='answering'] { --ex: 1.03; --ey: 1.03; }
+.dabsy[data-state='answering'] .dabsy__float { animation: d-float 3.6s ease-in-out infinite; }
+.dabsy__squash.is-pulse { animation: d-nod 520ms var(--ease-out); }
+
+/* ---- happy: hop + squint + sparkles ---- */
+.dabsy[data-state='happy'] { --ey: 0.7; }
+.dabsy[data-state='happy'] .dabsy__eyes { transform: translateY(2.5%); }
+.dabsy[data-state='happy'] .dabsy__squash { animation: d-hop 900ms var(--ease-out); }
+.dabsy[data-state='happy'] .dabsy__spark--1 { animation: d-spark 1100ms ease-out; }
+.dabsy[data-state='happy'] .dabsy__spark--2 { animation: d-spark 1100ms ease-out 120ms; }
+.dabsy[data-state='happy'] .dabsy__spark--3 { animation: d-spark 1100ms ease-out 240ms; }
+
+/* ---- confused: head tilt, mismatched eyes, question mark ---- */
+.dabsy[data-state='confused'] .dabsy__tilt { transform: rotate(-8deg); }
+.dabsy[data-state='confused'] .dabsy__eyes { transform: translateX(-3%); }
+.dabsy[data-state='confused'] .dabsy__eye--l { --ex: 1.08; --ey: 1.08; }
+.dabsy[data-state='confused'] .dabsy__eye--r { --ex: 0.88; --ey: 0.88; }
+.dabsy[data-state='confused'] .dabsy__mark { animation: d-mark 1600ms var(--ease-out) forwards; }
+
+/* ---- flying / returning: focused eyes, fluttering bow ---- */
+.dabsy[data-state='flying'], .dabsy[data-state='returning'] { --ex: 1.04; --ey: 1.04; }
+.dabsy[data-state='flying'] .dabsy__eyes, .dabsy[data-state='returning'] .dabsy__eyes { transform: translateY(-3%); }
+.dabsy[data-state='flying'] .dabsy__bow, .dabsy[data-state='returning'] .dabsy__bow { animation: d-flutter 200ms linear infinite alternate; }
+.dabsy[data-state='flying'] .dabsy__shadow, .dabsy[data-state='returning'] .dabsy__shadow { opacity: 0.3; }
+
+@keyframes d-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3.2%); } }
+@keyframes d-breathe { 0%, 100% { transform: scale(1, 1); } 50% { transform: scale(1.012, 0.986); } }
+@keyframes d-shadow { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(0.9); opacity: 0.8; } }
+@keyframes d-sway { 0%, 100% { transform: rotate(-2.4deg); } 50% { transform: rotate(2.4deg); } }
+@keyframes d-look { 0%, 100% { transform: translate(-4.5%, -5%); } 50% { transform: translate(4.5%, -5%); } }
+@keyframes d-wiggle { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+@keyframes d-nod { 0% { transform: scale(1.035, 0.965); } 100% { transform: scale(1, 1); } }
+@keyframes d-hop {
+  0% { transform: scale(1.08, 0.9); }
+  25% { transform: translateY(-14%) scale(0.95, 1.07); }
+  52% { transform: translateY(0) scale(1.07, 0.93); }
+  72% { transform: translateY(-5%) scale(0.98, 1.03); }
+  100% { transform: none; }
+}
+@keyframes d-spark { 0% { opacity: 0; transform: translateY(8px) scale(0.4); } 30% { opacity: 1; } 100% { opacity: 0; transform: translateY(-26px) scale(1); } }
+@keyframes d-mark { 0% { opacity: 0; transform: translateY(8px) scale(0.5) rotate(-12deg); } 25% { opacity: 1; transform: none; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes d-flutter { from { transform: rotate(-5deg); } to { transform: rotate(5deg); } }
+
+/* ---- reduced motion: keep expression, drop looping movement ---- */
+@media (prefers-reduced-motion: reduce) {
+  .dabsy *, .dabsy { animation: none !important; }
+}
+.app[data-motion='reduced'] .dabsy *, .app[data-motion='reduced'] .dabsy { animation: none !important; }

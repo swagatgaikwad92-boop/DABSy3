@@ -1,144 +1,22 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>D.A.B.S.y</title>
-<meta name="theme-color" content="#0f1318" />
-<meta name="color-scheme" content="dark light" />
-<script>/* v8: apply the saved theme before first paint (no dark/light flash) */
-(function(){try{var s=JSON.parse(localStorage.getItem("dabsy_settings")||"{}"),t=s.theme;if(t==="auto"){var n=new Date(),hh=n.getHours()+n.getMinutes()/60;t=(hh>=6.5&&hh<18.5)?"light":"dark";}if(t!=="light")t="dark";document.documentElement.setAttribute("data-theme",t);if(t==="light"){var m=document.querySelector('meta[name="theme-color"]');m&&m.setAttribute("content","#fbf6e6");}}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();
-</script>
-<meta name="description" content="D.A.B.S.y — your digital desk pet and personal student butler." />
-<link rel="manifest" href="./manifest.json" />
-<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-<link rel="icon" href="./icon-192.png" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-
-<link rel="stylesheet" href="./core.css" />
-<link rel="stylesheet" href="./creature.css" />
-<link rel="stylesheet" href="./animations.css" />
-<link rel="stylesheet" href="./ui.css" />
-<link rel="stylesheet" href="./ecosystem.css" />
-<link rel="stylesheet" href="./projection.css" />
-<link rel="stylesheet" href="./theme.css" />
-<link rel="stylesheet" href="./banana.css" />
-  <link rel="stylesheet" href="./v11.css">
-<link rel="stylesheet" href="./soda.css" />
-<link rel="stylesheet" href="./magic.css" />
-<link rel="stylesheet" href="./widgets.css" />
-<link rel="stylesheet" href="./dayplan.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="theme-color" content="#07060f">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="DABSy — a small, fluffy digital companion: chat, butler, study buddy.">
+<title>DABSy</title>
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="preload" as="image" href="./assets/char/body.webp" type="image/webp">
+<link rel="stylesheet" href="%CSS%">
+<meta name="dabsy-build" content="%VERSION%">
 </head>
 <body>
-
-
-  <div id="boot-veil"></div>
-
-  <main id="stage" aria-label="D.A.B.S.y, your study companion">
-    <div id="atmosphere"></div>
-
-    <!-- top bar: notifications -->
-    <button id="bell-btn" class="icon-btn glass" type="button" aria-label="Notifications">
-      <span id="bell-icon"></span><i id="bell-dot" hidden></i>
-    </button>
-
-    <!-- the creature -->
-    <div id="creature-wrap">
-      <div id="face" class="exp-neutral" role="button" tabindex="0"
-           aria-label="D.A.B.S.y. Tap an eye to chat, tap the bow tie for today at a glance, double-tap for apps, press and hold for tasks. If she is exploring the room, a tap calls her home. Enter to chat, arrow down for apps, arrow up for tasks.">
-        <div class="cr-shadow"></div>
-        <div class="cr-react"><div class="cr-sway"><div class="cr-tilt">
-          <div class="eye" id="eye-left">
-            <div class="eye-glow"></div>
-            <div class="eye-shape"><div class="eye-core"></div><div class="eye-highlight"></div><div class="eye-spec"></div><div class="eye-lid"></div></div>
-          </div>
-          <div class="eye" id="eye-right">
-            <div class="eye-glow"></div>
-            <div class="eye-shape"><div class="eye-core"></div><div class="eye-highlight"></div><div class="eye-spec"></div><div class="eye-lid"></div></div>
-          </div>
-          <svg class="cr-wear" viewBox="0 0 300 330" aria-hidden="true" focusable="false">
-            <g id="slot-neck"></g>
-            <g id="slot-eyes"></g>
-            <g id="slot-ears"></g>
-            <g id="slot-head"></g>
-          </svg>
-        </div></div></div>
-      </div>
-    </div>
-
-    <!-- visible alternatives to the gestures (Settings → Accessibility turns these on) -->
-    <div id="shortcuts" aria-label="DABSy shortcuts">
-      <button id="sc-apps" class="btn glass" type="button" aria-label="Open my apps (same as double-tap)"></button>
-      <button id="sc-brief" class="btn glass" type="button" aria-label="Today at a glance (same as tapping the bow tie)"></button>
-      <button id="sc-home" class="btn glass" type="button" aria-label="Call D.A.B.S.y home (same as tapping her while she is exploring)" hidden></button>
-      <button id="sc-talk" class="btn glass" type="button" aria-label="Talk or type to me (same as tapping an eye)"></button>
-    </div>
-
-    <div id="subtitle" aria-live="polite"></div>
-
-    <!-- command mode: type or speak -->
-    <div id="chat-area">
-      <div id="cmd-chips" aria-label="Quick commands"></div>
-      <div id="input-dock">
-        <button id="mic-btn" type="button" aria-label="Talk to D.A.B.S.y">
-          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M12 15a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-2.08A7 7 0 0 0 19 12h-2Z"/></svg>
-        </button>
-        <input id="text-input" type="text" placeholder="Tell me what you want to do…" autocomplete="off" enterkeyhint="send" aria-label="Message to D.A.B.S.y" />
-        <div id="study-blob-docked" aria-label="Study Block is on. Drag out or tap to end it.">📖</div>
-      </div>
-      <div id="study-blob" role="button" tabindex="0" aria-label="Study Block. Drag into the chat or tap to start it.">📖</div>
-    </div>
-  </main>
-
-  <!-- explanation surface (Study Block answers) -->
-  <section id="projection" aria-hidden="true">
-    <div id="projection-surface">
-      <div id="projection-content"></div>
-      <div id="projection-pointer">▲</div>
-      <button id="projection-close" type="button">Done</button>
-    </div>
-  </section>
-
-  <script src="./dabsy-config.js"></script>
-  <script src="./dabsy-core.js"></script>
-  <script src="./emotion-engine.js"></script>
-  <script src="./memory-engine.js"></script>
-  <script src="./ui-kit.js"></script>
-  <script src="./theme-engine.js"></script>
-  <script src="./permissions-engine.js"></script>
-  <script src="./task-engine.js"></script>
-  <script src="./schedule-engine.js"></script>
-  <script src="./context-engine.js"></script>
-  <script src="./director-engine.js"></script>
-  <script src="./outfits-data.js"></script>
-  <script src="./outfit-engine.js"></script>
-  <script src="./face-engine.js"></script>
-  <script src="./interaction-engine.js"></script>
-  <script src="./voice-engine.js"></script>
-  <script src="./ai-engine.js"></script>
-  <script src="./calendar-intel.js"></script>
-  <script src="./butler.js"></script>
-  <script src="./butler-memory.js"></script>
-  <script src="./dayplan-engine.js"></script>
-  <script src="./notify-engine.js"></script>
-  <script src="./push-engine.js"></script>
-<script src="./briefing-engine.js"></script>
-<script src="./live-talk.js"></script>
-<script src="./pet-engine.js"></script>
-  <script src="./projection-engine.js"></script>
-  <script src="./study-blob-engine.js"></script>
-  <script src="./study-engine.js"></script>
-  <script src="./ecosystem-engine.js"></script>
-  <script src="./reactions.js"></script>
-  <script src="./pwa-engine.js"></script>
-  <script src="./stickers.js"></script>
-<script src="./habitats-data.js"></script>
-<script src="./world-engine.js"></script>
-<script src="./viewport-engine.js"></script>
-<script src="./widget-engine.js"></script>
-<script src="./app.js"></script>
-  <script src="./boot.js"></script>
+<div id="app" class="app" data-view="home" data-boot="1"></div>
+<noscript><p style="color:#cde;font:16px system-ui;padding:24px">DABSy needs JavaScript to run.</p></noscript>
+<script type="module" src="%JS%"></script>
 </body>
 </html>

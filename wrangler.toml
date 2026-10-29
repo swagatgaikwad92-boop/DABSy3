@@ -1,28 +1,11 @@
-name = "dabsy-ai"
-main = "worker.js"
+name = "dabsy-api"
+main = "index.js"
 compatibility_date = "2025-01-01"
 
 [vars]
-# Your GitHub Pages origin(s), comma separated. No wildcard.
-ALLOWED_ORIGINS = "https://YOUR-USERNAME.github.io"
-# AI_MODEL = "claude-haiku-4-5"
+# Comma-separated list of exact origins allowed to call this API, e.g. your GitHub Pages site.
+ALLOWED_ORIGINS = "https://YOUR-USER.github.io"
+MODEL = "claude-sonnet-5-5"
+MAX_TOKENS = "2048"
 
-# Optional: a KV namespace makes the per-IP daily limit survive restarts.
-# [[kv_namespaces]]
-# binding = "RATE"
-# id = "<your-kv-id>"
-
-# Secrets are NOT stored here. Set them with:
-#   npx wrangler secret put ANTHROPIC_API_KEY      (or GEMINI_API_KEY)
-#   npx wrangler secret put BRAVE_API_KEY          (enables real web research)
-
-# ---- Web Push (reliable reminders when the app is closed) ----
-# 1. npx wrangler kv namespace create PUSH      -> paste the id below
-# 2. node gen-vapid.mjs                          -> paste the public key below, put the private JWK in a secret
-# 3. npx wrangler secret put VAPID_PRIVATE_JWK
-# [[kv_namespaces]]
-# binding = "PUSH"
-# id = "<your-push-kv-id>"
-# [triggers]
-# crons = ["* * * * *"]
-# VAPID_PUBLIC_KEY and VAPID_SUBJECT go in [vars] above, e.g. VAPID_SUBJECT = "mailto:you@example.com"
+# Secret (never commit): npx wrangler secret put ANTHROPIC_API_KEY

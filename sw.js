@@ -1,196 +1,39 @@
-/* ============================================================
-   D.A.B.S.y — sw.js
-   Offline shell + notification relay. All paths are relative to this
-   file's scope, so it works at a domain root or under a GitHub Pages
-   project path (username.github.io/repo/).
+/* global __PRECACHE__, __DEV__ */
+// Service worker: offline app shell. Generated values are injected by scripts/build.mjs.
+// Never caches cross-origin requests (AI backend, weather) — those must always be live.
+const VERSION = '__VERSION__';
+const PRECACHE = __PRECACHE__;
+const DEV = __DEV__;
+const CACHE = 'dabsy-' + VERSION;
 
-   Strategy: network-first (3 s) with cache fallback, so a deploy is
-   picked up on the next load while the app still opens offline.
-   AI proxy calls and other origins are never cached.
-   ============================================================ */
-const CACHE_VERSION = "dabsy-v11.2.0";
-const SCOPE = self.registration.scope;
-
-const SHELL_FILES = ["./",
-  "./agent-engine.js",
-  "./ai-engine.js",
-  "./animations.css",
-  "./app.js",
-  "./apple-touch-icon.png",
-  "./boot.js",
-  "./cards.css",
-  "./center.css",
-  "./context-engine.js",
-  "./core.css",
-  "./creature.css",
-  "./dabsy-config.js",
-  "./dabsy-core.js",
-  "./director-engine.js",
-  "./easter-engine.js",
-  "./ecosystem-engine.js",
-  "./ecosystem.css",
-  "./emotion-engine.js",
-  "./entertainment-engine.js",
-  "./face-engine.js",
-  "./habitats-data.js",
-  "./world-engine.js",
-  "./calendar-intel.js",
-  "./butler.js",
-  "./dayplan-engine.js",
-  "./butler-memory.js",
-  "./dayplan.css",
-  "./widget-engine.js",
-  "./widgets.css",
-  "./wallpaper-thumbs.js",
-  "./wp-window-nook-day.js",
-  "./wp-lakeside-night.js",
-  "./wp-lakeside-day.js",
-  "./wp-city-window-day.js",
-  "./assets/magic/window-nook-day.webp",
-  "./assets/magic/lakeside-night.webp",
-  "./assets/magic/lakeside-day.webp",
-  "./assets/magic/city-window-day.webp",
-  "./assets/magic/room-night.webp",
-  "./magic.css",
-  "./magic-assets.js",
-  "./banana.css",
-  "./v11.css",
-  "./floating-engine.js",
-  "./icon-192.png",
-  "./icon-512.png",
-  "./icon-maskable-512.png",
-  "./index.html",
-  "./interaction-engine.js",
-  "./learning-engine.js",
-  "./manifest.json",
-  "./memory-engine.js",
-  "./notification-center.js",
-  "./notify-engine.js",
-  "./onboarding-engine.js",
-  "./outfit-engine.js",
-  "./outfits-data.js",
-  "./permissions-engine.js",
-  "./pet-engine.js",
-  "./planner-engine.js",
-  "./projection-engine.js",
-  "./projection.css",
-  "./pwa-engine.js",
-  "./reactions.js",
-  "./research-service.js",
-  "./resource-cards.js",
-  "./schedule-engine.js",
-  "./session.css",
-  "./settings-engine.js",
-  "./settings.css",
-  "./study-blob-engine.js",
-  "./study-engine.js",
-  "./study-session.js",
-  "./study-space-bridge.js",
-  "./task-engine.js",
-  "./theme-engine.js",
-  "./theme.css",
-  "./viewport-engine.js",
-  "./soda.css",
-  "./stickers.js",
-  "./push-engine.js",
-  "./briefing-engine.js",
-  "./live-talk.js",
-  "./tour.css",
-  "./ui-kit.js",
-  "./ui.css",
-  "./vision-engine.js",
-  "./voice-engine.js"
-];
-
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_VERSION).then((cache) =>
-      // one missing optional file must not break the install
-      Promise.all(SHELL_FILES.map((f) => cache.add(new URL(f, SCOPE).toString()).catch(() => null)))
-    )
-  );
-  self.skipWaiting();
+self.addEventListener('install', (event) => {
+  if (DEV) { self.skipWaiting(); return; }
+  event.waitUntil(caches.open(CACHE).then((c) => c.addAll(PRECACHE)).then(() => self.skipWaiting()));
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE_VERSION && k !== "dabsy-meta").map((k) => caches.delete(k))))
-  );
-  self.clients.claim();
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    for (const k of await caches.keys()) if (k !== CACHE) await caches.delete(k);
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener("fetch", (event) => {
+self.addEventListener('fetch', (event) => {
   const req = event.request;
-  if (req.method !== "GET") return;
+  if (DEV || req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;          // never touch the AI proxy or other apps
-  event.respondWith(
-    new Promise((resolve) => {
-      let settled = false;
-      const fromCache = () => caches.match(req, { ignoreSearch: true }).then((c) => c || caches.match(new URL("./index.html", SCOPE).toString()));
-      const timer = setTimeout(() => { if (!settled) fromCache().then((c) => { if (c && !settled) { settled = true; resolve(c); } }); }, 3000);
+  if (url.origin !== self.location.origin) return;
+  if (req.mode === 'navigate' || url.pathname.endsWith('/config.json')) {
+    event.respondWith(
       fetch(req).then((res) => {
-        clearTimeout(timer);
-        if (res && res.status === 200 && res.type === "basic") {
-          const copy = res.clone();
-          caches.open(CACHE_VERSION).then((c) => c.put(req, copy));
-        }
-        if (!settled) { settled = true; resolve(res); }
-      }).catch(() => {
-        clearTimeout(timer);
-        fromCache().then((c) => { if (!settled) { settled = true; resolve(c || Response.error()); } });
-      });
-    })
-  );
-});
-
-/* ---- notification buttons -> page ---- */
-self.addEventListener("notificationclick", (event) => {
-  const n = event.notification;
-  const data = n.data || {};
-  n.close();
-  event.waitUntil((async () => {
-    const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    const msg = { type: "dabsy-notif-action", id: data.id, action: event.action || "" };
-    if (all.length) {
-      const c = all.find((x) => "focus" in x) || all[0];
-      try { await c.focus(); } catch (e) {}
-      c.postMessage(msg);
-    } else {
-      const u = new URL("./index.html", SCOPE);
-      if (data.id) u.searchParams.set("notif", data.id);
-      u.searchParams.set("action", event.action || "open");
-      await self.clients.openWindow(u.toString());
-    }
-  })());
-});
-self.addEventListener("notificationclose", (event) => {
-  const data = event.notification.data || {};
-  event.waitUntil((async () => {
-    const all = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-    all.forEach((c) => c.postMessage({ type: "dabsy-notif-close", id: data.id }));
-  })());
-});
-
-/* ---- Web Push: the server sends an empty push; we fetch the text and show it ---- */
-self.addEventListener("push", (event) => {
-  event.waitUntil((async () => {
-    let shown = 0;
-    try {
-      const meta = await caches.open("dabsy-meta");
-      const hit = await meta.match("push-url");
-      const base = hit ? (await hit.text()) : "";
-      const sub = await self.registration.pushManager.getSubscription();
-      if (base && sub) {
-        const r = await fetch(base.replace(/\/$/, "") + "/v1/push/pending", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ subscription: { endpoint: sub.endpoint } }) });
-        const d = await r.json();
-        for (const n of (d.items || [])) {
-          await self.registration.showNotification(n.title || "D.A.B.S.y", { body: n.body || "", tag: "push-" + n.id, icon: "./icon-192.png", badge: "./icon-192.png", data: { id: "" } });
-          shown++;
-        }
-      }
-    } catch (e) {}
-    // browsers require a visible notification for every push
-    if (!shown) await self.registration.showNotification("D.A.B.S.y", { body: "Something is coming up.", tag: "push-generic", icon: "./icon-192.png", data: { id: "" } });
-  })());
+        if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+        return res;
+      }).catch(() => caches.match(req).then((r) => r || caches.match('./index.html') || caches.match('./')))
+    );
+    return;
+  }
+  event.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
+    return res;
+  })));
 });

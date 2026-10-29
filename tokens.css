@@ -1,0 +1,95 @@
+/* Design tokens — the single source of truth for colour, type, geometry and motion. */
+:root {
+  /* midnight / black-purple base */
+  --ink-950: #05040c;
+  --ink-900: #07060f;
+  --ink-850: #0a0916;
+  --ink-800: #0e0d20;
+  --navy-700: #151a3d;
+  --navy-600: #1c2352;
+  --navy-500: #2a3470;
+
+  /* cyan-white light (eyes) and restrained lavender (bow) */
+  --cyan-100: #eaf9ff;
+  --cyan-300: #a8e9ff;
+  --cyan-400: #7fdcf7;
+  --lav-200: #d9d6ff;
+  --lav-300: #bfb9ff;
+  --lav-400: #a29cf2;
+  --lav-500: #837ce0;
+
+  /* semantic */
+  --text: #eef3ff;
+  --text-2: rgba(228, 236, 255, 0.78);
+  --text-3: rgba(212, 223, 252, 0.62);
+  --accent: var(--cyan-300);
+  --accent-ink: #06101c;
+  --accent-soft: rgba(168, 233, 255, 0.14);
+  --lav: var(--lav-300);
+  --lav-soft: rgba(191, 185, 255, 0.16);
+  --danger: #ff9bb0;
+  --danger-soft: rgba(255, 155, 176, 0.14);
+  --ok: #9af0cf;
+  --ok-soft: rgba(154, 240, 207, 0.14);
+  --warn: #ffd89a;
+
+  /* priority */
+  --p-high: #ff9bb0;
+  --p-normal: var(--cyan-300);
+  --p-low: var(--lav-300);
+
+  /* glass */
+  --glass: rgba(11, 12, 33, 0.58);
+  --glass-strong: rgba(9, 10, 28, 0.74);
+  --glass-solid: rgba(13, 14, 36, 0.92);
+  --glass-line: rgba(196, 214, 255, 0.16);
+  --glass-hi: rgba(255, 255, 255, 0.09);
+  --glass-hover: rgba(255, 255, 255, 0.07);
+  --blur: 18px;
+  --shadow-glass: 0 14px 40px -14px rgba(2, 2, 16, 0.6);
+
+  /* type */
+  --font-ui: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', 'Noto Sans', sans-serif;
+  --font-display: ui-serif, 'Iowan Old Style', 'Palatino Linotype', 'Noto Serif', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Roboto Mono', Menlo, Consolas, monospace;
+  --fs-xs: 12px;
+  --fs-sm: 13.5px;
+  --fs-md: 15.5px;
+  --fs-lg: 18px;
+  --fs-xl: 24px;
+  --fs-2xl: 38px;
+
+  /* geometry */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r-md: 18px;
+  --r-lg: 24px;
+  --r-xl: 30px;
+  --gap: 12px;
+  --tap: 44px;
+
+  /* motion */
+  --ease: cubic-bezier(0.3, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --t-fast: 140ms;
+  --t-med: 260ms;
+  --t-slow: 520ms;
+
+  /* layout (set by JS where noted) */
+  --app-max: 520px;
+  --dock-h: 78px; /* measured by JS */
+  --stage-h: clamp(208px, 32dvh, 300px);
+  --home-w: min(184px, calc(var(--stage-h) - 72px));
+  --chat-w: 76px;
+}
+
+/* lite mode: weak GPUs / data-saver — drop backdrop blur, keep the look */
+:root[data-perf='lite'] {
+  --blur: 0px;
+  --glass: rgba(13, 14, 38, 0.86);
+  --glass-strong: rgba(11, 12, 32, 0.93);
+}
+
+@media (min-height: 900px) {
+  :root { --stage-h: clamp(240px, 33dvh, 330px); }
+}
